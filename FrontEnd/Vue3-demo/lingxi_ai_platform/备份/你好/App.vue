@@ -1,18 +1,14 @@
 <template>
     <!-- html -->
     <div class="app">
-        <h1> 这是根页面 </h1>
-        <Person></Person>
+        <h1> 你好 </h1>
     </div>
 </template>
 
 <script lang="ts">
-    import Person from './components/Person.vue';
+    // JS or TS
     export default {
-        name:'App',     // 根组件名
-        components:{    // 注册叶组件
-            Person
-        }
+        name:'App'// 组件名
     }
 </script>
 
