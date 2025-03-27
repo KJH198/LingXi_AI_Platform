@@ -6,7 +6,7 @@
 
 **VUE-Official**
 
-### 环境配置
+### 环境配置(文件夹内运行一次即可)
 
 ```sh
 npm install
