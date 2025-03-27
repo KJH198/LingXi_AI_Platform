@@ -1,17 +1,16 @@
 <template>
     <!-- html -->
     <div class="app">
-        <h1> 这是根页面 </h1>
-        <Person></Person>
+        <Login></Login>
     </div>
 </template>
 
 <script lang="ts">
-    import Person from './components/Person.vue';
+    import Login from './components/Login.vue';  // 引入叶组件
     export default {
         name:'App',     // 根组件名
         components:{    // 注册叶组件
-            Person
+            Login
         }
     }
 </script>
