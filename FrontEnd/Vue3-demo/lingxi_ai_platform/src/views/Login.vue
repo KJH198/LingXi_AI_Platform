@@ -61,7 +61,7 @@ const router = useRouter()
 const loginFormRef = ref(null)
 const loading = ref(false)
 
-const loginForm = reactive({
+const loginForm = reactive({  // 响应式对象
   username: '',
   password: '',
   remember: false
@@ -70,7 +70,7 @@ const loginForm = reactive({
 const loginRules = {
   username: [
     { required: true, message: '请输入用户名', trigger: 'blur' },
-    { min: 3, max: 20, message: '用户名长度应在3-20个字符之间', trigger: 'blur' }
+    { min: 3, max: 20, message: '用户名长度应在3-20个字符之间', trigger: 'blur' } // 输入检查的触发方式为失焦触发
   ],
   password: [
     { required: true, message: '请输入密码', trigger: 'blur' },
@@ -79,21 +79,38 @@ const loginRules = {
 }
 
 const handleLogin = async () => {
-  if (!loginFormRef.value) return
+  if (!loginFormRef.value) return // 防止表单引用为空
   
   try {
+    // 校验表单
     await loginFormRef.value.validate()
     loading.value = true
     
-    // TODO: 实现实际的登录逻辑
-    // 这里模拟登录请求
-    await new Promise(resolve => setTimeout(resolve, 1500))
+    console.log(111)
+    // 发送登录请求
+    // const response = await axios.post('/api/login', {
+    //   username: loginForm.username,
+    //   password: loginForm.password
+    // })
+    // 这是模拟的登录请求
+    const response = {
+      data: {
+      success: true,
+      token: 'mocked-token-123456'
+      }
+    }
+    // 处理登录成功
+    if (response.data.success) {
+      ElMessage.success('登录成功')
+      localStorage.setItem('token', response.data.token)  // 保存用户信息到本地存储
+      router.push('/community') // 跳转到其他页面
+    } else {   // 登录失败提示
+      ElMessage.error('登录失败，请检查用户名和密码') // 顶部弹出登录失败提示
+    }
     
-    ElMessage.success('登录成功')
-    router.push('/community')
   } catch (error) {
-    console.error('登录失败:', error)
-    ElMessage.error('登录失败，请检查用户名和密码')
+    // console.error('登录失败:', error)          // 控制台输出错误信息
+    ElMessage.error('登录失败，请检查用户名和密码') // 顶部弹出登录失败提示
   } finally {
     loading.value = false
   }
