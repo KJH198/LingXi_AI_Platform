@@ -79,18 +79,18 @@
   }
   
   const handleLogin = async () => {
-    if (!loginFormRef.value) return
+    if (!loginFormRef.value) return // 防止表单未挂载时报错
     
     try {
-      await loginFormRef.value.validate()
-      loading.value = true
+      await loginFormRef.value.validate() // 校验表单
+      loading.value = true  // 开启登录中状态
       
       // TODO: 实现实际的登录逻辑
       // 这里模拟登录请求
-      await new Promise(resolve => setTimeout(resolve, 1500))
+      await new Promise(resolve => setTimeout(resolve, 1500)) // 模拟请求延迟
       
-      ElMessage.success('登录成功')
-      router.push('/')
+      ElMessage.success('登录成功') // 提示登录成功
+      router.push('/')  // 跳转到首页
     } catch (error) {
       console.error('登录失败:', error)
       ElMessage.error('登录失败，请检查用户名和密码')

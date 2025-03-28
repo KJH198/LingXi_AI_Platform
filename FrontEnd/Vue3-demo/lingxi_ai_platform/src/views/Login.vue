@@ -90,7 +90,7 @@ const handleLogin = async () => {
     await new Promise(resolve => setTimeout(resolve, 1500))
     
     ElMessage.success('登录成功')
-    router.push('/')
+    router.push('/community')
   } catch (error) {
     console.error('登录失败:', error)
     ElMessage.error('登录失败，请检查用户名和密码')
