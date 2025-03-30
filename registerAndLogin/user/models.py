@@ -1,6 +1,6 @@
+# LingXi_AI_Platform/registerAndLogin/user/models.py
 from django.db import models
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager
-
 
 class MyUserManager(BaseUserManager):
     def create_user(self, username, password, phone_number, email=None):
@@ -27,7 +27,6 @@ class MyUserManager(BaseUserManager):
         user.is_admin = True
         user.save(using=self._db)
         return user
-
 
 class User(AbstractBaseUser):
     username = models.CharField(max_length=30, unique=True)

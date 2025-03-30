@@ -1,9 +1,9 @@
+# LingXi_AI_Platform/registerAndLogin/user/views.py
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth import authenticate, login
 import json
 from .models import User
-
 
 @csrf_exempt
 def register(request):
@@ -25,7 +25,6 @@ def register(request):
             return JsonResponse({'error': str(e)}, status=400)
     return JsonResponse({'error': 'Invalid request method'}, status=405)
 
-
 @csrf_exempt
 def user_login(request):
     if request.method == 'POST':
@@ -39,4 +38,34 @@ def user_login(request):
             return JsonResponse({'message': 'Login successful', 'user_id': user.id}, status=200)
         else:
             return JsonResponse({'error': 'Invalid username or password'}, status=401)
+    return JsonResponse({'error': 'Invalid request method'}, status=405)
+
+@csrf_exempt
+def update_user_info(request):
+    if request.method == 'POST':
+        if not request.user.is_authenticated:
+            return JsonResponse({'error': 'User is not authenticated'}, status=401)
+        data = json.loads(request.body)
+        user = request.user
+        username = data.get('username')
+        phone_number = data.get('phone_number')
+        email = data.get('email')
+
+        if username:
+            try:
+                existing_user = User.objects.exclude(id=user.id).get(username=username)
+                return JsonResponse({'error': 'Username already exists'}, status=400)
+            except User.DoesNotExist:
+                user.username = username
+        if phone_number:
+            try:
+                existing_user = User.objects.exclude(id=user.id).get(phone_number=phone_number)
+                return JsonResponse({'error': 'Phone number already exists'}, status=400)
+            except User.DoesNotExist:
+                user.phone_number = phone_number
+        if email:
+            user.email = email
+
+        user.save()
+        return JsonResponse({'message': 'User information updated successfully'}, status=200)
     return JsonResponse({'error': 'Invalid request method'}, status=405)
