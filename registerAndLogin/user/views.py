@@ -1,4 +1,3 @@
-# LingXi_AI_Platform/registerAndLogin/user/views.py
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth import authenticate, login
@@ -7,6 +6,20 @@ from .models import User
 
 @csrf_exempt
 def register(request):
+    """
+    Register a new user.
+
+    Request body should contain:
+    - username: The username of the user.
+    - password: The password of the user.
+    - phone_number: The phone number of the user.
+    - email (optional): The email address of the user.
+
+    Returns:
+    - 201: User registered successfully.
+    - 400: Invalid request data or user already exists.
+    - 405: Invalid request method.
+    """
     if request.method == 'POST':
         data = json.loads(request.body)
         username = data.get('username')
@@ -27,6 +40,18 @@ def register(request):
 
 @csrf_exempt
 def user_login(request):
+    """
+    Log in a user.
+
+    Request body should contain:
+    - username: The username of the user.
+    - password: The password of the user.
+
+    Returns:
+    - 200: Login successful.
+    - 401: Invalid username or password.
+    - 405: Invalid request method.
+    """
     if request.method == 'POST':
         data = json.loads(request.body)
         username = data.get('username')
@@ -42,6 +67,20 @@ def user_login(request):
 
 @csrf_exempt
 def update_user_info(request):
+    """
+    Update user information.
+
+    Request body may contain:
+    - username: The new username of the user.
+    - phone_number: The new phone number of the user.
+    - email: The new email address of the user.
+
+    Returns:
+    - 200: User information updated successfully.
+    - 400: Username or phone number already exists.
+    - 401: User is not authenticated.
+    - 405: Invalid request method.
+    """
     if request.method == 'POST':
         if not request.user.is_authenticated:
             return JsonResponse({'error': 'User is not authenticated'}, status=401)
