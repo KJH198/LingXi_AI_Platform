@@ -47,8 +47,14 @@
           {{ loading ? '登录中...' : '登录' }}
         </el-button>
 
+<<<<<<< HEAD
         <div class="admin-login-link">
           <el-link type="info" @click="goToAdminLogin">管理员登录</el-link>
+=======
+        <!-- 注册按钮 -->
+        <div class="register-option">
+          <el-link type="primary" @click="handleRegister">没有账号？立即注册</el-link>
+>>>>>>> 6c7db5a182a5c81e557804c87daddae845a80633
         </div>
       </el-form>
     </div>
@@ -123,6 +129,10 @@ const handleLogin = async () => {
 const goToAdminLogin = () => {
   router.push('/admin/login')
 }
+const handleRegister = () => {
+  router.push('/register') // 跳转到注册页面
+}
+
 </script>
 
 <style scoped>
