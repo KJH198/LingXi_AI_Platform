@@ -46,6 +46,10 @@
         >
           {{ loading ? '登录中...' : '登录' }}
         </el-button>
+
+        <div class="admin-login-link">
+          <el-link type="info" @click="goToAdminLogin">管理员登录</el-link>
+        </div>
       </el-form>
     </div>
   </div>
@@ -114,6 +118,10 @@ const handleLogin = async () => {
   } finally {
     loading.value = false
   }
+}
+
+const goToAdminLogin = () => {
+  router.push('/admin/login')
 }
 </script>
 
@@ -208,5 +216,10 @@ const handleLogin = async () => {
     margin: 20px;
     padding: 30px 20px;
   }
+}
+
+.admin-login-link {
+  text-align: center;
+  margin-top: 20px;
 }
 </style> 
