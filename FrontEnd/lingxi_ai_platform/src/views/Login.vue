@@ -46,6 +46,11 @@
         >
           {{ loading ? '登录中...' : '登录' }}
         </el-button>
+
+        <!-- 注册按钮 -->
+        <div class="register-option">
+          <el-link type="primary" @click="handleRegister">没有账号？立即注册</el-link>
+        </div>
       </el-form>
     </div>
   </div>
@@ -115,6 +120,11 @@ const handleLogin = async () => {
     loading.value = false
   }
 }
+
+const handleRegister = () => {
+  router.push('/register') // 跳转到注册页面
+}
+
 </script>
 
 <style scoped>
