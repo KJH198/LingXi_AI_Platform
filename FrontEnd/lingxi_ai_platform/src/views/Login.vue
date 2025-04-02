@@ -13,11 +13,12 @@
         class="login-form"
         @keyup.enter="handleLogin"
       >
-        <el-form-item prop="username">
+        <el-form-item prop="phone_number">
           <el-input
-            v-model="loginForm.username"
-            placeholder="用户名"
-            :prefix-icon="User"
+            v-model="loginForm.phone_number"
+            placeholder="请输入手机号码"
+            :prefix-icon="Phone"
+            :show-word-limit="true"
             clearable
           />
         </el-form-item>
@@ -72,15 +73,15 @@ const loginFormRef = ref(null)
 const loading = ref(false)
 
 const loginForm = reactive({  // 响应式对象
-  username: '',
+  phone_number: '',
   password: '',
   remember: false
 })
 
 const loginRules = {
-  username: [
-    { required: true, message: '请输入用户名', trigger: 'blur' },
-    { min: 3, max: 20, message: '用户名长度应在3-20个字符之间', trigger: 'blur' } // 输入检查的触发方式为失焦触发
+  phone_number: [
+    { required: true, message: '请输入手机号码', trigger: 'blur' },
+    { pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号码', trigger: 'blur' }
   ],
   password: [
     { required: true, message: '请输入密码', trigger: 'blur' },
@@ -98,11 +99,18 @@ const handleLogin = async () => {
     
     console.log(111)
     // 发送登录请求
-    // const response = await axios.post('/api/login', {
-    //   username: loginForm.username,
-    //   password: loginForm.password
+    // const response = await fetch('/api/login', {
+    //   method: 'POST',
+    //   headers: {
+    //     'Content-Type': 'application/json',
+    //   },
+    //   body: JSON.stringify({
+    //     phone_number: loginForm.phone_number,  // 改为发送手机号
+    //     password: loginForm.password
+    //   })
     // })
-    // 这是模拟的登录请求
+    
+    // 这是模拟的登录请求返回
     const response = {
       data: {
       success: true,
