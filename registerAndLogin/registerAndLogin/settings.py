@@ -1,4 +1,5 @@
 from pathlib import Path
+from datetime import timedelta
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -35,28 +36,60 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'corsheaders.middleware.CorsMiddleware',  # 添加 CORS 中间件，确保跨域请求能正常处理
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'corsheaders.middleware.CorsMiddleware',  # 添加 CORS 中间件，确保跨域请求能正常处理
-    'django.middleware.common.CommonMiddleware',  # 重复添加，确保 CORS 中间件在合适位置
 ]
 
 # 配置 CORS 白名单，允许的跨域源，根据实际情况修改
 CORS_ORIGIN_WHITELIST = (
     'http://127.0.0.1:8000',
     'http://localhost:8000',
+    'http://127.0.0.1:3000',  # 添加前端开发服务器地址
+    'http://localhost:3000',   # 添加前端开发服务器地址
 )
+
+# 允许所有跨域请求（仅用于开发环境）
+CORS_ALLOW_ALL_ORIGINS = True
+
+# 允许携带认证信息
+CORS_ALLOW_CREDENTIALS = True
+
+# 允许的请求方法
+CORS_ALLOW_METHODS = [
+    'DELETE',
+    'GET',
+    'OPTIONS',
+    'PATCH',
+    'POST',
+    'PUT',
+]
+
+# 允许的请求头
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+]
+
+# 允许不带斜杠的 URL
+APPEND_SLASH = False
 
 ROOT_URLCONF = 'registerAndLogin.urls'
 
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [BASE_DIR / 'templates']
-        ,
+        'DIRS': [BASE_DIR / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -78,7 +111,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'lingxi',
         'USER': 'root',
-        'PASSWORD': '24863971',
+        'PASSWORD': '030607',
         'HOST': '127.0.0.1',
         'PORT': '3306',
     }
@@ -110,22 +143,25 @@ USE_TZ = True
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
+
+# 静态文件目录配置
+STATICFILES_DIRS = [
+    BASE_DIR / 'static',
+]
+
+# 生产环境下静态文件收集的目录
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# 生产环境下静态文件收集的目录
-STATIC_ROOT = BASE_DIR / 'staticfiles'
-
-# 开发环境下添加静态文件目录，确保静态文件能被找到
-STATICFILES_DIRS = [
-    BASE_DIR / 'static',
-]
-
 # 配置 rest_framework 的权限，这里设置为允许所有用户访问，可根据实际情况修改
 REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ),
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.AllowAny',
     ]
@@ -140,4 +176,20 @@ SWAGGER_SETTINGS = {
     },
     'USE_SESSION_AUTH': False,  # 关闭使用 session 认证，确保未登录用户也能访问文档
     'PERMISSIONS': (),  # 允许所有用户访问文档
+}
+
+# JWT 配置
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
+    'ROTATE_REFRESH_TOKENS': False,
+    'BLACKLIST_AFTER_ROTATION': True,
+    'ALGORITHM': 'HS256',
+    'SIGNING_KEY': SECRET_KEY,
+    'VERIFYING_KEY': None,
+    'AUTH_HEADER_TYPES': ('Bearer',),
+    'USER_ID_FIELD': 'id',
+    'USER_ID_CLAIM': 'user_id',
+    'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt.tokens.AccessToken',),
+    'TOKEN_TYPE_CLAIM': 'token_type',
 }

@@ -137,10 +137,11 @@
       loading.value = true
       
       // 发送注册请求
-      const response = await fetch('/user/register', {
+      const response = await fetch('/user/register/', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
         },
         body: JSON.stringify({
           username: registerForm.username,

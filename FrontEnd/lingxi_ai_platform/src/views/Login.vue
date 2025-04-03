@@ -92,7 +92,6 @@ const handleLogin = async () => {
     await loginFormRef.value.validate()
     loading.value = true
     
-    console.log(111)
     // 发送登录请求
     const response = await fetch('/user/login', {
       method: 'POST',
@@ -100,25 +99,20 @@ const handleLogin = async () => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        phone_number: loginForm.phone_number,  // 改为发送手机号
+        phone_number: loginForm.phone_number,
         password: loginForm.password
       })
     })
     
-    // 这是模拟的登录请求返回
-    // const response = {
-    //   data: {
-    //   success: true,
-    //   token: 'mocked-token-123456'
-    //   }
-    // }
+    const data = await response.json()
+    
     // 处理登录成功
-    if (response.data.success) {
+    if (data.success) {
       ElMessage.success('登录成功')
-      localStorage.setItem('token', response.data.token)  // 保存用户信息到本地存储
+      localStorage.setItem('token', data.token)  // 保存 token 到本地存储
       router.push('/community') // 跳转到其他页面
     } else {   // 登录失败提示
-      ElMessage.error('登录失败，请检查用户名和密码') // 顶部弹出登录失败提示
+      ElMessage.error(data.message || '登录失败，请检查用户名和密码') // 使用服务器返回的错误信息
     }
     
   } catch (error) {

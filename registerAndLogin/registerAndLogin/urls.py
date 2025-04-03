@@ -16,16 +16,33 @@ Including another URLconf
 """
 
 from django.contrib import admin
-from django.urls import path, include
-
-from rest_framework.documentation import include_docs_urls
-
+from django.urls import path, include, re_path
+from django.views.static import serve
+from django.conf import settings
+from django.conf.urls.static import static
+from rest_framework_simplejwt.views import (
+    TokenObtainPairView,
+    TokenRefreshView,
+    TokenVerifyView,
+)
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('api/v1/user', include(('user.urls', 'user'), namespace='user')),
-    path('docs/', include_docs_urls(title='API接口文档', description='xxx描述'))
+    path('user/', include(('user.urls', 'user'), namespace='user')),
+    path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
+    path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    path('api/token/verify/', TokenVerifyView.as_view(), name='token_verify'),
 ]
+
+# 开发环境下添加静态文件URL配置
+if settings.DEBUG:
+    # 处理静态文件
+    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATICFILES_DIRS[0])
+    # 处理assets目录下的文件
+    urlpatterns += [
+        re_path(r'^assets/(?P<path>.*)$', serve, {'document_root': settings.STATICFILES_DIRS[0] / 'assets'}),
+        re_path(r'^$', serve, {'path': 'index.html', 'document_root': settings.STATICFILES_DIRS[0]}),
+    ]
 
 
 

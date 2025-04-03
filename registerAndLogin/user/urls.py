@@ -5,5 +5,6 @@ from .views import register, user_login, update_user_info
 urlpatterns = [
     path('register/', register, name='register'),
     path('login/', user_login, name='login'),
+    path('login', user_login, name='login_no_slash'),
     path('update_info/', update_user_info, name='update_user_info'),
 ]
