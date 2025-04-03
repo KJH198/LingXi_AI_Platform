@@ -137,7 +137,7 @@
       loading.value = true
       
       // 发送注册请求
-      const response = await fetch('/user/register/', {
+      const response = await fetch('/user/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -150,16 +150,6 @@
           email: registerForm.email || undefined
         })
       })
-  
-    //   const data = await response.json()
-
-      // 模拟后端响应
-      // const response = {
-      //   status: 201,
-      //     json: async () => ({
-      //     message: '注册成功'
-      //   })
-      // }
   
       const data = await response.json()
       
