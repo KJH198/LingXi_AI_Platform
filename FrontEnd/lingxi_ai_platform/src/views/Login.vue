@@ -94,24 +94,24 @@ const handleLogin = async () => {
     
     console.log(111)
     // 发送登录请求
-    // const response = await fetch('/api/login', {
-    //   method: 'POST',
-    //   headers: {
-    //     'Content-Type': 'application/json',
-    //   },
-    //   body: JSON.stringify({
-    //     phone_number: loginForm.phone_number,  // 改为发送手机号
-    //     password: loginForm.password
-    //   })
-    // })
+    const response = await fetch('/user/login', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        phone_number: loginForm.phone_number,  // 改为发送手机号
+        password: loginForm.password
+      })
+    })
     
     // 这是模拟的登录请求返回
-    const response = {
-      data: {
-      success: true,
-      token: 'mocked-token-123456'
-      }
-    }
+    // const response = {
+    //   data: {
+    //   success: true,
+    //   token: 'mocked-token-123456'
+    //   }
+    // }
     // 处理登录成功
     if (response.data.success) {
       ElMessage.success('登录成功')
