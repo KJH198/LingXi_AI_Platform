@@ -17,6 +17,7 @@ Including another URLconf
 
 from django.contrib import admin
 from django.urls import path, include, re_path
+from django.views.generic.base import RedirectView
 from django.views.static import serve
 from django.conf import settings
 from django.conf.urls.static import static
@@ -27,6 +28,7 @@ from rest_framework_simplejwt.views import (
 )
 
 urlpatterns = [
+    path('', RedirectView.as_view(url='user/login/', permanent=False)),
     path('admin/', admin.site.urls),
     path('user/', include(('user.urls', 'user'), namespace='user')),
     path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),

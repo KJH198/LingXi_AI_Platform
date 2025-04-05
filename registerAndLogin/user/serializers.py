@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import User
+from .models import User, AgentReview, KnowledgeBase, Agent
 from django.utils import timezone
 from datetime import timedelta
 

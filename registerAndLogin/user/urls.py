@@ -8,6 +8,6 @@ router.register(r'admin', AdminView, basename='admin')
 
 urlpatterns = [
     path('register', register, name='register'),
-    path('login', user_login, name='login_no_slash'),
+    path('login/', user_login, name='login'),
     path('update_info/', update_user_info, name='update_user_info'),
 ] + router.urls

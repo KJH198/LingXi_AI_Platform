@@ -1,9 +1,12 @@
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth import authenticate, login
 import json
 from .models import User
 from django.shortcuts import render
+from rest_framework import permissions
+from rest_framework.decorators import action
+from rest_framework.viewsets import ViewSet
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -52,23 +55,43 @@ def register(request):
 def user_login(request):
     """
     用户登录接口
-
-    请求体格式:
-    {
-        "phone_number": "手机号",
-        "password": "密码"
-    }
-
-    返回格式:
-    {
-        "success": true/false,
-        "token": "token字符串"  // 登录成功时返回
-        "message": "错误信息"   // 登录失败时返回
-    }
+    GET: 返回登录页面
+    POST: 处理登录请求
     """
-    if request.method == 'POST':
+    if request.method == 'GET':
+        # 返回简单登录表单
+        return HttpResponse('''
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8">
+                <title>用户登录</title>
+            </head>
+            <body>
+            </body>
+            </html>
+            <form method="post">
+                <h2>用户登录</h2>
+                <div>
+                    <label>手机号:</label>
+                    <input type="text" name="phone_number" required>
+                </div>
+                <div>
+                    <label>密码:</label>
+                    <input type="password" name="password" required>
+                </div>
+                <button type="submit">登录</button>
+            </form>
+        ''', content_type='text/html')
+
+    elif request.method == 'POST':
         try:
-            data = json.loads(request.body)
+            # 处理表单提交和JSON请求
+            if request.content_type == 'application/json':
+                data = json.loads(request.body)
+            else:
+                data = request.POST
+
             phone_number = data.get('phone_number')
             password = data.get('password')
 
@@ -170,7 +193,7 @@ class UserView(APIView):
         serializer = UserSerializer(users, many=True)
         return Response(serializer.data)
 
-class AdminView(APIView):
+class AdminView(ViewSet):
     """
     管理员专用视图
     需要管理员权限才能访问
