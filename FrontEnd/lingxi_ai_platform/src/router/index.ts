@@ -7,6 +7,7 @@ import Register from '../views/Register.vue'
 import UserProfile from '../views/UserProfile.vue'
 import Followers from '../views/Followers.vue'
 import Following from '../views/Followings.vue'
+import CreatAI from '../views/CreatAI.vue'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -50,6 +51,11 @@ const router = createRouter({
       path: '/community',
       name: 'Community',
       component: Community
+    },
+    {
+      path: '/create-ai',
+      name: 'CreatAI',
+      component: CreatAI
     },
     {
       path: '/',
