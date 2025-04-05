@@ -169,3 +169,118 @@ class UserView(APIView):
         users = User.objects.all()
         serializer = UserSerializer(users, many=True)
         return Response(serializer.data)
+
+class AdminView(APIView):
+    """
+    管理员专用视图
+    需要管理员权限才能访问
+    """
+    permission_classes = [permissions.IsAdminUser]
+
+    def get(self, request):
+        """
+        获取所有用户信息(管理员专用)
+        """
+        users = User.objects.all()
+        serializer = AdminUserSerializer(users, many=True)
+        return Response(serializer.data)
+
+    def post(self, request):
+        """
+        封禁/解封用户
+        请求参数:
+        {
+            "user_id": 用户ID,
+            "ban_type": "7days"/"10days"/"permanent"/"remove"
+        }
+        """
+        serializer = BanUserSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            user = User.objects.get(id=serializer.validated_data['user_id'])
+        except User.DoesNotExist:
+            return Response({'error': '用户不存在'}, status=status.HTTP_404_NOT_FOUND)
+        
+        serializer.update_ban_status(user)
+        return Response({'message': '操作成功'}, status=status.HTTP_200_OK)
+
+    @action(detail=False, methods=['get'])
+    def dashboard(self, request):
+        """
+        管理员仪表盘数据
+        返回:
+        - 用户总数
+        - 活跃用户数
+        - 被封禁用户数
+        - 最近7天注册用户数
+        """
+        from django.db.models import Count
+        from django.utils import timezone
+        from datetime import timedelta
+
+        total_users = User.objects.count()
+        active_users = User.objects.filter(is_active=True).count()
+        banned_users = User.objects.filter(ban_status__in=['7days', '10days', 'permanent']).count()
+        recent_users = User.objects.filter(
+            date_joined__gte=timezone.now() - timedelta(days=7)
+        ).count()
+
+        return Response({
+            'total_users': total_users,
+            'active_users': active_users,
+            'banned_users': banned_users,
+            'recent_users': recent_users
+        })
+
+    @action(detail=False, methods=['get', 'post'])
+    def agent_reviews(self, request):
+        """
+        智能体评价管理
+        GET: 获取所有智能体评价
+        POST: 删除违规评价
+        """
+        if request.method == 'GET':
+            # 获取所有智能体评价
+            reviews = AgentReview.objects.all()
+            serializer = AgentReviewSerializer(reviews, many=True)
+            return Response(serializer.data)
+        
+        # POST请求处理删除评价
+        review_id = request.data.get('review_id')
+        try:
+            review = AgentReview.objects.get(id=review_id)
+            review.delete()
+            return Response({'message': '评价已删除'})
+        except AgentReview.DoesNotExist:
+            return Response({'error': '评价不存在'}, status=404)
+
+    @action(detail=False, methods=['get', 'post', 'delete'])
+    def knowledge_base(self, request):
+        """
+        知识库管理
+        GET: 获取所有知识库条目
+        POST: 创建新知识库条目
+        DELETE: 删除知识库条目
+        """
+        if request.method == 'GET':
+            articles = KnowledgeBase.objects.all()
+            serializer = KnowledgeBaseSerializer(articles, many=True)
+            return Response(serializer.data)
+        
+        elif request.method == 'POST':
+            serializer = KnowledgeBaseSerializer(data=request.data)
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data, status=201)
+            return Response(serializer.errors, status=400)
+        
+        elif request.method == 'DELETE':
+            article_id = request.data.get('article_id')
+            try:
+                article = KnowledgeBase.objects.get(id=article_id)
+                article.delete()
+                return Response({'message': '知识库条目已删除'})
+            except KnowledgeBase.DoesNotExist:
+                return Response({'error': '知识库条目不存在'}, status=404)
