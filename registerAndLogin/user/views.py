@@ -169,3 +169,135 @@ class UserView(APIView):
         users = User.objects.all()
         serializer = UserSerializer(users, many=True)
         return Response(serializer.data)
+
+class AdminDashboardView(APIView):
+    """管理员操作台视图"""
+    def get(self, request):
+        # 验证管理员权限
+        if not request.user.is_staff:
+            return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
+        
+        # 返回操作台基本信息
+        data = {
+            'total_users': User.objects.count(),
+            'active_users': User.objects.filter(is_active=True).count(),
+            'banned_users': User.objects.filter(is_active=False).count()
+        }
+        return Response(data)
+
+class UserManagementView(APIView):
+    """用户管理视图"""
+    def get(self, request):
+        # 验证管理员权限
+        if not request.user.is_staff:
+            return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
+        
+        # 获取所有用户信息
+        users = User.objects.all()
+        serializer = UserSerializer(users, many=True)
+        return Response(serializer.data)
+
+    def post(self, request):
+        # 验证管理员权限
+        if not request.user.is_staff:
+            return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
+        
+        # 封禁用户
+        user_id = request.data.get('user_id')
+        ban_days = request.data.get('ban_days')  # 7, 10, -1(永久)
+        reason = request.data.get('reason', '违反社区规定')
+        
+        try:
+            user = User.objects.get(id=user_id)
+            
+            # 永久封禁
+            if ban_days == -1:
+                user.is_active = False
+                user.ban_reason = reason
+                user.ban_until = None
+                user.save()
+                return Response({'message': '用户已永久封禁'})
+            
+            # 临时封禁
+            elif ban_days in [7, 10]:
+                from datetime import datetime, timedelta
+                from django.utils.timezone import make_aware
+                
+                ban_until = make_aware(datetime.now() + timedelta(days=ban_days))
+                user.is_active = False
+                user.ban_reason = reason
+                user.ban_until = ban_until
+                user.save()
+                
+                # 实际项目中应该使用celery定时任务在ban_until时间解封
+                return Response({
+                    'message': f'用户已封禁{ban_days}天',
+                    'ban_until': ban_until
+                })
+            
+            else:
+                return Response({'error': '无效的封禁天数'}, status=status.HTTP_400_BAD_REQUEST)
+                
+        except User.DoesNotExist:
+            return Response({'error': '用户不存在'}, status=status.HTTP_404_NOT_FOUND)
+
+class AgentRatingView(APIView):
+    """智能体评分与评价"""
+    def post(self, request):
+        # 验证用户权限
+        if not request.user.is_authenticated:
+            return Response({'error': '请先登录'}, status=status.HTTP_401_UNAUTHORIZED)
+        
+        agent_id = request.data.get('agent_id')
+        rating = request.data.get('rating')
+        comment = request.data.get('comment', '')
+        
+        # 验证评分范围(1-5星)
+        if not rating or not 1 <= int(rating) <= 5:
+            return Response({'error': '评分必须是1-5之间的整数'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # 保存评价到数据库
+        from .models import AgentRating
+        try:
+            rating_obj = AgentRating.objects.create(
+                user=request.user,
+                agent_id=agent_id,
+                rating=rating,
+                comment=comment
+            )
+            return Response({
+                'message': '评价成功',
+                'rating_id': rating_obj.id
+            })
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class KnowledgeBaseView(APIView):
+    """知识库管理"""
+    def post(self, request):
+        # 验证管理员权限
+        if not request.user.is_staff:
+            return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
+        
+        title = request.data.get('title')
+        content = request.data.get('content')
+        
+        # 实际项目中应该保存到知识库模型
+        return Response({'message': '知识库创建成功'})
+
+    def delete(self, request, kb_id):
+        # 验证管理员权限
+        if not request.user.is_staff:
+            return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
+        
+        # 实际项目中应该删除知识库记录
+        return Response({'message': '知识库删除成功'})
+
+    def put(self, request, kb_id):
+        # 验证管理员权限
+        if not request.user.is_staff:
+            return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
+        
+        content = request.data.get('content')
+        # 实际项目中应该更新知识库内容
+        return Response({'message': '知识库更新成功'})

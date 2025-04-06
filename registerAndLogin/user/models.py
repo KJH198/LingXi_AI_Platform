@@ -34,6 +34,8 @@ class User(AbstractBaseUser):
     email = models.EmailField(max_length=255, blank=True, null=True)
     is_active = models.BooleanField(default=True)
     is_admin = models.BooleanField(default=False)
+    ban_until = models.DateTimeField(null=True, blank=True)
+    ban_reason = models.CharField(max_length=200, blank=True)
 
     objects = MyUserManager()
 
@@ -52,3 +54,17 @@ class User(AbstractBaseUser):
     @property
     def is_staff(self):
         return self.is_admin
+
+class AgentRating(models.Model):
+    """智能体评分模型"""
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='ratings')
+    agent_id = models.CharField(max_length=36)  # 智能体UUID
+    rating = models.PositiveSmallIntegerField()  # 1-5星评分
+    comment = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('user', 'agent_id')  # 每个用户对每个智能体只能评价一次
+
+    def __str__(self):
+        return f"{self.user.username}对智能体{self.agent_id}的{self.rating}星评价"
