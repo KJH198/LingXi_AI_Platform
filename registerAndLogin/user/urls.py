@@ -8,13 +8,15 @@ from .views import (
     UserManagementView,
     AgentRatingView,
     KnowledgeBaseView,
-    AdminLoginView
+    AdminLoginView,
+    UserFollowingView
 )
 
 urlpatterns = [
     path('register', register, name='register'),
     path('login', user_login, name='login_no_slash'),
     path('update_info/', update_user_info, name='update_user_info'),
+    path('users/<int:user_id>/following/', UserFollowingView.as_view(), name='user_following'),
     
     # 管理员路由
     path('admin/login/', AdminLoginView.as_view(), name='admin_login'),

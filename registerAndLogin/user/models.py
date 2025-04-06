@@ -34,6 +34,7 @@ class User(AbstractBaseUser):
     email = models.EmailField(max_length=255, blank=True, null=True)
     is_active = models.BooleanField(default=True)
     is_admin = models.BooleanField(default=False)
+    following = models.ManyToManyField('self', symmetrical=False, related_name='followers', blank=True)
 
     objects = MyUserManager()
 
@@ -52,3 +53,27 @@ class User(AbstractBaseUser):
     @property
     def is_staff(self):
         return self.is_admin
+
+    def follow(self, user):
+        """关注用户"""
+        if user != self:
+            self.following.add(user)
+            return True
+        return False
+
+    def unfollow(self, user):
+        """取消关注用户"""
+        self.following.remove(user)
+        return True
+
+    def is_following(self, user):
+        """检查是否已关注用户"""
+        return self.following.filter(id=user.id).exists()
+
+    def get_following_count(self):
+        """获取关注数"""
+        return self.following.count()
+
+    def get_followers_count(self):
+        """获取粉丝数"""
+        return self.followers.count()

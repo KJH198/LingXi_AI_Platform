@@ -387,3 +387,196 @@ class AdminLoginView(APIView):
                 'success': False,
                 'message': '服务器内部错误'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class UserFollowingView(APIView):
+    """
+    用户关注相关接口
+    
+    1. 获取关注列表
+    请求方式: GET
+    路径参数: user_id - 用户ID
+    
+    2. 关注用户
+    请求方式: POST
+    路径参数: user_id - 当前用户ID
+    请求体: {
+        "target_user_id": 目标用户ID
+    }
+    
+    3. 取消关注
+    请求方式: DELETE
+    路径参数: user_id - 当前用户ID
+    请求体: {
+        "target_user_id": 目标用户ID
+    }
+    
+    返回格式:
+    {
+        "success": true/false,
+        "data": {
+            "following": [
+                {
+                    "id": 用户ID,
+                    "username": "用户名",
+                    "phone_number": "手机号",
+                    "email": "邮箱"
+                }
+            ],
+            "following_count": 关注数,
+            "followers_count": 粉丝数
+        },
+        "message": "错误信息"  // 失败时返回
+    }
+    """
+    def get(self, request, user_id):
+        try:
+            # 获取目标用户
+            target_user = User.objects.get(id=user_id)
+            
+            # 获取关注列表
+            following = target_user.following.all()
+            
+            # 序列化关注用户数据
+            following_data = [{
+                'id': user.id,
+                'username': user.username,
+                'phone_number': user.phone_number,
+                'email': user.email
+            } for user in following]
+            
+            return Response({
+                'success': True,
+                'data': {
+                    'following': following_data,
+                    'following_count': target_user.get_following_count(),
+                    'followers_count': target_user.get_followers_count()
+                }
+            })
+            
+        except User.DoesNotExist:
+            return Response({
+                'success': False,
+                'message': '用户不存在'
+            }, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({
+                'success': False,
+                'message': '服务器内部错误'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def post(self, request, user_id):
+        """
+        关注用户
+        """
+        try:
+            # 验证用户是否登录
+            if not request.user.is_authenticated:
+                return Response({
+                    'success': False,
+                    'message': '请先登录'
+                }, status=status.HTTP_401_UNAUTHORIZED)
+
+            # 验证当前用户ID是否匹配
+            if request.user.id != user_id:
+                return Response({
+                    'success': False,
+                    'message': '无权操作其他用户的关注'
+                }, status=status.HTTP_403_FORBIDDEN)
+
+            # 获取目标用户ID
+            target_user_id = request.data.get('target_user_id')
+            if not target_user_id:
+                return Response({
+                    'success': False,
+                    'message': '目标用户ID不能为空'
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            # 获取目标用户
+            try:
+                target_user = User.objects.get(id=target_user_id)
+            except User.DoesNotExist:
+                return Response({
+                    'success': False,
+                    'message': '目标用户不存在'
+                }, status=status.HTTP_404_NOT_FOUND)
+
+            # 检查是否已经关注
+            if request.user.is_following(target_user):
+                return Response({
+                    'success': False,
+                    'message': '已经关注过该用户'
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            # 添加关注
+            if request.user.follow(target_user):
+                return Response({
+                    'success': True,
+                    'message': '关注成功'
+                })
+            else:
+                return Response({
+                    'success': False,
+                    'message': '不能关注自己'
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+        except Exception as e:
+            return Response({
+                'success': False,
+                'message': '服务器内部错误'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def delete(self, request, user_id):
+        """
+        取消关注用户
+        """
+        try:
+            # 验证用户是否登录
+            if not request.user.is_authenticated:
+                return Response({
+                    'success': False,
+                    'message': '请先登录'
+                }, status=status.HTTP_401_UNAUTHORIZED)
+
+            # 验证当前用户ID是否匹配
+            if request.user.id != user_id:
+                return Response({
+                    'success': False,
+                    'message': '无权操作其他用户的关注'
+                }, status=status.HTTP_403_FORBIDDEN)
+
+            # 获取目标用户ID
+            target_user_id = request.data.get('target_user_id')
+            if not target_user_id:
+                return Response({
+                    'success': False,
+                    'message': '目标用户ID不能为空'
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            # 获取目标用户
+            try:
+                target_user = User.objects.get(id=target_user_id)
+            except User.DoesNotExist:
+                return Response({
+                    'success': False,
+                    'message': '目标用户不存在'
+                }, status=status.HTTP_404_NOT_FOUND)
+
+            # 检查是否已经关注
+            if not request.user.is_following(target_user):
+                return Response({
+                    'success': False,
+                    'message': '未关注该用户'
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            # 取消关注
+            request.user.unfollow(target_user)
+            return Response({
+                'success': True,
+                'message': '取消关注成功'
+            })
+
+        except Exception as e:
+            return Response({
+                'success': False,
+                'message': '服务器内部错误'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
