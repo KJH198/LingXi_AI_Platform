@@ -7,7 +7,8 @@ from .views import (
     AdminDashboardView,
     UserManagementView,
     AgentRatingView,
-    KnowledgeBaseView
+    KnowledgeBaseView,
+    AdminLoginView
 )
 
 urlpatterns = [
@@ -15,7 +16,8 @@ urlpatterns = [
     path('login', user_login, name='login_no_slash'),
     path('update_info/', update_user_info, name='update_user_info'),
     
-    # # 管理员路由
+    # 管理员路由
+    path('admin/login/', AdminLoginView.as_view(), name='admin_login'),
     path('admin/dashboard/', AdminDashboardView.as_view(), name='admin_dashboard'),
     path('admin/users/', UserManagementView.as_view(), name='user_management'),
     path('admin/users/<int:user_id>/', UserManagementView.as_view(), name='user_detail'),

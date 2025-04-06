@@ -320,3 +320,70 @@ class KnowledgeBaseView(APIView):
         content = request.data.get('content')
         # 实际项目中应该更新知识库内容
         return Response({'message': '知识库更新成功'})
+
+class AdminLoginView(APIView):
+    """
+    管理员登录接口
+    
+    请求体格式:
+    {
+        "phone_number": "手机号",
+        "password": "密码"
+    }
+
+    返回格式:
+    {
+        "success": true/false,
+        "token": "token字符串"  // 登录成功时返回
+        "message": "错误信息"   // 登录失败时返回
+    }
+    """
+    def post(self, request):
+        try:
+            phone_number = request.data.get('phone_number')
+            password = request.data.get('password')
+
+            if not phone_number or not password:
+                return Response({
+                    'success': False,
+                    'message': '手机号和密码不能为空'
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            # 通过手机号查找用户
+            try:
+                user = User.objects.get(phone_number=phone_number)
+            except User.DoesNotExist:
+                return Response({
+                    'success': False,
+                    'message': '用户不存在'
+                }, status=status.HTTP_401_UNAUTHORIZED)
+
+            # 验证是否为管理员
+            if not user.is_admin:
+                return Response({
+                    'success': False,
+                    'message': '该用户不是管理员'
+                }, status=status.HTTP_403_FORBIDDEN)
+
+            # 验证密码
+            if not user.check_password(password):
+                return Response({
+                    'success': False,
+                    'message': '密码错误'
+                }, status=status.HTTP_401_UNAUTHORIZED)
+
+            # 生成 JWT token
+            refresh = RefreshToken.for_user(user)
+            access_token = str(refresh.access_token)
+
+            return Response({
+                'success': True,
+                'token': access_token,
+                'message': '管理员登录成功'
+            })
+
+        except Exception as e:
+            return Response({
+                'success': False,
+                'message': '服务器内部错误'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
