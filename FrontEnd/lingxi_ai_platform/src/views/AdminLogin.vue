@@ -89,13 +89,24 @@ const handleAdminLogin = async () => {
     loading.value = true
     
     // 这里添加管理员登录的API调用
-    const response = {
-      data: {
-        success: true,
-        token: 'admin-mocked-token-123456',
-        role: 'admin'
-      }
-    }
+    // const response = {
+    //   data: {
+    //     success: true,
+    //     token: 'admin-mocked-token-123456',
+    //     role: 'admin'
+    //   }
+    // }
+
+    const response = await fetch('/user/adminLogin', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        phone_number: loginForm.phone_number,
+        password: loginForm.password
+      })
+    })
 
     if (response.data.success) {
       ElMessage.success('管理员登录成功')
