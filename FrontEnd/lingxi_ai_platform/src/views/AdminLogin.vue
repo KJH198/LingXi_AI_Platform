@@ -97,7 +97,7 @@ const handleAdminLogin = async () => {
     //   }
     // }
 
-    const response = await fetch('/user/adminLogin', {
+    const response = await fetch('/user/admin/login/', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -116,8 +116,8 @@ const handleAdminLogin = async () => {
     } else {
       ElMessage.error('管理员登录失败，请检查用户名和密码')
     }
-    
   } catch (error) {
+    console.error('管理员登录错误:', error)
     ElMessage.error('管理员登录失败，请检查输入信息')
   } finally {
     loading.value = false
