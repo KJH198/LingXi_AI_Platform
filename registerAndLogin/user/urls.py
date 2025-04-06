@@ -18,6 +18,7 @@ urlpatterns = [
     # 管理员路由
     path('admin/dashboard/', AdminDashboardView.as_view(), name='admin_dashboard'),
     path('admin/users/', UserManagementView.as_view(), name='user_management'),
+    path('admin/users/<int:user_id>/', UserManagementView.as_view(), name='user_detail'),
     path('admin/agent_rating/', AgentRatingView.as_view(), name='agent_rating'),
     path('admin/knowledge_base/', KnowledgeBaseView.as_view(), name='knowledge_base'),
     path('admin/knowledge_base/<int:kb_id>/', KnowledgeBaseView.as_view(), name='knowledge_base_detail'),

@@ -201,6 +201,25 @@ class UserManagementView(APIView):
         # 验证管理员权限
         if not request.user.is_staff:
             return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
+
+    def get(self, request, user_id=None):
+        # 验证管理员权限
+        if not request.user.is_staff:
+            return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
+        
+        # 根据ID查询单个用户
+        if user_id:
+            try:
+                user = User.objects.get(id=user_id)
+                serializer = UserSerializer(user)
+                return Response(serializer.data)
+            except User.DoesNotExist:
+                return Response({'error': '用户不存在'}, status=status.HTTP_404_NOT_FOUND)
+        
+        # 查询所有用户
+        users = User.objects.all()
+        serializer = UserSerializer(users, many=True)
+        return Response(serializer.data)
         
         # 封禁用户
         user_id = request.data.get('user_id')
