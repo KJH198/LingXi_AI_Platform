@@ -88,7 +88,7 @@ const handleAdminLogin = async () => {
     await adminLoginFormRef.value.validate()
     loading.value = true
 
-    const response = await fetch('/user/admin/login/', {
+    const response = await fetch('/user/adminLogin', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -98,7 +98,6 @@ const handleAdminLogin = async () => {
         password: adminLoginForm.password
       })
     })
-    console.log(response)
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`)
     }

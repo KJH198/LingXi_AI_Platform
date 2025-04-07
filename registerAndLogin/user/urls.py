@@ -19,10 +19,10 @@ urlpatterns = [
     path('users/<int:user_id>/following/', UserFollowingView.as_view(), name='user_following'),
     
     # 管理员路由
-    path('admin/login/', AdminLoginView.as_view(), name='admin_login'),
-    path('admin/dashboard/', AdminDashboardView.as_view(), name='admin_dashboard'),
-    path('admin/users/', UserManagementView.as_view(), name='user_management'),
-    path('admin/users/<int:user_id>/', UserManagementView.as_view(), name='user_detail'),
+    path('adminLogin', AdminLoginView.as_view(), name='admin_login'),
+    path('adminDashboard', AdminDashboardView.as_view(), name='admin_dashboard'),
+    path('adminGetUsers', UserManagementView.as_view(), name='user_management'),
+    path('adminGetUsersDetail/<int:user_id>/', UserManagementView.as_view(), name='user_detail'),
     path('admin/agent_rating/', AgentRatingView.as_view(), name='agent_rating'),
     path('admin/knowledge_base/', KnowledgeBaseView.as_view(), name='knowledge_base'),
     path('admin/knowledge_base/<int:kb_id>/', KnowledgeBaseView.as_view(), name='knowledge_base_detail'),

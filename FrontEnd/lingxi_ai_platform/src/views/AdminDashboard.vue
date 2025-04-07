@@ -45,6 +45,54 @@
               </div>
             </template>
 
+            <!-- 用户统计信息 -->
+            <div class="user-stats">
+              <el-row :gutter="20">
+                <el-col :span="8">
+                  <el-card shadow="hover" class="stat-card">
+                    <template #header>
+                      <div class="stat-header">
+                        <el-icon><User /></el-icon>
+                        <span>总用户数</span>
+                      </div>
+                    </template>
+                    <div class="stat-content">
+                      <span class="stat-number">{{ totalUsers }}</span>
+                      <span class="stat-unit">人</span>
+                    </div>
+                  </el-card>
+                </el-col>
+                <el-col :span="8">
+                  <el-card shadow="hover" class="stat-card">
+                    <template #header>
+                      <div class="stat-header">
+                        <el-icon><UserFilled /></el-icon>
+                        <span>活跃用户</span>
+                      </div>
+                    </template>
+                    <div class="stat-content">
+                      <span class="stat-number">{{ activeUsers }}</span>
+                      <span class="stat-unit">人</span>
+                    </div>
+                  </el-card>
+                </el-col>
+                <el-col :span="8">
+                  <el-card shadow="hover" class="stat-card">
+                    <template #header>
+                      <div class="stat-header">
+                        <el-icon><Warning /></el-icon>
+                        <span>封禁用户</span>
+                      </div>
+                    </template>
+                    <div class="stat-content">
+                      <span class="stat-number">{{ bannedUsers }}</span>
+                      <span class="stat-unit">人</span>
+                    </div>
+                  </el-card>
+                </el-col>
+              </el-row>
+            </div>
+
             <!-- 用户列表 -->
             <div v-if="userList.length > 0" class="user-list">
               <el-table :data="userList" style="width: 100%" border>
@@ -270,6 +318,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { User, UserFilled, Warning } from '@element-plus/icons-vue'
 
 const router = useRouter()
 const activeMenu = ref('1')
@@ -284,13 +333,17 @@ const currentPage = ref(1)
 const pageSize = ref(10)
 const totalUsers = ref(0)
 
+// 添加用户统计相关数据
+const activeUsers = ref(0)
+const bannedUsers = ref(0)
+
 // API 请求函数
 const api = {
   // 获取用户列表
   async getUserList(params) {
     try {
       const queryString = new URLSearchParams(params).toString()
-      const response = await fetch(`/api/admin/users?${queryString}`)
+      const response = await fetch(`/user/adminGetUsers/${queryString}`)
       if (!response.ok) throw new Error('获取用户列表失败')
       return await response.json()
     } catch (error) {
@@ -302,7 +355,7 @@ const api = {
   // 搜索用户
   async searchUser(userId) {
     try {
-      const response = await fetch(`/api/admin/users/${userId}`)
+      const response = await fetch(`/user/adminGetUsers/${userId}`)
       if (!response.ok) throw new Error('搜索用户失败')
       return await response.json()
     } catch (error) {
@@ -414,6 +467,8 @@ const handleUserSearch = async () => {
     // 使用模拟数据
     userList.value = mockUserList
     totalUsers.value = mockUserList.length
+    activeUsers.value = 2 // 模拟活跃用户数
+    bannedUsers.value = 9 // 模拟封禁用户数
     // TODO: 实际API调用
     // const params = {
     //   page: currentPage.value,
@@ -423,6 +478,8 @@ const handleUserSearch = async () => {
     // const data = await api.getUserList(params)
     // userList.value = data.users
     // totalUsers.value = data.total
+    // activeUsers.value = data.activeUsers
+    // bannedUsers.value = data.bannedUsers
   } catch (error) {
     console.error('获取用户列表失败:', error)
   } finally {
@@ -526,7 +583,7 @@ onMounted(() => {
 const handleLogout = () => {
   localStorage.removeItem('adminToken')
   localStorage.removeItem('userRole')
-  router.push('/admin/login')
+  router.push('/adminLogin')
 }
 
 const getViolationTagType = (type) => {
@@ -602,6 +659,13 @@ const showBanDialog = (user) => {
   padding: 0 20px;
 }
 
+.header-left h2 {
+  font-size: 20px;
+  font-weight: 600;
+  margin: 0;
+  color: #303133;
+}
+
 .header-left {
   display: flex;
   align-items: center;
@@ -619,6 +683,13 @@ const showBanDialog = (user) => {
   max-width: 1200px;
   margin: 0 auto;
   padding: 20px;
+}
+
+.card-header h3 {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0;
+  color: #303133;
 }
 
 .card-header {
@@ -646,27 +717,87 @@ const showBanDialog = (user) => {
   border-top: 1px solid #eee;
 }
 
+.ban-actions h4 {
+  font-size: 16px;
+  font-weight: 500;
+  margin-bottom: 20px;
+  color: #303133;
+}
+
 .ban-description {
   font-size: 12px;
-  color: #999;
+  color: #909399;
   margin-left: 10px;
 }
 
-.placeholder-content {
-  min-height: 300px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-:deep(.el-descriptions) {
+.user-stats {
   margin-bottom: 20px;
 }
 
-:deep(.el-select-dropdown__item) {
+.user-stats .el-col:nth-child(1) :deep(.el-card__header) {
+  background: #f0f2f5;
+}
+
+.user-stats .el-col:nth-child(2) :deep(.el-card__header) {
+  background: #73d13d;
+}
+
+.user-stats .el-col:nth-child(3) :deep(.el-card__header) {
+  background: #ff7875;
+}
+
+.stat-header {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.user-stats .el-col:nth-child(1) .stat-header {
+  color: #606266;
+}
+
+.user-stats .el-col:nth-child(2) .stat-header,
+.user-stats .el-col:nth-child(3) .stat-header {
+  color: #fff;
+}
+
+.user-stats .el-col:nth-child(1) :deep(.el-icon) {
+  color: #606266;
+}
+
+.user-stats .el-col:nth-child(2) :deep(.el-icon),
+.user-stats .el-col:nth-child(3) :deep(.el-icon) {
+  color: #fff;
+}
+
+.stat-content {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  padding: 20px 0;
+}
+
+.stat-number {
+  font-size: 28px;
+  font-weight: 600;
+  color: #303133;
+}
+
+.stat-unit {
+  margin-left: 4px;
+  font-size: 13px;
+  color: #909399;
+}
+
+:deep(.el-card__header) {
+  padding: 12px 20px;
+  border-bottom: none;
+}
+
+:deep(.el-card__body) {
+  padding: 0;
 }
 
 .user-list {
@@ -689,10 +820,33 @@ const showBanDialog = (user) => {
 .logout-button {
   padding: 8px 20px;
   border-radius: 4px;
+  font-size: 14px;
 }
 
 .duration-unit {
   margin-left: 10px;
   color: #666;
+  font-size: 14px;
+}
+
+:deep(.el-table) {
+  font-size: 14px;
+}
+
+:deep(.el-table th) {
+  font-weight: 600;
+  color: #303133;
+}
+
+:deep(.el-table td) {
+  color: #606266;
+}
+
+:deep(.el-button) {
+  font-size: 14px;
+}
+
+:deep(.el-tag) {
+  font-size: 13px;
 }
 </style> 
