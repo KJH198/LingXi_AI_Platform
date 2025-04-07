@@ -9,9 +9,18 @@
               :size="100"
               :src="userInfo.avatar || 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png'"
             />
-            <el-button class="change-avatar-btn" type="primary" size="small">
-              更换头像
-            </el-button>
+            <el-upload
+              class="avatar-uploader"
+              action="#"
+              :http-request="uploadAvatar"
+              :show-file-list="false"
+              :before-upload="beforeAvatarUpload"
+              accept="image/jpeg,image/png,image/gif"
+            >
+              <el-button class="change-avatar-btn" type="primary" size="small">
+                更换头像
+              </el-button>
+            </el-upload>
           </div>
           <div class="basic-info">
             <h2>{{ userInfo.username }}</h2>
@@ -97,9 +106,79 @@ import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { User, Phone, Message } from '@element-plus/icons-vue'
+import type { UploadProps, UploadRequestOptions } from 'element-plus'
+
+// 上传前的验证
+const beforeAvatarUpload = (file: File) => {
+  // 检查文件类型
+  const isImage = ['image/jpeg', 'image/png', 'image/gif'].includes(file.type)
+  if (!isImage) {
+    ElMessage.error('头像必须是JPG/PNG/GIF格式的图片！')
+    return false
+  }
+  
+  // 检查文件大小（限制为2MB）
+  const isLt2M = file.size / 1024 / 1024 < 2
+  if (!isLt2M) {
+    ElMessage.error('头像图片大小不能超过2MB！')
+    return false
+  }
+  
+  return true
+}
+
+// 自定义上传请求
+const uploadAvatar = async (options: UploadRequestOptions) => {
+  try {
+    const { file } = options
+    loading.value = true
+    
+    // 获取token
+    const token = localStorage.getItem('token')
+    if (!token) {
+      ElMessage.error('请先登录')
+      router.push('/login')
+      return
+    }
+    
+    // 创建FormData对象
+    const formData = new FormData()
+    formData.append('avatar', file)
+    
+    // 实际API请求代码（暂时注释）
+    const response = await fetch('/user/upload_avatar/', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      },
+      body: formData
+    })
+    
+    if (!response.ok) {
+      throw new Error('头像上传失败')
+    }
+    
+    const result = await response.json()
+    if (result.code === 200) {
+      // 更新头像
+      userInfo.avatar = result.data.avatar
+      ElMessage.success('头像更新成功')
+    } else {
+      throw new Error(result.message || '头像上传失败')
+    }
+    
+  } catch (error) {
+    console.error('头像上传失败:', error)
+    ElMessage.error('头像上传失败，请稍后重试')
+
+  } finally {
+    loading.value = false
+  }
+}
 
 const router = useRouter()
 import type { FormInstance } from 'element-plus'
+import { Avatar } from '@element-plus/icons-vue'
 
 const profileFormRef = ref<FormInstance | null>(null)
 const loading = ref(false)
@@ -145,8 +224,7 @@ const fetchUserInfo = async () => {
     Object.assign(userInfo, mockUserData)
 
     // 实际API请求代码（暂时注释）
-    /*
-    const response = await fetch('/api/user/info/', {
+    const response = await fetch('/user/user_info/', {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -158,7 +236,11 @@ const fetchUserInfo = async () => {
       throw new Error('获取用户信息失败')
     }
 
-    const data = await response.json()
+    const data = await response.json();
+    if (data.code !== 200) {
+      throw new Error(data.message || '获取用户信息失败');
+    }
+
     // 更新用户信息
     Object.assign(userInfo, {
       username: data.username,
@@ -166,11 +248,10 @@ const fetchUserInfo = async () => {
       email: data.email || '',
       bio: data.bio || '这个人很懒，什么都没有留下',
       avatar: data.avatar || 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png',
-      posts_count: data.posts_count,
-      followers: data.followers,
-      following: data.following
+      posts_count: data.posts_count || 0,
+      followers: data.followers || 0,
+      following: data.following || 0
     })
-    */
   } catch (error) {
     console.error('获取用户信息失败:', error)
     ElMessage.error('获取用户信息失败，请稍后重试')
@@ -206,18 +287,32 @@ const handleUpdateProfile = async () => {
     loading.value = true
 
     // TODO: 发送更新请求到后端
-    // const response = await fetch('/api/user/update_user_info', {
-    //   method: 'POST',
-    //   headers: {
-    //     'Content-Type': 'application/json',
-    //     'Authorization': `Bearer ${localStorage.getItem('token')}`
-    //   },
-    //   body: JSON.stringify(userInfo)
-    // })
+    const response = await fetch('/user/update_info/', {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      },
+      body: JSON.stringify({
+        username: userInfo.username,
+        phone_number: userInfo.phone_number,
+        email: userInfo.email,
+        bio: userInfo.bio,
+        avatar : userInfo.avatar
+      })
+    })
 
-    // 模拟更新成功
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    ElMessage.success('个人信息更新成功')
+    if (!response.ok) {
+      throw new Error('更新个人信息失败')
+    }
+    else {
+      const result = await response.json()
+      if (result.code === 200) {
+        ElMessage.success('个人信息更新成功')
+      } else {
+        throw new Error(result.message || '更新失败')
+      }
+    }
     
   } catch (error) {
     ElMessage.error('更新失败，请检查输入信息')
