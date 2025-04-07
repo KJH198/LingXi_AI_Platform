@@ -6,6 +6,12 @@ import * as ElementPlusIconsVue from '@element-plus/icons-vue'  // 引入所有�
 import type { Component } from 'vue'  // 引入 Component 类型
 import router from './router'  // 引入路由配置
 
+// 引入 Vue Flow 样式
+import '@vue-flow/core/dist/style.css'
+import '@vue-flow/core/dist/theme-default.css'
+import '@vue-flow/controls/dist/style.css'
+import '@vue-flow/minimap/dist/style.css'
+
 const app = createApp(App)  // 创建应用实例
 
 // 注册所有图标

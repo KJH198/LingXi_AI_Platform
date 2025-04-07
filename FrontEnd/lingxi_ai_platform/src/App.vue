@@ -14,10 +14,19 @@
 <style>
     /*  样式  */
     .app {
-        background-color: aliceblue;
-        box-sizing: 0 0 10px;
-        border-radius: 10px;
-        padding: 20px;
-        min-height: 100vh;
+        width: 100%;
+        height: 100vh;
+        margin: 0;
+        padding: 0;
+    }
+    
+    body {
+        margin: 0;
+        padding: 0;
+    }
+    
+    #app {
+        width: 100%;
+        height: 100vh;
     }
 </style>

@@ -111,9 +111,9 @@ DATABASES = {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'lingxi',
         'USER': 'root',
-        'PASSWORD': '030607',
-        'HOST': '127.0.0.1',
-        'PORT': '3306',
+        'PASSWORD': '030607',   # 你的数据库密码
+        'HOST': '127.0.0.1',    # 你的数据库地址
+        'PORT': '3306',         # 你的数据库端口
     }
 }
 
@@ -147,7 +147,7 @@ STATIC_URL = '/static/'
 
 # 静态文件目录配置
 STATICFILES_DIRS = [
-    BASE_DIR / 'static',
+    BASE_DIR.parent / 'FrontEnd' / 'lingxi_ai_platform' / 'dist',
 ]
 
 # 生产环境下静态文件收集的目录

@@ -87,26 +87,33 @@ const handleAdminLogin = async () => {
   try {
     await adminLoginFormRef.value.validate()
     loading.value = true
-    
-    // 这里添加管理员登录的API调用
-    const response = {
-      data: {
-        success: true,
-        token: 'admin-mocked-token-123456',
-        role: 'admin'
-      }
+
+    const response = await fetch('/user/adminLogin', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        phone_number: adminLoginForm.username,
+        password: adminLoginForm.password
+      })
+    })
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`)
     }
 
-    if (response.data.success) {
+    const data = await response.json()
+
+    if (data.success) {
       ElMessage.success('管理员登录成功')
-      localStorage.setItem('adminToken', response.data.token)
-      localStorage.setItem('userRole', response.data.role)
+      localStorage.setItem('adminToken', data.token)
+      localStorage.setItem('userRole', data.role)
       router.push('/admin/dashboard')
     } else {
-      ElMessage.error('管理员登录失败，请检查用户名和密码')
+      ElMessage.error(data.message)
     }
-    
   } catch (error) {
+    console.error('管理员登录错误:', error)
     ElMessage.error('管理员登录失败，请检查输入信息')
   } finally {
     loading.value = false

@@ -169,3 +169,414 @@ class UserView(APIView):
         users = User.objects.all()
         serializer = UserSerializer(users, many=True)
         return Response(serializer.data)
+
+class AdminDashboardView(APIView):
+    """管理员操作台视图"""
+    def get(self, request):
+        # 验证管理员权限
+        if not request.user.is_staff:
+            return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
+        
+        # 返回操作台基本信息
+        data = {
+            'total_users': User.objects.count(),
+            'active_users': User.objects.filter(is_active=True).count(),
+            'banned_users': User.objects.filter(is_active=False).count()
+        }
+        return Response(data)
+
+class UserManagementView(APIView):
+    """用户管理视图"""
+    def get(self, request):
+        # 验证管理员权限
+        if not request.user.is_staff:
+            return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
+        
+        # 获取所有用户信息
+        users = User.objects.all()
+        serializer = UserSerializer(users, many=True)
+        return Response(serializer.data)
+
+    def post(self, request):
+        # 验证管理员权限
+        if not request.user.is_staff:
+            return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
+
+    def get(self, request, user_id=None):
+        # 验证管理员权限
+        if not request.user.is_staff:
+            return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
+        
+        # 根据ID查询单个用户
+        if user_id:
+            try:
+                user = User.objects.get(id=user_id)
+                serializer = UserSerializer(user)
+                return Response(serializer.data)
+            except User.DoesNotExist:
+                return Response({'error': '用户不存在'}, status=status.HTTP_404_NOT_FOUND)
+        
+        # 查询所有用户
+        users = User.objects.all()
+        serializer = UserSerializer(users, many=True)
+        return Response(serializer.data)
+        
+        # 封禁用户
+        user_id = request.data.get('user_id')
+        ban_days = request.data.get('ban_days')  # 7, 10, -1(永久)
+        reason = request.data.get('reason', '违反社区规定')
+        
+        try:
+            user = User.objects.get(id=user_id)
+            
+            # 永久封禁
+            if ban_days == -1:
+                user.is_active = False
+                user.ban_reason = reason
+                user.ban_until = None
+                user.save()
+                return Response({'message': '用户已永久封禁'})
+            
+            # 临时封禁
+            elif ban_days in [7, 10]:
+                from datetime import datetime, timedelta
+                from django.utils.timezone import make_aware
+                
+                ban_until = make_aware(datetime.now() + timedelta(days=ban_days))
+                user.is_active = False
+                user.ban_reason = reason
+                user.ban_until = ban_until
+                user.save()
+                
+                # 实际项目中应该使用celery定时任务在ban_until时间解封
+                return Response({
+                    'message': f'用户已封禁{ban_days}天',
+                    'ban_until': ban_until
+                })
+            
+            else:
+                return Response({'error': '无效的封禁天数'}, status=status.HTTP_400_BAD_REQUEST)
+                
+        except User.DoesNotExist:
+            return Response({'error': '用户不存在'}, status=status.HTTP_404_NOT_FOUND)
+
+class AgentRatingView(APIView):
+    """智能体评分与评价"""
+    def post(self, request):
+        # 验证用户权限
+        if not request.user.is_authenticated:
+            return Response({'error': '请先登录'}, status=status.HTTP_401_UNAUTHORIZED)
+        
+        agent_id = request.data.get('agent_id')
+        rating = request.data.get('rating')
+        comment = request.data.get('comment', '')
+        
+        # 验证评分范围(1-5星)
+        if not rating or not 1 <= int(rating) <= 5:
+            return Response({'error': '评分必须是1-5之间的整数'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # 保存评价到数据库
+        from .models import AgentRating
+        try:
+            rating_obj = AgentRating.objects.create(
+                user=request.user,
+                agent_id=agent_id,
+                rating=rating,
+                comment=comment
+            )
+            return Response({
+                'message': '评价成功',
+                'rating_id': rating_obj.id
+            })
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class KnowledgeBaseView(APIView):
+    """知识库管理"""
+    def post(self, request):
+        # 验证管理员权限
+        if not request.user.is_staff:
+            return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
+        
+        title = request.data.get('title')
+        content = request.data.get('content')
+        
+        # 实际项目中应该保存到知识库模型
+        return Response({'message': '知识库创建成功'})
+
+    def delete(self, request, kb_id):
+        # 验证管理员权限
+        if not request.user.is_staff:
+            return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
+        
+        # 实际项目中应该删除知识库记录
+        return Response({'message': '知识库删除成功'})
+
+    def put(self, request, kb_id):
+        # 验证管理员权限
+        if not request.user.is_staff:
+            return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
+        
+        content = request.data.get('content')
+        # 实际项目中应该更新知识库内容
+        return Response({'message': '知识库更新成功'})
+
+class AdminLoginView(APIView):
+    """
+    管理员登录接口
+    
+    请求体格式:
+    {
+        "phone_number": "手机号",
+        "password": "密码"
+    }
+
+    返回格式:
+    {
+        "success": true/false,
+        "token": "token字符串"  // 登录成功时返回
+        "message": "错误信息"   // 登录失败时返回
+    }
+    """
+    def post(self, request):
+        try:
+            phone_number = request.data.get('phone_number')
+            password = request.data.get('password')
+
+            if not phone_number or not password:
+                return Response({
+                    'success': False,
+                    'message': '手机号和密码不能为空'
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            # 通过手机号查找用户
+            try:
+                user = User.objects.get(phone_number=phone_number)
+            except User.DoesNotExist:
+                return Response({
+                    'success': False,
+                    'message': '用户不存在'
+                }, status=status.HTTP_401_UNAUTHORIZED)
+
+            # 验证是否为管理员
+            if not user.is_admin:
+                return Response({
+                    'success': False,
+                    'message': '该用户不是管理员'
+                }, status=status.HTTP_403_FORBIDDEN)
+
+            # 验证密码
+            if not user.check_password(password):
+                return Response({
+                    'success': False,
+                    'message': '密码错误'
+                }, status=status.HTTP_401_UNAUTHORIZED)
+
+            # 生成 JWT token
+            refresh = RefreshToken.for_user(user)
+            access_token = str(refresh.access_token)
+
+            return Response({
+                'success': True,
+                'token': access_token,
+                'message': '管理员登录成功'
+            })
+
+        except Exception as e:
+            return Response({
+                'success': False,
+                'message': '服务器内部错误'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class UserFollowingView(APIView):
+    """
+    用户关注相关接口
+    
+    1. 获取关注列表
+    请求方式: GET
+    路径参数: user_id - 用户ID
+    
+    2. 关注用户
+    请求方式: POST
+    路径参数: user_id - 当前用户ID
+    请求体: {
+        "target_user_id": 目标用户ID
+    }
+    
+    3. 取消关注
+    请求方式: DELETE
+    路径参数: user_id - 当前用户ID
+    请求体: {
+        "target_user_id": 目标用户ID
+    }
+    
+    返回格式:
+    {
+        "success": true/false,
+        "data": {
+            "following": [
+                {
+                    "id": 用户ID,
+                    "username": "用户名",
+                    "phone_number": "手机号",
+                    "email": "邮箱"
+                }
+            ],
+            "following_count": 关注数,
+            "followers_count": 粉丝数
+        },
+        "message": "错误信息"  // 失败时返回
+    }
+    """
+    def get(self, request, user_id):
+        try:
+            # 获取目标用户
+            target_user = User.objects.get(id=user_id)
+            
+            # 获取关注列表
+            following = target_user.following.all()
+            
+            # 序列化关注用户数据
+            following_data = [{
+                'id': user.id,
+                'username': user.username,
+                'phone_number': user.phone_number,
+                'email': user.email
+            } for user in following]
+            
+            return Response({
+                'success': True,
+                'data': {
+                    'following': following_data,
+                    'following_count': target_user.get_following_count(),
+                    'followers_count': target_user.get_followers_count()
+                }
+            })
+            
+        except User.DoesNotExist:
+            return Response({
+                'success': False,
+                'message': '用户不存在'
+            }, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({
+                'success': False,
+                'message': '服务器内部错误'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def post(self, request, user_id):
+        """
+        关注用户
+        """
+        try:
+            # 验证用户是否登录
+            if not request.user.is_authenticated:
+                return Response({
+                    'success': False,
+                    'message': '请先登录'
+                }, status=status.HTTP_401_UNAUTHORIZED)
+
+            # 验证当前用户ID是否匹配
+            if request.user.id != user_id:
+                return Response({
+                    'success': False,
+                    'message': '无权操作其他用户的关注'
+                }, status=status.HTTP_403_FORBIDDEN)
+
+            # 获取目标用户ID
+            target_user_id = request.data.get('target_user_id')
+            if not target_user_id:
+                return Response({
+                    'success': False,
+                    'message': '目标用户ID不能为空'
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            # 获取目标用户
+            try:
+                target_user = User.objects.get(id=target_user_id)
+            except User.DoesNotExist:
+                return Response({
+                    'success': False,
+                    'message': '目标用户不存在'
+                }, status=status.HTTP_404_NOT_FOUND)
+
+            # 检查是否已经关注
+            if request.user.is_following(target_user):
+                return Response({
+                    'success': False,
+                    'message': '已经关注过该用户'
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            # 添加关注
+            if request.user.follow(target_user):
+                return Response({
+                    'success': True,
+                    'message': '关注成功'
+                })
+            else:
+                return Response({
+                    'success': False,
+                    'message': '不能关注自己'
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+        except Exception as e:
+            return Response({
+                'success': False,
+                'message': '服务器内部错误'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def delete(self, request, user_id):
+        """
+        取消关注用户
+        """
+        try:
+            # 验证用户是否登录
+            if not request.user.is_authenticated:
+                return Response({
+                    'success': False,
+                    'message': '请先登录'
+                }, status=status.HTTP_401_UNAUTHORIZED)
+
+            # 验证当前用户ID是否匹配
+            if request.user.id != user_id:
+                return Response({
+                    'success': False,
+                    'message': '无权操作其他用户的关注'
+                }, status=status.HTTP_403_FORBIDDEN)
+
+            # 获取目标用户ID
+            target_user_id = request.data.get('target_user_id')
+            if not target_user_id:
+                return Response({
+                    'success': False,
+                    'message': '目标用户ID不能为空'
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            # 获取目标用户
+            try:
+                target_user = User.objects.get(id=target_user_id)
+            except User.DoesNotExist:
+                return Response({
+                    'success': False,
+                    'message': '目标用户不存在'
+                }, status=status.HTTP_404_NOT_FOUND)
+
+            # 检查是否已经关注
+            if not request.user.is_following(target_user):
+                return Response({
+                    'success': False,
+                    'message': '未关注该用户'
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            # 取消关注
+            request.user.unfollow(target_user)
+            return Response({
+                'success': True,
+                'message': '取消关注成功'
+            })
+
+        except Exception as e:
+            return Response({
+                'success': False,
+                'message': '服务器内部错误'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
