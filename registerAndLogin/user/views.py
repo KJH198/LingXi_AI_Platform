@@ -186,77 +186,84 @@ class AdminDashboardView(APIView):
         return Response(data)
 
 class UserManagementView(APIView):
-    """用户管理视图"""
-    def get(self, request):
-        # 验证管理员权限
-        if not request.user.is_staff:
-            return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
-        
-        # 获取所有用户信息
-        users = User.objects.all()
-        serializer = UserSerializer(users, many=True)
-        return Response(serializer.data)
-
-    def post(self, request):
-        # 验证管理员权限
-        if not request.user.is_staff:
-            return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
-
+    """用户管理视图，提供以下功能：
+    1. 获取用户列表及统计信息
+    2. 获取单个用户详情
+    3. 封禁用户
+    4. 解封用户
+    """
     def get(self, request, user_id=None):
         # 验证管理员权限
         if not request.user.is_staff:
             return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
         
-        # 根据ID查询单个用户
+        # 获取单个用户详情
         if user_id:
             try:
                 user = User.objects.get(id=user_id)
                 serializer = UserSerializer(user)
-                return Response(serializer.data)
+                return Response({
+                    'user': serializer.data,
+                    'message': '获取用户详情成功'
+                })
             except User.DoesNotExist:
                 return Response({'error': '用户不存在'}, status=status.HTTP_404_NOT_FOUND)
         
-        # 查询所有用户
+        # 获取用户列表及统计信息
         users = User.objects.all()
         serializer = UserSerializer(users, many=True)
-        return Response(serializer.data)
         
-        # 封禁用户
+        return Response({
+            'users': serializer.data,
+            'total': User.objects.count(),
+            'active_users': User.objects.filter(is_active=True).count(),
+            'banned_users': User.objects.filter(is_active=False).count(),
+            'message': '获取用户列表成功'
+        })
+
+    def post(self, request):
+        """封禁用户"""
+        # 验证管理员权限
+        if not request.user.is_staff:
+            return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
+        
         user_id = request.data.get('user_id')
-        ban_days = request.data.get('ban_days')  # 7, 10, -1(永久)
         reason = request.data.get('reason', '违反社区规定')
         
         try:
             user = User.objects.get(id=user_id)
+            user.is_active = False
+            user.ban_reason = reason
+            user.save()
             
-            # 永久封禁
-            if ban_days == -1:
-                user.is_active = False
-                user.ban_reason = reason
-                user.ban_until = None
-                user.save()
-                return Response({'message': '用户已永久封禁'})
+            return Response({
+                'success': True,
+                'message': '用户封禁成功'
+            })
             
-            # 临时封禁
-            elif ban_days in [7, 10]:
-                from datetime import datetime, timedelta
-                from django.utils.timezone import make_aware
-                
-                ban_until = make_aware(datetime.now() + timedelta(days=ban_days))
-                user.is_active = False
-                user.ban_reason = reason
-                user.ban_until = ban_until
-                user.save()
-                
-                # 实际项目中应该使用celery定时任务在ban_until时间解封
-                return Response({
-                    'message': f'用户已封禁{ban_days}天',
-                    'ban_until': ban_until
-                })
+        except User.DoesNotExist:
+            return Response({'error': '用户不存在'}, status=status.HTTP_404_NOT_FOUND)
+
+    def delete(self, request):
+        """解封用户"""
+        # 验证管理员权限
+        if not request.user.is_staff:
+            return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
+        
+        user_id = request.data.get('user_id')
+        
+        try:
+            user = User.objects.get(id=user_id)
+            user.is_active = True
+            user.ban_reason = None
+            user.ban_until = None
+            user.save()
             
-            else:
-                return Response({'error': '无效的封禁天数'}, status=status.HTTP_400_BAD_REQUEST)
-                
+            return Response({
+                'success': True,
+                'message': '用户解封成功'
+            })
+            
         except User.DoesNotExist:
             return Response({'error': '用户不存在'}, status=status.HTTP_404_NOT_FOUND)
 
