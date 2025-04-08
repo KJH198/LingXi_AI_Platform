@@ -6,8 +6,15 @@ create table auth_user
     password     varchar(128)         not null,
     phone_number varchar(15)          not null,
     email        varchar(255)         null,
+    bio          text                 null,
+    avatar       varchar(255)         null,
     is_active    tinyint(1) default 1 not null,
     is_admin     tinyint(1) default 0 not null,
+    created_at   datetime            not null default CURRENT_TIMESTAMP,
+    updated_at   datetime            not null default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
+    last_login   datetime            null,
+    ban_reason   text                null,
+    ban_until    datetime            null,
     constraint phone_number
         unique (phone_number),
     constraint username

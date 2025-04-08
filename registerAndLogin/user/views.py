@@ -10,6 +10,11 @@ from rest_framework import status
 from .serializers import UserSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.core.exceptions import ValidationError
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.parsers import MultiPartParser, FormParser
+import os
+from django.conf import settings
+import time
 
 @csrf_exempt
 def register(request):
@@ -131,6 +136,7 @@ def update_user_info(request):
     - username: The new username of the user.
     - phone_number: The new phone number of the user.
     - email: The new email address of the user.
+    - bio: The new bio of the user.
 
     Returns:
     - 200: User information updated successfully.
@@ -144,11 +150,18 @@ def update_user_info(request):
         
         data = json.loads(request.body)
         user = request.user
-        
+
+        # 检查用户名是否已存在
+        if 'username' in data and data['username'] != user.username:
+            if User.objects.filter(username=data['username']).exists():
+                return JsonResponse({'error': 'Username already exists'}, status=400)
+            user.username = data['username']
         if 'phone_number' in data:
             user.phone_number = data['phone_number']
         if 'email' in data:
             user.email = data['email']
+        if 'bio' in data:
+            user.bio = data['bio']
             
         user.save()
         return JsonResponse({'message': 'User information updated successfully'}, status=200)
@@ -587,3 +600,120 @@ class UserFollowingView(APIView):
                 'success': False,
                 'message': '服务器内部错误'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class UserInfoView(APIView):
+    """获取用户信息接口"""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        data = {
+            'code': 200,
+            'username': user.username,
+            'phone_number': user.phone_number,
+            'email': user.email,
+            'bio': user.bio,
+            'avatar': user.avatar,
+            'posts_count': 0,  # 暂时写死为0
+            'followers': user.get_followers_count(),
+            'following': user.get_following_count()
+        }
+        return Response(data)
+
+
+class UpdateUserInfoView(APIView):
+    """更新用户信息接口"""
+    permission_classes = [IsAuthenticated]
+
+    def put(self, request):
+        user = request.user
+        data = request.data
+
+        # 更新用户信息
+        if 'username' in data:
+            user.username = data['username']
+        if 'phone_number' in data:
+            user.phone_number = data['phone_number']
+        if 'email' in data:
+            user.email = data['email']
+        if 'bio' in data:
+            user.bio = data['bio']
+        if 'avatar' in data:
+            user.avatar = data['avatar']
+
+        try:
+            user.save()
+            return Response({
+                'code': 200,
+                'message': '个人信息更新成功'
+            })
+        except Exception as e:
+            return Response({
+                'error': str(e)
+            }, status=400)
+
+
+class UploadAvatarView(APIView):
+    """上传用户头像接口"""
+    permission_classes = [IsAuthenticated]
+    parser_classes = (MultiPartParser, FormParser)
+
+    def post(self, request):
+        user = request.user
+        avatar_file = request.FILES.get('avatar')
+
+        if not avatar_file:
+            return Response({
+                'code': 400,
+                'message': '请选择要上传的头像文件'
+            }, status=400)
+
+        # 验证文件类型
+        allowed_types = ['image/jpeg', 'image/png', 'image/gif']
+        if avatar_file.content_type not in allowed_types:
+            return Response({
+                'code': 400,
+                'message': '只支持jpg、png、gif格式的图片'
+            }, status=400)
+
+        # 验证文件大小（限制为2MB）
+        if avatar_file.size > 2 * 1024 * 1024:
+            return Response({
+                'code': 400,
+                'message': '图片大小不能超过2MB'
+            }, status=400)
+
+        try:
+            # 生成文件名
+            file_extension = avatar_file.name.split('.')[-1]
+            file_name = f'avatars/{user.id}_{int(time.time())}.{file_extension}'
+
+            # 确保目录存在
+            avatar_dir = os.path.join(settings.MEDIA_ROOT, 'avatars')
+            if not os.path.exists(avatar_dir):
+                os.makedirs(avatar_dir)
+
+            # 保存文件
+            file_path = os.path.join(settings.MEDIA_ROOT, file_name)
+            with open(file_path, 'wb+') as destination:
+                for chunk in avatar_file.chunks():
+                    destination.write(chunk)
+
+            # 更新用户头像URL
+            avatar_url = f'{settings.MEDIA_URL}{file_name}'
+            user.avatar = avatar_url
+            user.save()
+
+            return Response({
+                'code': 200,
+                'message': '头像更新成功',
+                'data': {
+                    'avatar': avatar_url
+                }
+            })
+        except Exception as e:
+            return Response({
+                'code': 500,
+                'message': f'头像上传失败：{str(e)}'
+            }, status=500)
