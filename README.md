@@ -7,5 +7,5 @@ $\qquad$在此背景下，“灵犀” AI 智能体低代码开发平台应运�
 
 一键启动
 ```
-cd .\FrontEnd\lingxi_ai_platform\ ; npm run build ; cd ..\..\registerAndLogin\ ; .\venv\Scripts\activate ;python manage.py runserver
+cd .\FrontEnd\lingxi_ai_platform\ ; npm run build ; cd ..\..\registerAndLogin\ ; .\venv\Scripts\activate ; cd .. ; python .\registerAndLogin\manage.py runserver
 ```
