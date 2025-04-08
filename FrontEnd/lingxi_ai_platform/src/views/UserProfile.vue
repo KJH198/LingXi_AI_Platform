@@ -307,11 +307,10 @@ const handleUpdateProfile = async () => {
     }
     else {
       const result = await response.json()
-      console.log('Update response:', result) // Log the result to verify its structure
       if (result.code !== 200 && response.status !== 200) { // Adjust condition based on actual response structure
-        console.log("code : ", result.code)
-        console.log("status : ", response.status)
-        console.log("message : ", result.message)
+        // console.log("code : ", result.code)
+        // console.log("status : ", response.status)
+        // console.log("message : ", result.message)
         throw new Error(result.message || '更新个人信息失败')
       }
       ElMessage.success('个人信息更新成功')
