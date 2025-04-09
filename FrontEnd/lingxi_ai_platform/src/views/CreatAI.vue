@@ -16,8 +16,7 @@
         :max-zoom="4"
         class="flow-container"
         @connect="onConnect"
-        @node-click="onNodeClick"
-        @node-drag-stop="onNodeDragStop"
+        @node-drag-stop="(event, node) => onNodeDragStop(node)"
       >
         <Background pattern-color="#aaa" gap="8" />
         <Controls />
@@ -30,6 +29,7 @@
               backgroundColor: '#f0f9ff',
               borderColor: '#409EFF'
             }"
+            @click="() => handleNodeClick(nodeProps)"
           >
             <Handle type="source" position="bottom" :style="{ background: '#409EFF' }" />
             <el-icon :size="20" color="#409EFF">
@@ -48,6 +48,7 @@
               backgroundColor: nodeProps.data.bgColor,
               borderColor: nodeProps.data.color
             }"
+            @click="() => handleNodeClick(nodeProps)"
           >
             <Handle type="target" position="top" :style="{ background: nodeProps.data.color }" />
             <el-icon :size="20" :style="{ color: nodeProps.data.color }">
@@ -67,6 +68,7 @@
               backgroundColor: '#fdf6ec',
               borderColor: '#E6A23C'
             }"
+            @click="() => handleNodeClick(nodeProps)"
           >
             <Handle type="target" position="top" :style="{ background: '#E6A23C' }" />
             <el-icon :size="20" color="#E6A23C">
@@ -110,7 +112,7 @@
       <!-- 节点配置抽屉 -->
       <el-drawer
         v-model="drawerVisible"
-        title="节点配置"
+        :title="`${nodeForm.type === 'input' ? '输入' : nodeForm.type === 'process' ? '处理' : '输出'}节点配置`"
         direction="rtl"
         size="400px"
       >
@@ -125,16 +127,183 @@
               <el-option label="输出节点" value="output" />
             </el-select>
           </el-form-item>
-          <el-form-item v-if="nodeForm.type === 'process'" label="处理类型">
-            <el-select v-model="nodeForm.processType">
-              <el-option label="代码" value="code" />
-              <el-option label="选择器" value="selector" />
-              <el-option label="循环" value="loop" />
-              <el-option label="意图识别" value="intent" />
-              <el-option label="批处理" value="batch" />
-              <el-option label="变量聚合" value="aggregate" />
-            </el-select>
-          </el-form-item>
+
+          <!-- 输入节点配置 -->
+          <template v-if="nodeForm.type === 'input'">
+            <el-form-item label="输入类型">
+              <el-select v-model="nodeForm.inputType">
+                <el-option label="文本" value="text" />
+                <el-option label="文件" value="file" />
+                <el-option label="API" value="api" />
+              </el-select>
+            </el-form-item>
+            <template v-if="nodeForm.inputType === 'text'">
+              <el-form-item label="默认值">
+                <el-input v-model="nodeForm.defaultValue" type="textarea" :rows="3" />
+              </el-form-item>
+            </template>
+            <template v-if="nodeForm.inputType === 'file'">
+              <el-form-item label="文件类型">
+                <el-select v-model="nodeForm.fileType">
+                  <el-option label="文本文件" value="text" />
+                  <el-option label="CSV文件" value="csv" />
+                  <el-option label="JSON文件" value="json" />
+                </el-select>
+              </el-form-item>
+            </template>
+            <template v-if="nodeForm.inputType === 'api'">
+              <el-form-item label="API地址">
+                <el-input v-model="nodeForm.apiUrl" />
+              </el-form-item>
+              <el-form-item label="请求方法">
+                <el-select v-model="nodeForm.apiMethod">
+                  <el-option label="GET" value="get" />
+                  <el-option label="POST" value="post" />
+                  <el-option label="PUT" value="put" />
+                  <el-option label="DELETE" value="delete" />
+                </el-select>
+              </el-form-item>
+            </template>
+          </template>
+
+          <!-- 处理节点配置 -->
+          <template v-if="nodeForm.type === 'process'">
+            <el-form-item label="处理类型">
+              <el-select v-model="nodeForm.processType">
+                <el-option label="代码" value="code" />
+                <el-option label="选择器" value="selector" />
+                <el-option label="循环" value="loop" />
+                <el-option label="意图识别" value="intent" />
+                <el-option label="批处理" value="batch" />
+                <el-option label="变量聚合" value="aggregate" />
+              </el-select>
+            </el-form-item>
+
+            <!-- 代码处理配置 -->
+            <template v-if="nodeForm.processType === 'code'">
+              <el-form-item label="代码类型">
+                <el-select v-model="nodeForm.codeType">
+                  <el-option label="JavaScript" value="javascript" />
+                  <el-option label="Python" value="python" />
+                </el-select>
+              </el-form-item>
+              <el-form-item label="代码内容">
+                <el-input v-model="nodeForm.codeContent" type="textarea" :rows="6" />
+              </el-form-item>
+            </template>
+
+            <!-- 选择器配置 -->
+            <template v-if="nodeForm.processType === 'selector'">
+              <el-form-item label="条件类型">
+                <el-select v-model="nodeForm.conditionType">
+                  <el-option label="等于" value="equals" />
+                  <el-option label="大于" value="greater" />
+                  <el-option label="小于" value="less" />
+                  <el-option label="包含" value="contains" />
+                </el-select>
+              </el-form-item>
+              <el-form-item label="条件值">
+                <el-input v-model="nodeForm.conditionValue" />
+              </el-form-item>
+            </template>
+
+            <!-- 循环配置 -->
+            <template v-if="nodeForm.processType === 'loop'">
+              <el-form-item label="循环类型">
+                <el-select v-model="nodeForm.loopType">
+                  <el-option label="固定次数" value="fixed" />
+                  <el-option label="条件循环" value="conditional" />
+                </el-select>
+              </el-form-item>
+              <el-form-item v-if="nodeForm.loopType === 'fixed'" label="循环次数">
+                <el-input-number v-model="nodeForm.loopCount" :min="1" :max="1000" />
+              </el-form-item>
+              <el-form-item v-if="nodeForm.loopType === 'conditional'" label="条件表达式">
+                <el-input v-model="nodeForm.loopCondition" />
+              </el-form-item>
+            </template>
+
+            <!-- 意图识别配置 -->
+            <template v-if="nodeForm.processType === 'intent'">
+              <el-form-item label="意图类型">
+                <el-select v-model="nodeForm.intentType">
+                  <el-option label="文本分类" value="text" />
+                  <el-option label="情感分析" value="sentiment" />
+                  <el-option label="实体识别" value="entity" />
+                </el-select>
+              </el-form-item>
+              <el-form-item label="模型选择">
+                <el-select v-model="nodeForm.intentModel">
+                  <el-option label="BERT" value="bert" />
+                  <el-option label="LSTM" value="lstm" />
+                  <el-option label="CNN" value="cnn" />
+                </el-select>
+              </el-form-item>
+            </template>
+
+            <!-- 批处理配置 -->
+            <template v-if="nodeForm.processType === 'batch'">
+              <el-form-item label="批处理大小">
+                <el-input-number v-model="nodeForm.batchSize" :min="1" :max="1000" />
+              </el-form-item>
+              <el-form-item label="并行处理">
+                <el-switch v-model="nodeForm.parallel" />
+              </el-form-item>
+            </template>
+
+            <!-- 变量聚合配置 -->
+            <template v-if="nodeForm.processType === 'aggregate'">
+              <el-form-item label="聚合方式">
+                <el-select v-model="nodeForm.aggregateType">
+                  <el-option label="求和" value="sum" />
+                  <el-option label="平均值" value="avg" />
+                  <el-option label="最大值" value="max" />
+                  <el-option label="最小值" value="min" />
+                  <el-option label="计数" value="count" />
+                </el-select>
+              </el-form-item>
+              <el-form-item label="聚合字段">
+                <el-input v-model="nodeForm.aggregateField" />
+              </el-form-item>
+            </template>
+          </template>
+
+          <!-- 输出节点配置 -->
+          <template v-if="nodeForm.type === 'output'">
+            <el-form-item label="输出类型">
+              <el-select v-model="nodeForm.outputType">
+                <el-option label="文本" value="text" />
+                <el-option label="文件" value="file" />
+                <el-option label="API" value="api" />
+              </el-select>
+            </el-form-item>
+            <template v-if="nodeForm.outputType === 'file'">
+              <el-form-item label="文件格式">
+                <el-select v-model="nodeForm.fileFormat">
+                  <el-option label="JSON" value="json" />
+                  <el-option label="CSV" value="csv" />
+                  <el-option label="TXT" value="txt" />
+                </el-select>
+              </el-form-item>
+              <el-form-item label="文件路径">
+                <el-input v-model="nodeForm.filePath" />
+              </el-form-item>
+            </template>
+            <template v-if="nodeForm.outputType === 'api'">
+              <el-form-item label="API地址">
+                <el-input v-model="nodeForm.apiUrl" />
+              </el-form-item>
+              <el-form-item label="请求方法">
+                <el-select v-model="nodeForm.apiMethod">
+                  <el-option label="GET" value="get" />
+                  <el-option label="POST" value="post" />
+                  <el-option label="PUT" value="put" />
+                  <el-option label="DELETE" value="delete" />
+                </el-select>
+              </el-form-item>
+            </template>
+          </template>
+
           <el-form-item label="节点描述">
             <el-input
               v-model="nodeForm.description"
@@ -223,11 +392,39 @@ const nodeForm = ref({
   name: '',
   type: '',
   description: '',
-  processType: 'code'
+  // 输入节点配置
+  inputType: 'text',
+  defaultValue: '',
+  fileType: 'text',
+  apiUrl: '',
+  apiMethod: 'get',
+  // 处理节点配置
+  processType: 'code',
+  codeType: 'javascript',
+  codeContent: '',
+  conditionType: 'equals',
+  conditionValue: '',
+  loopType: 'fixed',
+  loopCount: 1,
+  loopCondition: '',
+  intentType: 'text',
+  intentModel: 'bert',
+  batchSize: 32,
+  parallel: true,
+  aggregateType: 'sum',
+  aggregateField: '',
+  // 输出节点配置
+  outputType: 'text',
+  fileFormat: 'json',
+  filePath: ''
 })
 
 // 统计信息
-const nodeCount = computed(() => elements.value.filter(el => el.type === 'custom').length)
+const nodeCount = computed(() => elements.value.filter(el => 
+  el.type === 'input' || 
+  el.type === 'process' || 
+  el.type === 'output'
+).length)
 const edgeCount = computed(() => elements.value.filter(el => el.type === 'smoothstep').length)
 
 const processTypes = [
@@ -335,24 +532,23 @@ const updateNode = () => {
   if (!selectedNode.value) return
   
   const node = elements.value.find(el => el.id === selectedNode.value)
-  if (node) {
-    const processTypeLabels = {
-      'code': '代码处理',
-      'selector': '选择器',
-      'loop': '循环',
-      'intent': '意图识别',
-      'batch': '批处理',
-      'aggregate': '变量聚合'
-    }
-    
-    node.data = {
-      ...node.data,
-      label: nodeForm.value.processType ? processTypeLabels[nodeForm.value.processType] : nodeForm.value.name || node.data.label,
-      description: nodeForm.value.description,
-      processType: nodeForm.value.processType
-    }
-    ElMessage.success('节点更新成功')
+  if (!node || !node.data) return
+  
+  const processTypeLabels = {
+    'code': '代码处理',
+    'selector': '选择器',
+    'loop': '循环',
+    'intent': '意图识别',
+    'batch': '批处理',
+    'aggregate': '变量聚合'
   }
+  
+  node.data = {
+    ...node.data,
+    ...nodeForm.value,
+    label: nodeForm.value.processType ? processTypeLabels[nodeForm.value.processType] : nodeForm.value.name || node.data.label
+  }
+  ElMessage.success('节点更新成功')
 }
 
 // 删除节点
@@ -368,20 +564,25 @@ const deleteNode = () => {
   ElMessage.success('节点删除成功')
 }
 
-// 节点点击事件
-const onNodeClick = (event, node) => {
-  selectedNode.value = node.id
+// 节点点击事件处理
+const handleNodeClick = (nodeProps) => {
+  if (!nodeProps || !nodeProps.id) return
+  
+  selectedNode.value = nodeProps.id
   nodeForm.value = {
-    name: node.data.label,
-    type: node.data.type,
-    description: node.data.description || '',
-    processType: node.data.processType || 'code'
+    ...nodeForm.value,
+    ...nodeProps.data,
+    name: nodeProps.data?.label || '',
+    type: nodeProps.data?.type || '',
+    description: nodeProps.data?.description || '',
+    processType: nodeProps.data?.processType || 'code'
   }
   drawerVisible.value = true
 }
 
 // 节点拖拽结束事件
-const onNodeDragStop = (event, node) => {
+const onNodeDragStop = (node) => {
+  if (!node || !node.position) return
   // 可以在这里添加节点位置保存逻辑
   console.log('节点位置更新:', node.position)
 }
