@@ -17,6 +17,20 @@
         class="flow-container"
         @connect="onConnect"
         @node-drag-stop="(event, node) => onNodeDragStop(node)"
+        @node-click="handleNodeClick"
+        :nodes-draggable="true"
+        :nodes-connectable="true"
+        :elements-selectable="true"
+        @selection-change="onSelectionChange"
+        :default-edge-options="{ type: 'smoothstep', animated: true }"
+        :fit-view-on-init="true"
+        :snap-to-grid="true"
+        :snap-grid="[15, 15]"
+        :pan-on-drag="true"
+        :pan-on-scroll="true"
+        :zoom-on-scroll="true"
+        :prevent-scrolling="true"
+        :touch-action="'none'"
       >
         <Background pattern-color="#aaa" gap="8" />
         <Controls />
@@ -29,7 +43,6 @@
               backgroundColor: '#f0f9ff',
               borderColor: '#409EFF'
             }"
-            @click="() => handleNodeClick(nodeProps)"
           >
             <Handle type="source" position="bottom" :style="{ background: '#409EFF' }" />
             <el-icon :size="20" color="#409EFF">
@@ -48,7 +61,6 @@
               backgroundColor: nodeProps.data.bgColor,
               borderColor: nodeProps.data.color
             }"
-            @click="() => handleNodeClick(nodeProps)"
           >
             <Handle type="target" position="top" :style="{ background: nodeProps.data.color }" />
             <el-icon :size="20" :style="{ color: nodeProps.data.color }">
@@ -68,7 +80,6 @@
               backgroundColor: '#fdf6ec',
               borderColor: '#E6A23C'
             }"
-            @click="() => handleNodeClick(nodeProps)"
           >
             <Handle type="target" position="top" :style="{ background: '#E6A23C' }" />
             <el-icon :size="20" color="#E6A23C">
@@ -115,6 +126,13 @@
         :title="`${nodeForm.type === 'input' ? '输入' : nodeForm.type === 'process' ? '处理' : '输出'}节点配置`"
         direction="rtl"
         size="400px"
+        :append-to-body="true"
+        :modal-append-to-body="true"
+        :destroy-on-close="false"
+        :close-on-click-modal="false"
+        :close-on-press-escape="true"
+        :show-close="true"
+        class="node-config-drawer"
       >
         <el-form :model="nodeForm" label-width="80px">
           <el-form-item label="节点名称">
@@ -356,7 +374,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, nextTick } from 'vue'
 import { VueFlow, useVueFlow, Handle } from '@vue-flow/core'
 import { Background } from '@vue-flow/background'
 import { Controls } from '@vue-flow/controls'
@@ -374,6 +392,8 @@ import {
   DataLine,
   Collection
 } from '@element-plus/icons-vue'
+
+// 引入 Vue Flow 样式
 import '@vue-flow/core/dist/style.css'
 import '@vue-flow/core/dist/theme-default.css'
 import '@vue-flow/controls/dist/style.css'
@@ -565,19 +585,46 @@ const deleteNode = () => {
 }
 
 // 节点点击事件处理
-const handleNodeClick = (nodeProps) => {
-  if (!nodeProps || !nodeProps.id) return
+const handleNodeClick = (event) => {
+  const node = event.node
+  if (!node || !node.id) return
   
-  selectedNode.value = nodeProps.id
+  selectedNode.value = node.id
   nodeForm.value = {
     ...nodeForm.value,
-    ...nodeProps.data,
-    name: nodeProps.data?.label || '',
-    type: nodeProps.data?.type || '',
-    description: nodeProps.data?.description || '',
-    processType: nodeProps.data?.processType || 'code'
+    ...node.data,
+    name: node.data?.label || '',
+    type: node.data?.type || '',
+    description: node.data?.description || '',
+    processType: node.data?.processType || 'code'
   }
+  
   drawerVisible.value = true
+  console.log('节点点击:', node.id, '抽屉状态:', drawerVisible.value)
+}
+
+// 选择变化事件处理
+const onSelectionChange = (params) => {
+  if (params.nodes.length === 1) {
+    const node = params.nodes[0]
+    if (!node || !node.id) return
+    
+    selectedNode.value = node.id
+    nodeForm.value = {
+      ...nodeForm.value,
+      ...node.data,
+      name: node.data?.label || '',
+      type: node.data?.type || '',
+      description: node.data?.description || '',
+      processType: node.data?.processType || 'code'
+    }
+    
+    drawerVisible.value = true
+    console.log('选择变化:', node.id, '抽屉状态:', drawerVisible.value)
+  } else {
+    drawerVisible.value = false
+    selectedNode.value = null
+  }
 }
 
 // 节点拖拽结束事件
@@ -828,5 +875,25 @@ const clearWorkflow = () => {
 
 :deep(.vue-flow__handle-bottom) {
   bottom: -4px;
+}
+
+.node-config-drawer {
+  z-index: 2000;
+}
+
+:deep(.el-drawer__header) {
+  margin-bottom: 0;
+  padding: 16px;
+  border-bottom: 1px solid #ebeef5;
+}
+
+:deep(.el-drawer__body) {
+  padding: 20px;
+  height: calc(100% - 57px);
+  overflow-y: auto;
+}
+
+:deep(.el-drawer.rtl) {
+  width: 400px !important;
 }
 </style>
