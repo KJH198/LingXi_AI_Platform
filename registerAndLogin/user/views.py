@@ -153,10 +153,10 @@ def update_user_info(request):
 
         # 检查用户名是否已存在
         if 'username' in data and data['username'] != user.username:
-            if User.objects.filter(username=data['username']).exists():
-                return JsonResponse({'error': 'Username already exists'}, status=400)
             user.username = data['username']
-        if 'phone_number' in data:
+        if 'phone_number' in data and data['phone_number'] != user.phone_number:
+            if User.objects.filter(phone_number=data['phone_number']).exists():
+                return JsonResponse({'error': 'Phone number already exists'}, status=400)
             user.phone_number = data['phone_number']
         if 'email' in data:
             user.email = data['email']

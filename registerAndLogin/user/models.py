@@ -30,7 +30,7 @@ class MyUserManager(BaseUserManager):
         return user
 
 class User(AbstractBaseUser):
-    username = models.CharField(max_length=30, unique=True, verbose_name='用户名')
+    username = models.CharField(max_length=30, verbose_name='用户名')
     phone_number = models.CharField(max_length=15, unique=True, verbose_name='手机号码')
     email = models.EmailField(max_length=255, blank=True, null=True, verbose_name='邮箱地址')
     bio = models.TextField(max_length=500, blank=True, null=True, verbose_name='个人简介')
