@@ -760,13 +760,60 @@ onPaneClick(() => {
 })
 
 // 保存工作流
-const saveWorkflow = () => {
-  const workflowData = {
-    nodes: elements.value.filter(el => el.type === 'custom'),
-    edges: elements.value.filter(el => el.type === 'smoothstep')
+const saveWorkflow = async () => {
+  try {
+    // 获取token
+    const token = localStorage.getItem('token')
+    if (!token) {
+      ElMessage.error('请先登录')
+      return
+    }
+
+    // 整理工作流数据
+    const workflowData = {
+      nodes: elements.value.filter(el => 
+        el.type === 'input' || 
+        el.type === 'process' || 
+        el.type === 'output'
+      ).map(node => ({
+        id: node.id,
+        type: node.type,
+        position: node.position,
+        data: node.data
+      })),
+      edges: elements.value.filter(el => el.type === 'smoothstep').map(edge => ({
+        id: edge.id,
+        source: edge.source,
+        target: edge.target
+      }))
+    }
+
+    // 发送到后端
+    const response = await fetch('/user/workflowSave', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(workflowData)
+    })
+
+    console.log('保存工作流:', workflowData)
+
+    if (!response.ok) {
+      throw new Error('保存工作流失败')
+    }
+
+    const result = await response.json()
+    if (result.code === 200) {
+      ElMessage.success('工作流保存成功')
+    } else {
+      throw new Error(result.message || '保存工作流失败')
+    }
+  } catch (error) {
+    console.error('保存工作流失败:', error)
+    ElMessage.error('保存工作流失败，请稍后重试')
   }
-  console.log('工作流数据:', workflowData)
-  ElMessage.success('工作流保存成功')
 }
 
 // 清空工作流
