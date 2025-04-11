@@ -21,8 +21,8 @@
         :min-zoom="0.2"
         :max-zoom="4"
         class="flow-container"
-        @connect="onConnect"
-        @node-drag-stop="(event, node) => onNodeDragStop(node)"
+        @connect="handleConnect"
+        @node-drag-stop="handleNodeDragStop"
         @node-click="handleNodeClick"
         :nodes-draggable="true"
         :nodes-connectable="true"
@@ -36,7 +36,10 @@
         :pan-on-scroll="true"
         :zoom-on-scroll="true"
         :prevent-scrolling="true"
+        :pan-on-scroll-mode="'free'"
+        :pan-on-drag-mode="'free'"
         :touch-action="'none'"
+        @pane-click="onPaneClick"
       >
         <Background pattern-color="#aaa" gap="8" />
         <Controls />
@@ -562,6 +565,9 @@ const processTypes = [
   }
 ]
 
+// 添加 useVueFlow hook
+const { onPaneClick } = useVueFlow()
+
 // 添加节点
 const addNode = (type) => {
   if (type === 'process') {
@@ -731,14 +737,13 @@ const onSelectionChange = (params) => {
 }
 
 // 节点拖拽结束事件
-const onNodeDragStop = (node) => {
+const handleNodeDragStop = (node) => {
   if (!node || !node.position) return
-  // 可以在这里添加节点位置保存逻辑
   console.log('节点位置更新:', node.position)
 }
 
 // 连接事件
-const onConnect = (params) => {
+const handleConnect = (params) => {
   elements.value.push({
     id: `edge-${params.source}-${params.target}`,
     source: params.source,
@@ -747,6 +752,12 @@ const onConnect = (params) => {
     animated: true
   })
 }
+
+// 添加画布点击事件处理
+onPaneClick(() => {
+  drawerVisible.value = false
+  selectedNode.value = null
+})
 
 // 保存工作流
 const saveWorkflow = () => {
@@ -870,6 +881,11 @@ const clearWorkflow = () => {
   text-align: center;
   border-width: 1px;
   border-style: solid;
+  touch-action: none;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  cursor: move;
 }
 
 :deep(.vue-flow__node[data-type="input"]) {
@@ -1008,6 +1024,11 @@ const clearWorkflow = () => {
   justify-content: center;
   box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
   position: relative;
+  touch-action: none;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  cursor: move;
 }
 
 .node-label {
