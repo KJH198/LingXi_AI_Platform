@@ -367,7 +367,7 @@ class AdminLoginView(APIView):
                 return Response({
                     'success': False,
                     'message': '手机号和密码不能为空'
-                }, status=status.HTTP_400_BAD_REQUEST)
+                })
 
             # 通过手机号查找用户
             try:
@@ -376,21 +376,21 @@ class AdminLoginView(APIView):
                 return Response({
                     'success': False,
                     'message': '用户不存在'
-                }, status=status.HTTP_401_UNAUTHORIZED)
+                })
 
             # 验证是否为管理员
             if not user.is_admin:
                 return Response({
                     'success': False,
-                    'message': '该用户不是管理员'
-                }, status=status.HTTP_403_FORBIDDEN)
+                    'message': '你不是管理员'
+                })
 
             # 验证密码
             if not user.check_password(password):
                 return Response({
                     'success': False,
                     'message': '密码错误'
-                }, status=status.HTTP_401_UNAUTHORIZED)
+                })
 
             # 生成 JWT token
             refresh = RefreshToken.for_user(user)

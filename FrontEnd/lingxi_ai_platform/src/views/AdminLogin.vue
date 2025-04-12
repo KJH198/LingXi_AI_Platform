@@ -113,7 +113,6 @@ const handleAdminLogin = async () => {
       ElMessage.error(data.message)
     }
   } catch (error) {
-    console.error('管理员登录错误:', error)
     ElMessage.error('管理员登录失败，请检查输入信息')
   } finally {
     loading.value = false
