@@ -12,7 +12,9 @@ from .views import (
     UserFollowingView,
     UserInfoView,
     UpdateUserInfoView,
-    UploadAvatarView
+    UploadAvatarView,
+    AgentManagementView,
+    UserActionLogView
 )
 
 urlpatterns = [

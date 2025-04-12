@@ -717,3 +717,123 @@ class UploadAvatarView(APIView):
                 'code': 500,
                 'message': f'头像上传失败：{str(e)}'
             }, status=500)
+
+            
+class AgentManagementView(APIView):
+    """智能体管理视图，提供以下功能：
+    1. 获取待审核智能体列表
+    2. 审核智能体
+    3. 获取智能体详情
+    """
+    def get(self, request):
+        # 验证管理员权限
+        if not request.user.is_staff:
+            return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
+        
+        from .models import AIAgent
+        status_filter = request.query_params.get('status', 'pending')
+        
+        # 获取智能体列表
+        agents = AIAgent.objects.filter(status=status_filter)
+        
+        # 返回智能体基本信息
+        data = [{
+            'id': agent.id,
+            'name': agent.name,
+            'creator': agent.creator.username,
+            'status': agent.status,
+            'created_at': agent.created_at
+        } for agent in agents]
+        
+        return Response({
+            'agents': data,
+            'total': agents.count(),
+            'pending_count': AIAgent.objects.filter(status='pending').count(),
+            'approved_count': AIAgent.objects.filter(status='approved').count(),
+            'rejected_count': AIAgent.objects.filter(status='rejected').count()
+        })
+
+    def post(self, request):
+        """审核智能体"""
+        # 验证管理员权限
+        if not request.user.is_staff:
+            return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
+        
+        agent_id = request.data.get('agent_id')
+        decision = request.data.get('decision')  # 'approve' or 'reject'
+        notes = request.data.get('notes', '')
+        
+        from .models import AIAgent, AgentReview
+        try:
+            agent = AIAgent.objects.get(id=agent_id)
+            
+            # 更新智能体状态
+            if decision == 'approve':
+                agent.status = 'approved'
+            else:
+                agent.status = 'rejected'
+            agent.review_notes = notes
+            agent.save()
+            
+            # 创建审核记录
+            AgentReview.objects.create(
+                agent=agent,
+                reviewer=request.user,
+                decision=decision,
+                notes=notes
+            )
+            
+            return Response({
+                'success': True,
+                'message': '审核操作成功',
+                'new_status': agent.status
+            })
+            
+        except AIAgent.DoesNotExist:
+            return Response({'error': '智能体不存在'}, status=status.HTTP_404_NOT_FOUND)
+
+class UserActionLogView(APIView):
+    """用户行为日志视图"""
+    def get(self, request):
+        # 验证管理员权限
+        if not request.user.is_staff:
+            return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
+        
+        from .models import UserActionLog
+        from django.db.models import Q
+        
+        # 获取查询参数
+        user_id = request.query_params.get('user_id')
+        action = request.query_params.get('action')
+        start_date = request.query_params.get('start_date')
+        end_date = request.query_params.get('end_date')
+        
+        # 构建查询条件
+        query = Q()
+        if user_id:
+            query &= Q(user_id=user_id)
+        if action:
+            query &= Q(action=action)
+        if start_date:
+            query &= Q(created_at__gte=start_date)
+        if end_date:
+            query &= Q(created_at__lte=end_date)
+        
+        # 获取日志记录
+        logs = UserActionLog.objects.filter(query).order_by('-created_at')
+        
+        # 返回日志数据
+        data = [{
+            'id': log.id,
+            'user': log.user.username,
+            'action': log.get_action_display(),
+            'target_id': log.target_id,
+            'target_type': log.target_type,
+            'ip_address': log.ip_address,
+            'created_at': log.created_at
+        } for log in logs]
+        
+        return Response({
+            'logs': data,
+            'total': logs.count()
+        })
