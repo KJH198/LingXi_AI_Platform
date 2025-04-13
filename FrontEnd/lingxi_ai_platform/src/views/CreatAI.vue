@@ -17,7 +17,7 @@
     <div class="workflow-content">
       <VueFlow
         v-model="elements"
-        :default-viewport="{ x: 0, y: 0, zoom: 1.5 }"
+        :default-viewport="{ x: 0, y: 0, zoom: 1.0 }"
         :min-zoom="0.2"
         :max-zoom="4"
         class="flow-container"
@@ -29,7 +29,6 @@
         :elements-selectable="true"
         @selection-change="onSelectionChange"
         :default-edge-options="{ type: 'smoothstep', animated: true }"
-        :fit-view-on-init="true"
         :snap-to-grid="true"
         :snap-grid="[15, 15]"
         :pan-on-drag="true"
@@ -567,7 +566,7 @@ const processTypes = [
 ]
 
 // 添加 useVueFlow hook
-const { onPaneClick } = useVueFlow()
+const { onPaneClick, updateNode: vueFlowUpdateNode } = useVueFlow()
 
 // 添加节点
 const addNode = (type) => {
@@ -618,8 +617,53 @@ const confirmAddProcessNode = () => {
   }
 }
 
+// 修改节点点击事件处理
+const handleNodeClick = (event) => {
+  const node = event.node
+  if (!node || !node.id) return
+  
+  selectedNode.value = node.id
+  
+  // 更新表单数据
+  nodeForm.value = {
+    name: node.data?.label || '',
+    type: node.data?.type || '',
+    description: node.data?.description || '',
+    // 输入节点配置
+    inputType: node.data?.inputType || 'text',
+    defaultValue: node.data?.defaultValue || '',
+    fileType: node.data?.fileType || 'text',
+    apiUrl: node.data?.apiUrl || '',
+    apiMethod: node.data?.apiMethod || 'get',
+    // 处理节点配置
+    processType: node.data?.processType || 'code',
+    codeType: node.data?.codeType || 'javascript',
+    codeContent: node.data?.codeContent || '',
+    conditionType: node.data?.conditionType || 'equals',
+    conditionValue: node.data?.conditionValue || '',
+    loopType: node.data?.loopType || 'fixed',
+    loopCount: node.data?.loopCount || 1,
+    loopCondition: node.data?.loopCondition || '',
+    intentType: node.data?.intentType || 'text',
+    intentModel: node.data?.intentModel || 'bert',
+    batchSize: node.data?.batchSize || 32,
+    parallel: node.data?.parallel ?? true,
+    aggregateType: node.data?.aggregateType || 'sum',
+    aggregateField: node.data?.aggregateField || '',
+    // 输出节点配置
+    outputType: node.data?.outputType || 'text',
+    fileFormat: node.data?.fileFormat || 'json',
+    filePath: node.data?.filePath || ''
+  }
+  
+  // 保存原始数据
+  originalNodeData.value = JSON.parse(JSON.stringify(nodeForm.value))
+  
+  drawerVisible.value = true
+}
+
 // 更新节点
-const updateNode = () => {
+const updateNode = async () => {
   if (!selectedNode.value) return
   
   const node = elements.value.find(el => el.id === selectedNode.value)
@@ -633,21 +677,110 @@ const updateNode = () => {
     'batch': '批处理',
     'aggregate': '变量聚合'
   }
+
+  const processTypeIcons = {
+    'code': 'Edit',
+    'selector': 'Select',
+    'loop': 'Refresh',
+    'intent': 'Connection',
+    'batch': 'DataLine',
+    'aggregate': 'Collection'
+  }
+
+  const processTypeColors = {
+    'code': { color: '#409EFF', bgColor: '#ecf5ff' },
+    'selector': { color: '#67C23A', bgColor: '#f0f9eb' },
+    'loop': { color: '#E6A23C', bgColor: '#fdf6ec' },
+    'intent': { color: '#F56C6C', bgColor: '#fef0f0' },
+    'batch': { color: '#909399', bgColor: '#f4f4f5' },
+    'aggregate': { color: '#9B59B6', bgColor: '#f9f0ff' }
+  }
   
   // 根据节点类型决定如何更新标签
   let newLabel = nodeForm.value.name || node.data.label
   if (node.data.type === 'process' && nodeForm.value.processType) {
     newLabel = processTypeLabels[nodeForm.value.processType]
+    // 更新图标和样式
+    const newIcon = processTypeIcons[nodeForm.value.processType]
+    const newColor = processTypeColors[nodeForm.value.processType].color
+    const newBgColor = processTypeColors[nodeForm.value.processType].bgColor
+    
+    // 创建一个新的节点数据对象，包含所有配置
+    const newNodeData = {
+      ...node.data,
+      ...nodeForm.value,
+      label: newLabel,
+      icon: newIcon,
+      color: newColor,
+      bgColor: newBgColor,
+      // 确保所有配置字段都被保存
+      name: nodeForm.value.name,
+      type: nodeForm.value.type,
+      description: nodeForm.value.description,
+      // 输入节点配置
+      inputType: nodeForm.value.inputType,
+      defaultValue: nodeForm.value.defaultValue,
+      fileType: nodeForm.value.fileType,
+      apiUrl: nodeForm.value.apiUrl,
+      apiMethod: nodeForm.value.apiMethod,
+      // 处理节点配置
+      processType: nodeForm.value.processType,
+      codeType: nodeForm.value.codeType,
+      codeContent: nodeForm.value.codeContent,
+      conditionType: nodeForm.value.conditionType,
+      conditionValue: nodeForm.value.conditionValue,
+      loopType: nodeForm.value.loopType,
+      loopCount: nodeForm.value.loopCount,
+      loopCondition: nodeForm.value.loopCondition,
+      intentType: nodeForm.value.intentType,
+      intentModel: nodeForm.value.intentModel,
+      batchSize: nodeForm.value.batchSize,
+      parallel: nodeForm.value.parallel,
+      aggregateType: nodeForm.value.aggregateType,
+      aggregateField: nodeForm.value.aggregateField,
+      // 输出节点配置
+      outputType: nodeForm.value.outputType,
+      fileFormat: nodeForm.value.fileFormat,
+      filePath: nodeForm.value.filePath
+    }
+    
+    // 使用 Vue Flow 的 updateNode 方法更新节点
+    vueFlowUpdateNode(node.id, {
+      data: newNodeData
+    })
+  } else {
+    // 对于非处理节点，同样需要保存所有配置
+    const newNodeData = {
+      ...node.data,
+      ...nodeForm.value,
+      label: newLabel,
+      // 确保所有配置字段都被保存
+      name: nodeForm.value.name,
+      type: nodeForm.value.type,
+      description: nodeForm.value.description,
+      // 输入节点配置
+      inputType: nodeForm.value.inputType,
+      defaultValue: nodeForm.value.defaultValue,
+      fileType: nodeForm.value.fileType,
+      apiUrl: nodeForm.value.apiUrl,
+      apiMethod: nodeForm.value.apiMethod,
+      // 输出节点配置
+      outputType: nodeForm.value.outputType,
+      fileFormat: nodeForm.value.fileFormat,
+      filePath: nodeForm.value.filePath
+    }
+    
+    // 使用 Vue Flow 的 updateNode 方法更新节点
+    vueFlowUpdateNode(node.id, {
+      data: newNodeData
+    })
   }
   
-  node.data = {
-    ...node.data,
-    ...nodeForm.value,
-    label: newLabel
-  }
-  
-  // 更新原始数据，这样关闭抽屉时就不会提示未保存的修改
+  // 更新原始数据
   originalNodeData.value = JSON.parse(JSON.stringify(nodeForm.value))
+  
+  // 等待 DOM 更新
+  await nextTick()
   
   ElMessage.success('节点更新成功')
 }
@@ -678,6 +811,8 @@ const handleDrawerClose = () => {
         type: 'warning'
       }
     ).then(() => {
+      // 如果用户选择放弃更改，恢复原始数据
+      nodeForm.value = JSON.parse(JSON.stringify(originalNodeData.value))
       drawerVisible.value = false
       selectedNode.value = null
     }).catch(() => {
@@ -690,27 +825,6 @@ const handleDrawerClose = () => {
   }
 }
 
-// 修改节点点击事件处理
-const handleNodeClick = (event) => {
-  const node = event.node
-  if (!node || !node.id) return
-  
-  selectedNode.value = node.id
-  nodeForm.value = {
-    ...nodeForm.value,
-    ...node.data,
-    name: node.data?.label || '',
-    type: node.data?.type || '',
-    description: node.data?.description || '',
-    processType: node.data?.processType || 'code'
-  }
-  
-  // 保存原始数据
-  originalNodeData.value = JSON.parse(JSON.stringify(nodeForm.value))
-  
-  drawerVisible.value = true
-}
-
 // 修改选择变化事件处理
 const onSelectionChange = (params) => {
   if (params.nodes.length === 1) {
@@ -718,13 +832,37 @@ const onSelectionChange = (params) => {
     if (!node || !node.id) return
     
     selectedNode.value = node.id
+    
+    // 更新表单数据
     nodeForm.value = {
-      ...nodeForm.value,
-      ...node.data,
       name: node.data?.label || '',
       type: node.data?.type || '',
       description: node.data?.description || '',
-      processType: node.data?.processType || 'code'
+      // 输入节点配置
+      inputType: node.data?.inputType || 'text',
+      defaultValue: node.data?.defaultValue || '',
+      fileType: node.data?.fileType || 'text',
+      apiUrl: node.data?.apiUrl || '',
+      apiMethod: node.data?.apiMethod || 'get',
+      // 处理节点配置
+      processType: node.data?.processType || 'code',
+      codeType: node.data?.codeType || 'javascript',
+      codeContent: node.data?.codeContent || '',
+      conditionType: node.data?.conditionType || 'equals',
+      conditionValue: node.data?.conditionValue || '',
+      loopType: node.data?.loopType || 'fixed',
+      loopCount: node.data?.loopCount || 1,
+      loopCondition: node.data?.loopCondition || '',
+      intentType: node.data?.intentType || 'text',
+      intentModel: node.data?.intentModel || 'bert',
+      batchSize: node.data?.batchSize || 32,
+      parallel: node.data?.parallel ?? true,
+      aggregateType: node.data?.aggregateType || 'sum',
+      aggregateField: node.data?.aggregateField || '',
+      // 输出节点配置
+      outputType: node.data?.outputType || 'text',
+      fileFormat: node.data?.fileFormat || 'json',
+      filePath: node.data?.filePath || ''
     }
     
     // 保存原始数据
@@ -804,7 +942,7 @@ const saveWorkflow = async () => {
     }
 
     // 发送到后端
-    const response = await fetch('/user/workflowSave', {
+    const response = await fetch('/agent/workflowSave/', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -950,9 +1088,33 @@ const clearWorkflow = () => {
   cursor: move;
 }
 
+.input-node,
+.process-node,
+.output-node {
+  padding: 10px 15px;
+  border-radius: 8px;
+  border: 2px solid;
+  min-width: 120px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  touch-action: none;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  cursor: move;
+}
+
 :deep(.vue-flow__node[data-type="input"]) {
-  background: #409eff;
-  border-color: #409eff;
+  background: #f0f9ff;
+  border-color: #409EFF;
+}
+
+:deep(.vue-flow__node[data-type="output"]) {
+  background: #fdf6ec;
+  border-color: #E6A23C;
 }
 
 :deep(.vue-flow__node[data-type="process"]) {
@@ -1071,26 +1233,6 @@ const clearWorkflow = () => {
   color: #666;
   font-size: 12px;
   margin-top: 10px;
-}
-
-.input-node,
-.process-node,
-.output-node {
-  padding: 10px 15px;
-  border-radius: 8px;
-  border: 2px solid;
-  min-width: 120px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
-  position: relative;
-  touch-action: none;
-  -webkit-touch-callout: none;
-  -webkit-user-select: none;
-  user-select: none;
-  cursor: move;
 }
 
 .node-label {
