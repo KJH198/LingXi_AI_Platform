@@ -13,7 +13,7 @@
           </el-menu>
         </div>
         <div class="header-right">
-          <el-button type="primary" @click="router.push('/create-ai')">构建智能体</el-button>
+          <el-button type="primary" @click="router.push('/agent-editor')">构建智能体</el-button>
           <el-button type="primary" @click="showPostDialog">发布帖子</el-button>
           <el-dropdown>
             <el-avatar :size="40" src="https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png" />
