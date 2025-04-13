@@ -4,5 +4,5 @@ registerAndLogin/registerAndLogin/__pycache__/
 registerAndLogin/user/__pycache__/
 registerAndLogin/create_db.py
 
-# .history
-# .idea
+.history
+.idea
