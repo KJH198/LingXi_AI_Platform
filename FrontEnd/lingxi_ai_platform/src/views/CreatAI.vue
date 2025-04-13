@@ -17,7 +17,7 @@
     <div class="workflow-content">
       <VueFlow
         v-model="elements"
-        :default-viewport="{ x: 0, y: 0, zoom: 1.5 }"
+        :default-viewport="{ x: 0, y: 0, zoom: 1.0 }"
         :min-zoom="0.2"
         :max-zoom="4"
         class="flow-container"
@@ -29,7 +29,6 @@
         :elements-selectable="true"
         @selection-change="onSelectionChange"
         :default-edge-options="{ type: 'smoothstep', animated: true }"
-        :fit-view-on-init="true"
         :snap-to-grid="true"
         :snap-grid="[15, 15]"
         :pan-on-drag="true"
@@ -950,9 +949,33 @@ const clearWorkflow = () => {
   cursor: move;
 }
 
+.input-node,
+.process-node,
+.output-node {
+  padding: 10px 15px;
+  border-radius: 8px;
+  border: 2px solid;
+  min-width: 120px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  touch-action: none;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  cursor: move;
+}
+
 :deep(.vue-flow__node[data-type="input"]) {
-  background: #409eff;
-  border-color: #409eff;
+  background: #f0f9ff;
+  border-color: #409EFF;
+}
+
+:deep(.vue-flow__node[data-type="output"]) {
+  background: #fdf6ec;
+  border-color: #E6A23C;
 }
 
 :deep(.vue-flow__node[data-type="process"]) {
@@ -1071,26 +1094,6 @@ const clearWorkflow = () => {
   color: #666;
   font-size: 12px;
   margin-top: 10px;
-}
-
-.input-node,
-.process-node,
-.output-node {
-  padding: 10px 15px;
-  border-radius: 8px;
-  border: 2px solid;
-  min-width: 120px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
-  position: relative;
-  touch-action: none;
-  -webkit-touch-callout: none;
-  -webkit-user-select: none;
-  user-select: none;
-  cursor: move;
 }
 
 .node-label {
