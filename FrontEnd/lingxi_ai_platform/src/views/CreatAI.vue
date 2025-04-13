@@ -804,7 +804,7 @@ const saveWorkflow = async () => {
     }
 
     // 发送到后端
-    const response = await fetch('/user/workflowSave', {
+    const response = await fetch('/agent/workflowSave/', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
