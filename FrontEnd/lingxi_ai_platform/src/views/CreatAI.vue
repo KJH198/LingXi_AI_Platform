@@ -468,6 +468,7 @@ const selectedNode = ref(null)
 const processTypeDialogVisible = ref(false)
 const selectedProcessType = ref('code')
 const pendingProcessNode = ref(null)
+const workflowName = ref('')
 
 // 节点表单
 const nodeForm = ref({
@@ -769,8 +770,22 @@ const saveWorkflow = async () => {
       return
     }
 
+    // 弹出命名对话框
+    await ElMessageBox.prompt('请输入工作流名称', '保存工作流', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      inputPattern: /^.{1,50}$/,
+      inputErrorMessage: '工作流名称长度应在1-50个字符之间',
+      inputValue: workflowName.value
+    }).then(({ value }) => {
+      workflowName.value = value
+    }).catch(() => {
+      return // 用户取消保存
+    })
+
     // 整理工作流数据
     const workflowData = {
+      name: workflowName.value,
       nodes: elements.value.filter(el => 
         el.type === 'input' || 
         el.type === 'process' || 
