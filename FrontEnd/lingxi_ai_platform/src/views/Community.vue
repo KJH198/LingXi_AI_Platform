@@ -202,6 +202,14 @@ const userInfo = reactive({
 // 获取用户信息
 const fetchUserInfo = async () => {
   try {
+    // 首先尝试从本地存储获取用户信息
+    const storedUserInfo = localStorage.getItem('userInfo')
+    if (storedUserInfo) {
+      const parsedUserInfo = JSON.parse(storedUserInfo)
+      Object.assign(userInfo, parsedUserInfo)
+      return
+    }
+
     const token = localStorage.getItem('token')
     if (!token) {
       ElMessage.error('请先登录')
@@ -240,10 +248,14 @@ const fetchUserInfo = async () => {
     }
 
     // 更新用户信息
-    Object.assign(userInfo, {
+    const newUserInfo = {
       username: data.username,
       avatar: data.avatar || 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png'
-    })
+    }
+    Object.assign(userInfo, newUserInfo)
+    
+    // 更新本地存储
+    localStorage.setItem('userInfo', JSON.stringify(newUserInfo))
   } catch (error) {
     console.error('获取用户信息失败:', error)
     ElMessage.error('获取用户信息失败，请稍后重试')
