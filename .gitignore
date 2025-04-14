@@ -3,6 +3,7 @@ registerAndLogin/registerAndLogin/settings.py
 registerAndLogin/registerAndLogin/__pycache__/
 registerAndLogin/user/__pycache__/
 registerAndLogin/create_db.py
+registerAndLogin/media/
 
 .history
 .idea

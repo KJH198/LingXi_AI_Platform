@@ -110,14 +110,14 @@ const handleLogin = async () => {
     if (data.success) {
       ElMessage.success('登录成功')
       localStorage.setItem('token', data.token)  // 保存 token 到本地存储
+      localStorage.setItem('userId', data.id) // 保存用户ID到本地存储
       router.push('/community') // 跳转到其他页面
     } else {   // 登录失败提示
       ElMessage.error(data.message || '登录失败，请检查用户名和密码') // 使用服务器返回的错误信息
     }
     
   } catch (error) {
-    // console.error('登录失败:', error)          // 控制台输出错误信息
-    ElMessage.error('登录失败，请检查用户名和密码') // 顶部弹出登录失败提示
+    console.error('登录失败:', error)          // 控制台输出错误信息
   } finally {
     loading.value = false
   }

@@ -81,7 +81,7 @@ def user_login(request):
                 return JsonResponse({
                     'success': False,
                     'message': '手机号和密码不能为空'
-                }, status=400)
+                })
 
             # 通过手机号查找用户
             try:
@@ -90,14 +90,14 @@ def user_login(request):
                 return JsonResponse({
                     'success': False,
                     'message': '用户不存在'
-                }, status=401)
+                })
 
             # 验证密码
             if not user.check_password(password):
                 return JsonResponse({
                     'success': False,
                     'message': '密码错误'
-                }, status=401)
+                })
 
             # 生成 JWT token
             refresh = RefreshToken.for_user(user)
