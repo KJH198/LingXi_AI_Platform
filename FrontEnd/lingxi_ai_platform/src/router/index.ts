@@ -8,6 +8,7 @@ import UserProfile from '../views/UserProfile.vue'
 import Followers from '../views/Followers.vue'
 import Following from '../views/Followings.vue'
 import CreatAI from '../views/CreatAI.vue'
+import AgentEditor from '../views/AgentEditor.vue'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -28,7 +29,7 @@ const router = createRouter({
       component: AdminDashboard
     },
     {  
-      path: '/register',  // 添加注册路由
+      path: '/register',  
       name: 'Register',
       component: Register
     },
@@ -56,6 +57,11 @@ const router = createRouter({
       path: '/create-ai',
       name: 'CreatAI',
       component: CreatAI
+    },
+    {
+      path: '/agent-editor',
+      name: 'AgentEditor',
+      component: AgentEditor
     },
     {
       path: '/',

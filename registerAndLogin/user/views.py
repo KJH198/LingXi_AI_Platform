@@ -108,6 +108,7 @@ def user_login(request):
 
             return JsonResponse({
                 'success': True,
+                'id': user.id,
                 'token': access_token
             })
 
@@ -399,6 +400,7 @@ class AdminLoginView(APIView):
             return Response({
                 'success': True,
                 'token': access_token,
+                'id': user.id,
                 'message': '管理员登录成功'
             })
 
