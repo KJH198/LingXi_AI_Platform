@@ -1001,6 +1001,8 @@ const saveWorkflow = async () => {
 
     // 整理工作流数据
     const workflowData = {
+      userId: localStorage.getItem('userId'),
+      AgentId: localStorage.getItem('agentId') || 123,
       name: workflowName.value,
       nodes: elements.value.filter(el => 
         el.type === 'input' || 

@@ -7,7 +7,7 @@ import Register from '../views/Register.vue'
 import UserProfile from '../views/UserProfile.vue'
 import Followers from '../views/Followers.vue'
 import Following from '../views/Followings.vue'
-import CreatAI from '../views/CreatAI.vue'
+import CreateAI from '../views/CreateAI.vue'
 import AgentEditor from '../views/AgentEditor.vue'
 
 const router = createRouter({
@@ -56,7 +56,7 @@ const router = createRouter({
     {
       path: '/create-ai',
       name: 'CreatAI',
-      component: CreatAI
+      component: CreateAI
     },
     {
       path: '/agent-editor',
