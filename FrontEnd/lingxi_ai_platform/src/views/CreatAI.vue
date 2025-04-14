@@ -566,18 +566,18 @@ const processTypes = [
 ]
 
 // 添加 useVueFlow hook
-const { onPaneClick, updateNode: vueFlowUpdateNode } = useVueFlow()
+const { onPaneClick, updateNode: vueFlowUpdateNode, viewport } = useVueFlow()
 
 // 添加节点
 const addNode = (type) => {
   if (type === 'process') {
     processTypeDialogVisible.value = true
     const id = `${type}-${Date.now()}`
-    const position = { x: Math.random() * 400, y: Math.random() * 400 }
+    const position = findAvailablePosition()
     pendingProcessNode.value = { id, position }
   } else {
     const id = `${type}-${Date.now()}`
-    const position = { x: Math.random() * 400, y: Math.random() * 400 }
+    const position = findAvailablePosition()
     
     elements.value.push({
       id,
@@ -614,6 +614,84 @@ const confirmAddProcessNode = () => {
     
     processTypeDialogVisible.value = false
     pendingProcessNode.value = null
+  }
+}
+
+// 查找可用位置
+const findAvailablePosition = () => {
+  const NODE_WIDTH = 150
+  const NODE_HEIGHT = 100
+  const GRID_SIZE = 20
+  const PADDING = 50
+  
+  // 获取画布尺寸
+  const flowContainer = document.querySelector('.flow-container')
+  const containerWidth = flowContainer?.clientWidth || 800
+  const containerHeight = flowContainer?.clientHeight || 600
+  
+  // 获取视口位置
+  const viewportX = viewport.value.x
+  const viewportY = viewport.value.y
+  const viewportZoom = viewport.value.zoom
+  
+  // 计算可见区域
+  const visibleWidth = containerWidth / viewportZoom
+  const visibleHeight = containerHeight / viewportZoom
+  const visibleLeft = -viewportX / viewportZoom
+  const visibleTop = -viewportY / viewportZoom
+  
+  // 获取所有现有节点的位置
+  const existingPositions = elements.value
+    .filter(el => el.type !== 'smoothstep')
+    .map(el => ({
+      x: Math.round(el.position.x / GRID_SIZE) * GRID_SIZE,
+      y: Math.round(el.position.y / GRID_SIZE) * GRID_SIZE
+    }))
+  
+  // 从可见区域中心开始搜索
+  let x = Math.round((visibleLeft + visibleWidth / 2) / GRID_SIZE) * GRID_SIZE
+  let y = Math.round((visibleTop + visibleHeight / 2) / GRID_SIZE) * GRID_SIZE
+  
+  // 如果画布为空，直接返回中心位置
+  if (existingPositions.length === 0) {
+    return { x, y }
+  }
+  
+  // 螺旋搜索算法
+  let radius = 1
+  let angle = 0
+  const maxRadius = Math.max(visibleWidth, visibleHeight) / GRID_SIZE
+  
+  while (radius < maxRadius) {
+    // 计算螺旋位置
+    x = Math.round((visibleLeft + visibleWidth / 2 + Math.cos(angle) * radius * GRID_SIZE) / GRID_SIZE) * GRID_SIZE
+    y = Math.round((visibleTop + visibleHeight / 2 + Math.sin(angle) * radius * GRID_SIZE) / GRID_SIZE) * GRID_SIZE
+    
+    // 检查是否在可见区域内
+    if (x >= visibleLeft + PADDING && x <= visibleLeft + visibleWidth - NODE_WIDTH - PADDING &&
+        y >= visibleTop + PADDING && y <= visibleTop + visibleHeight - NODE_HEIGHT - PADDING) {
+      // 检查是否与现有节点重叠
+      const isOverlapping = existingPositions.some(pos => {
+        return Math.abs(pos.x - x) < NODE_WIDTH && Math.abs(pos.y - y) < NODE_HEIGHT
+      })
+      
+      if (!isOverlapping) {
+        return { x, y }
+      }
+    }
+    
+    // 增加角度和半径
+    angle += Math.PI / 8
+    if (angle >= Math.PI * 2) {
+      angle = 0
+      radius++
+    }
+  }
+  
+  // 如果找不到合适位置，返回可见区域中心
+  return { 
+    x: visibleLeft + visibleWidth / 2, 
+    y: visibleTop + visibleHeight / 2 
   }
 }
 
