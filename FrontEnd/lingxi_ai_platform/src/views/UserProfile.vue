@@ -210,14 +210,14 @@ const fetchUserInfo = async () => {
     
     // 模拟返回的用户数据
     const mockUserData = {
-      username: '张小明',
-      phone_number: '13812345678',
-      email: 'xiaoming@example.com',
-      bio: '热爱AI技术，专注于大模型应用研发，喜欢分享技术心得。',
+      username: '未知',
+      phone_number: '未知',
+      email: '未知',
+      bio: '未知',
       avatar: 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png',
-      posts_count: 1,
-      followers: 3,
-      following: 3,
+      posts_count: 0,
+      followers: 0,
+      following: 0,
     }
 
     // 更新用户信息

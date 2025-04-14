@@ -16,7 +16,7 @@
           <el-button type="primary" @click="router.push('/agent-editor')">构建智能体</el-button>
           <el-button type="primary" @click="showPostDialog">发布帖子</el-button>
           <el-dropdown>
-            <el-avatar :size="40" src="https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png" />
+            <el-avatar :size="40" :src="userInfo.avatar" />
             <template #dropdown>
               <el-dropdown-menu>
                 <el-dropdown-item @click="router.push('/profile')">个人中心</el-dropdown-item>
@@ -172,7 +172,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { 
@@ -192,6 +192,68 @@ const pageSize = ref(10)
 const total = ref(100)
 const commentContent = ref('')
 const currentPost = ref<Post | null>(null)
+
+// 用户信息
+const userInfo = reactive({
+  username: '',
+  avatar: ''
+})
+
+// 获取用户信息
+const fetchUserInfo = async () => {
+  try {
+    const token = localStorage.getItem('token')
+    if (!token) {
+      ElMessage.error('请先登录')
+      router.push('/login')
+      return
+    }
+
+    // 模拟API请求延迟
+    await new Promise(resolve => setTimeout(resolve, 800))
+    
+    // 模拟返回的用户数据
+    const mockUserData = {
+      username: '未知',
+      avatar: 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png'
+    }
+
+    // 更新用户信息
+    Object.assign(userInfo, mockUserData)
+
+    // 实际API请求代码（暂时注释）
+    const response = await fetch('/user/user_info/', {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    })
+
+    if (!response.ok) {
+      throw new Error('获取用户信息失败')
+    }
+
+    const data = await response.json();
+    if (data.code !== 200) {
+      throw new Error(data.message || '获取用户信息失败');
+    }
+
+    // 更新用户信息
+    Object.assign(userInfo, {
+      username: data.username,
+      avatar: data.avatar || 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png'
+    })
+  } catch (error) {
+    console.error('获取用户信息失败:', error)
+    ElMessage.error('获取用户信息失败，请稍后重试')
+  }
+}
+
+// 组件挂载时获取用户信息
+onMounted(() => {
+  fetchUserInfo()
+})
 
 // 定义接口
 interface Comment {
