@@ -113,7 +113,7 @@
                   position="bottom" 
                   :style="{ 
                     background: nodeProps.data.color,
-                    left: `${100 / (nodeProps.data.elseIfConditions.length + 2)}%`
+                    left: '33%'
                   }"
                   :id="'if'"
                 />
@@ -123,7 +123,7 @@
                     position="bottom" 
                     :style="{ 
                       background: nodeProps.data.color,
-                      left: `${(index + 2) * (100 / (nodeProps.data.elseIfConditions.length + 2))}%`
+                      left: `${33 + (index + 1) * (33 / (nodeProps.data.elseIfConditions.length + 1))}%`
                     }"
                     :id="`elseif-${index}`"
                   />
@@ -133,7 +133,7 @@
                   position="bottom" 
                   :style="{ 
                     background: nodeProps.data.color,
-                    left: `${(nodeProps.data.elseIfConditions.length + 1) * (100 / (nodeProps.data.elseIfConditions.length + 2))}%`
+                    left: '66%'
                   }"
                   :id="'else'"
                 />
