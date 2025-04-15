@@ -9,6 +9,7 @@ import Followers from '../views/Followers.vue'
 import Following from '../views/Followings.vue'
 import CreateAI from '../views/CreateAI.vue'
 import AgentEditor from '../views/AgentEditor.vue'
+import MyAgent from '../views/MyAgent.vue'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -62,6 +63,11 @@ const router = createRouter({
       path: '/agent-editor',
       name: 'AgentEditor',
       component: AgentEditor
+    },
+    {
+      path: '/my-agents',
+      name: 'MyAgent',
+      component: MyAgent
     },
     {
       path: '/',

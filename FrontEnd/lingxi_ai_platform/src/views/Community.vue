@@ -20,8 +20,8 @@
             <template #dropdown>
               <el-dropdown-menu>
                 <el-dropdown-item @click="router.push('/profile')">个人中心</el-dropdown-item>
-                <el-dropdown-item>我的帖子</el-dropdown-item>
-                <el-dropdown-item>我的智能体</el-dropdown-item>
+                <el-dropdown-item @click="router.push('/my-posts')">我的帖子</el-dropdown-item>
+                <el-dropdown-item @click="router.push('/my-agents')">我的智能体</el-dropdown-item>
                 <el-dropdown-item divided @click="handleLogout">退出登录</el-dropdown-item>
               </el-dropdown-menu>
             </template>
