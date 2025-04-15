@@ -53,7 +53,7 @@
             }"
           >
             <el-tooltip
-              content="输入节点输出"
+              content="输入"
               placement="top"
               :show-after="500"
               :hide-after="0"
@@ -80,44 +80,48 @@
             }"
             v-if="nodeProps.data.processType === 'code'"
           >
-            <el-tooltip
-              :content="nodeProps.data.codeContent ? nodeProps.data.codeContent.replace(/\n/g, '<br>') : '暂无代码内容'"
-              placement="top"
-              :show-after="500"
-              :hide-after="0"
-              :effect="'light'"
-              :raw-content="true"
-              popper-class="flow-node-tooltip"
-            >
-              <div class="node-content">
+            <div class="node-content">
+              <el-tooltip
+                content="处理节点输入"
+                placement="top"
+                :show-after="500"
+                :hide-after="0"
+                :effect="'light'"
+                popper-class="flow-handle-tooltip"
+              >
+                <Handle type="target" position="top" :style="{ background: nodeProps.data.color }" />
+              </el-tooltip>
+              <div class="code-tooltip-wrapper">
                 <el-tooltip
-                  content="处理节点输入"
+                  :content="nodeProps.data.codeContent ? nodeProps.data.codeContent.replace(/\n/g, '<br>') : '暂无代码内容'"
                   placement="top"
                   :show-after="500"
                   :hide-after="0"
                   :effect="'light'"
-                  popper-class="flow-handle-tooltip"
+                  :raw-content="true"
+                  popper-class="flow-node-tooltip"
                 >
-                  <Handle type="target" position="top" :style="{ background: nodeProps.data.color }" />
-                </el-tooltip>
-                <el-icon :size="20" :style="{ color: nodeProps.data.color }">
-                  <component :is="nodeProps.data.icon" />
-                </el-icon>
-                <div class="node-label" :style="{ color: nodeProps.data.color }">
-                  {{ nodeProps.data.label }}
-                </div>
-                <el-tooltip
-                  content="处理节点输出"
-                  placement="bottom"
-                  :show-after="500"
-                  :hide-after="0"
-                  :effect="'light'"
-                  popper-class="flow-handle-tooltip"
-                >
-                  <Handle type="source" position="bottom" :style="{ background: nodeProps.data.color }" />
+                  <div class="node-icon-label">
+                    <el-icon :size="20" :style="{ color: nodeProps.data.color }">
+                      <component :is="nodeProps.data.icon" />
+                    </el-icon>
+                    <div class="node-label" :style="{ color: nodeProps.data.color }">
+                      {{ nodeProps.data.label }}
+                    </div>
+                  </div>
                 </el-tooltip>
               </div>
-            </el-tooltip>
+              <el-tooltip
+                content="处理节点输出"
+                placement="bottom"
+                :show-after="500"
+                :hide-after="0"
+                :effect="'light'"
+                popper-class="flow-handle-tooltip"
+              >
+                <Handle type="source" position="bottom" :style="{ background: nodeProps.data.color }" />
+              </el-tooltip>
+            </div>
           </div>
           <div 
             class="process-node"
@@ -146,7 +150,7 @@
               </div>
               <div class="selector-handles">
                 <el-tooltip
-                  content="如果条件输出"
+                  content="如果输出"
                   placement="bottom"
                   :show-after="500"
                   :hide-after="0"
@@ -165,7 +169,7 @@
                 </el-tooltip>
                 <template v-for="(condition, index) in nodeProps.data.elseIfConditions" :key="index">
                   <el-tooltip
-                    :content="`否则如果条件${index + 1}输出`"
+                    :content="`否则如果${index + 1}输出`"
                     placement="bottom"
                     :show-after="500"
                     :hide-after="0"
@@ -184,7 +188,7 @@
                   </el-tooltip>
                 </template>
                 <el-tooltip
-                  content="否则条件输出"
+                  content="否则输出"
                   placement="bottom"
                   :show-after="500"
                   :hide-after="0"
@@ -214,7 +218,7 @@
           >
             <div class="node-content">
               <el-tooltip
-                content="循环节点输入"
+                content="循环输入"
                 placement="top"
                 :show-after="500"
                 :hide-after="0"
@@ -231,7 +235,7 @@
               </div>
               <div class="loop-handles">
                 <el-tooltip
-                  content="循环默认输出"
+                  content="循环输出"
                   placement="bottom"
                   :show-after="500"
                   :hide-after="0"
@@ -299,7 +303,7 @@
           >
             <div class="node-content">
               <el-tooltip
-                content="批处理节点输入"
+                content="批处理输入"
                 placement="top"
                 :show-after="500"
                 :hide-after="0"
@@ -316,7 +320,7 @@
               </div>
               <div class="batch-handles">
                 <el-tooltip
-                  content="批处理默认输出"
+                  content="批处理输出"
                   placement="bottom"
                   :show-after="500"
                   :hide-after="0"
@@ -380,11 +384,11 @@
               backgroundColor: nodeProps.data.bgColor,
               borderColor: nodeProps.data.color
             }"
-            v-else
+            v-else-if="nodeProps.data.processType === 'intent'"
           >
             <div class="node-content">
               <el-tooltip
-                content="处理节点输入"
+                content="内容输入"
                 placement="top"
                 :show-after="500"
                 :hide-after="0"
@@ -400,7 +404,44 @@
                 {{ nodeProps.data.label }}
               </div>
               <el-tooltip
-                content="处理节点输出"
+                content="意图输出"
+                placement="bottom"
+                :show-after="500"
+                :hide-after="0"
+                :effect="'light'"
+                popper-class="flow-handle-tooltip"
+              >
+                <Handle type="source" position="bottom" :style="{ background: nodeProps.data.color }" />
+              </el-tooltip>
+            </div>
+          </div>
+          <div 
+            class="process-node"
+            :style="{
+              backgroundColor: nodeProps.data.bgColor,
+              borderColor: nodeProps.data.color
+            }"
+            v-else
+          >
+            <div class="node-content">
+              <el-tooltip
+                content="聚合输入"
+                placement="top"
+                :show-after="500"
+                :hide-after="0"
+                :effect="'light'"
+                popper-class="flow-handle-tooltip"
+              >
+                <Handle type="target" position="top" :style="{ background: nodeProps.data.color }" />
+              </el-tooltip>
+              <el-icon :size="20" :style="{ color: nodeProps.data.color }">
+                <component :is="nodeProps.data.icon" />
+              </el-icon>
+              <div class="node-label" :style="{ color: nodeProps.data.color }">
+                {{ nodeProps.data.label }}
+              </div>
+              <el-tooltip
+                content="聚合输出"
                 placement="bottom"
                 :show-after="500"
                 :hide-after="0"
@@ -422,7 +463,7 @@
             }"
           >
             <el-tooltip
-              content="输出节点输入"
+              content="输出"
               placement="top"
               :show-after="500"
               :hide-after="0"
@@ -2908,5 +2949,26 @@ const removeIntentConfig = (index) => {
 
 .batch-side-handles {
   left: -4px;
+}
+
+.code-tooltip-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background-color 0.3s;
+}
+
+.code-tooltip-wrapper:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+.node-icon-label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
 }
 </style>
