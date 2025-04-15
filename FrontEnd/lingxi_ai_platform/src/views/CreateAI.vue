@@ -922,8 +922,15 @@ const deleteNode = () => {
 
 // 处理抽屉关闭
 const handleDrawerClose = () => {
-  // 只有在有未保存的修改时才显示确认弹窗
-  if (JSON.stringify(originalNodeData.value) !== JSON.stringify(nodeForm.value)) {
+  // 创建一个新的对象，排除codeContent字段
+  const originalWithoutCode = { ...originalNodeData.value }
+  delete originalWithoutCode.codeContent
+  
+  const currentWithoutCode = { ...nodeForm.value }
+  delete currentWithoutCode.codeContent
+  
+  // 只有在除了codeContent之外的其他字段有变化时才显示确认弹窗
+  if (JSON.stringify(originalWithoutCode) !== JSON.stringify(currentWithoutCode)) {
     ElMessageBox.confirm(
       '您有未保存的修改，确定要放弃更改吗？',
       '提示',
@@ -1277,7 +1284,25 @@ const handleEditorMessage = (event) => {
   
   // 处理编辑器返回的消息
   if (event.data.type === 'code-update') {
+    // 更新表单数据
     nodeForm.value.codeContent = event.data.code
+    
+    // 直接更新节点数据
+    if (selectedNode.value) {
+      const node = elements.value.find(el => el.id === selectedNode.value)
+      if (node && node.data) {
+        const newNodeData = {
+          ...node.data,
+          codeContent: event.data.code
+        }
+        
+        // 使用 Vue Flow 的 updateNode 方法更新节点
+        vueFlowUpdateNode(node.id, {
+          data: newNodeData
+        })
+      }
+    }
+    
     // 移除消息监听器
     window.removeEventListener('message', handleEditorMessage)
   }
