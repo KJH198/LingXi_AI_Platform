@@ -433,20 +433,36 @@
 
                 <!-- 意图识别配置 -->
                 <template v-if="nodeForm.processType === 'intent'">
-                  <el-form-item label="意图类型">
-                    <el-select v-model="nodeForm.intentType">
-                      <el-option label="文本分类" value="text" />
-                      <el-option label="情感分析" value="sentiment" />
-                      <el-option label="实体识别" value="entity" />
-                    </el-select>
-                  </el-form-item>
-                  <el-form-item label="模型选择">
-                    <el-select v-model="nodeForm.intentModel">
-                      <el-option label="BERT" value="bert" />
-                      <el-option label="LSTM" value="lstm" />
-                      <el-option label="CNN" value="cnn" />
-                    </el-select>
-                  </el-form-item>
+                  <el-card shadow="never" class="form-card">
+                    <template #header>
+                      <div class="card-header">
+                        <span>意图识别配置</span>
+                        <el-button type="primary" @click="addIntentConfig" size="small">
+                          <el-icon><Plus /></el-icon>
+                          添加配置组
+                        </el-button>
+                      </div>
+                    </template>
+                    <div class="intent-config-container">
+                      <div v-for="(config, index) in nodeForm.intentConfigs" :key="index" class="intent-config-group">
+                        <div class="config-group-header">
+                          <span class="config-group-title">配置组 {{ index + 1 }}</span>
+                          <el-button type="danger" @click="removeIntentConfig(index)" size="small" circle>
+                            <el-icon><Delete /></el-icon>
+                          </el-button>
+                        </div>
+                        <el-form-item label="分析要素">
+                          <el-input v-model="config.analysisElement" placeholder="请输入分析要素" />
+                        </el-form-item>
+                        <el-form-item label="意图类型">
+                          <el-input v-model="config.intentType" placeholder="请输入意图类型" />
+                        </el-form-item>
+                      </div>
+                      <div v-if="nodeForm.intentConfigs.length === 0" class="empty-config-tip">
+                        <el-empty description="暂无配置组，请点击添加配置组按钮添加" />
+                      </div>
+                    </div>
+                  </el-card>
                 </template>
 
                 <!-- 批处理配置 -->
@@ -655,6 +671,8 @@ const nodeForm = ref({
   ifCondition: '',
   elseIfConditions: [],
   elseCondition: '',
+  // 意图识别配置
+  intentConfigs: [],
 })
 
 // 添加表单引用
@@ -900,6 +918,8 @@ const handleNodeClick = (event) => {
     ifCondition: node.data?.ifCondition || '',
     elseIfConditions: node.data?.elseIfConditions || [],
     elseCondition: node.data?.elseCondition || '',
+    // 意图识别配置
+    intentConfigs: node.data?.intentConfigs || [],
   }
   
   // 保存原始数据
@@ -992,6 +1012,8 @@ const updateNode = async () => {
       ifCondition: nodeForm.value.ifCondition,
       elseIfConditions: nodeForm.value.elseIfConditions,
       elseCondition: nodeForm.value.elseCondition,
+      // 意图识别配置
+      intentConfigs: nodeForm.value.intentConfigs,
     }
     
     // 使用 Vue Flow 的 updateNode 方法更新节点
@@ -1022,6 +1044,8 @@ const updateNode = async () => {
       ifCondition: nodeForm.value.ifCondition,
       elseIfConditions: nodeForm.value.elseIfConditions,
       elseCondition: nodeForm.value.elseCondition,
+      // 意图识别配置
+      intentConfigs: nodeForm.value.intentConfigs,
     }
     
     // 使用 Vue Flow 的 updateNode 方法更新节点
@@ -1147,6 +1171,8 @@ const onSelectionChange = (params) => {
       ifCondition: node.data?.ifCondition || '',
       elseIfConditions: node.data?.elseIfConditions || [],
       elseCondition: node.data?.elseCondition || '',
+      // 意图识别配置
+      intentConfigs: node.data?.intentConfigs || [],
     }
     
     // 保存原始数据
@@ -1300,7 +1326,9 @@ const saveWorkflow = async () => {
           // 动态生成的样式配置
           icon: node.data.icon,
           color: node.data.color,
-          bgColor: node.data.bgColor
+          bgColor: node.data.bgColor,
+          // 意图识别配置
+          intentConfigs: node.data.intentConfigs,
         }
       })),
       edges: elements.value.filter(el => el.type === 'smoothstep').map(edge => ({
@@ -1445,7 +1473,9 @@ const loadWorkflow = async (workflowId) => {
             // 动态生成的样式配置
             icon,
             color,
-            bgColor
+            bgColor,
+            // 意图识别配置
+            intentConfigs: node.data.intentConfigs,
           }
         })
       })
@@ -1535,6 +1565,18 @@ onMounted(() => {
     loadWorkflow(workflowId)
   }
 })
+
+// 添加意图识别配置相关方法
+const addIntentConfig = () => {
+  nodeForm.value.intentConfigs.push({
+    analysisElement: '',
+    intentType: ''
+  })
+}
+
+const removeIntentConfig = (index) => {
+  nodeForm.value.intentConfigs.splice(index, 1)
+}
 </script>
 
 <style scoped>
@@ -2278,5 +2320,39 @@ onMounted(() => {
   white-space: nowrap;
   top: 15px;
   font-weight: bold;
+}
+
+.intent-config-container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.intent-config-group {
+  padding: 15px;
+  border: 1px solid #ebeef5;
+  border-radius: 4px;
+  background-color: #fafafa;
+}
+
+.config-group-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.config-group-title {
+  font-weight: bold;
+  color: #606266;
+}
+
+.empty-config-tip {
+  padding: 20px;
+  text-align: center;
+}
+
+:deep(.el-empty__description) {
+  margin-top: 10px;
 }
 </style>
