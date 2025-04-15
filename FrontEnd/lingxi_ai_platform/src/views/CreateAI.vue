@@ -443,25 +443,27 @@
                         </el-button>
                       </div>
                     </template>
-                    <div class="intent-config-container">
-                      <div v-for="(config, index) in nodeForm.intentConfigs" :key="index" class="intent-config-group">
-                        <div class="config-group-header">
-                          <span class="config-group-title">配置组 {{ index + 1 }}</span>
-                          <el-button type="danger" @click="removeIntentConfig(index)" size="small" circle>
-                            <el-icon><Delete /></el-icon>
-                          </el-button>
+                    <el-scrollbar height="300px">
+                      <div class="intent-config-container">
+                        <div v-for="(config, index) in nodeForm.intentConfigs" :key="index" class="intent-config-group">
+                          <div class="config-group-header">
+                            <span class="config-group-title">配置组 {{ index + 1 }}</span>
+                            <el-button type="danger" @click="removeIntentConfig(index)" size="small" circle>
+                              <el-icon><Delete /></el-icon>
+                            </el-button>
+                          </div>
+                          <el-form-item label="分析要素">
+                            <el-input v-model="config.analysisElement" placeholder="请输入分析要素" />
+                          </el-form-item>
+                          <el-form-item label="意图类型">
+                            <el-input v-model="config.intentType" placeholder="请输入意图类型" />
+                          </el-form-item>
                         </div>
-                        <el-form-item label="分析要素">
-                          <el-input v-model="config.analysisElement" placeholder="请输入分析要素" />
-                        </el-form-item>
-                        <el-form-item label="意图类型">
-                          <el-input v-model="config.intentType" placeholder="请输入意图类型" />
-                        </el-form-item>
+                        <div v-if="nodeForm.intentConfigs.length === 0" class="empty-config-tip">
+                          <el-empty description="暂无配置组，请点击添加配置组按钮添加" />
+                        </div>
                       </div>
-                      <div v-if="nodeForm.intentConfigs.length === 0" class="empty-config-tip">
-                        <el-empty description="暂无配置组，请点击添加配置组按钮添加" />
-                      </div>
-                    </div>
+                    </el-scrollbar>
                   </el-card>
                 </template>
 
@@ -1067,17 +1069,60 @@ const updateNode = async () => {
 const deleteNode = () => {
   if (!selectedNode.value) return
   
+  // 先清空表单数据和原始数据，这样就不会触发未保存修改的检查
+  nodeForm.value = {
+    name: '',
+    type: '',
+    description: '',
+    inputType: 'text',
+    defaultValue: '',
+    fileType: 'text',
+    apiUrl: '',
+    apiMethod: 'get',
+    processType: 'code',
+    codeType: 'javascript',
+    codeContent: '',
+    conditionType: 'equals',
+    conditionValue: '',
+    loopType: 'fixed',
+    loopCount: 1,
+    loopCondition: '',
+    intentType: 'text',
+    intentModel: 'bert',
+    batchSize: 32,
+    parallel: true,
+    aggregateType: 'sum',
+    aggregateField: '',
+    outputType: 'text',
+    fileFormat: 'json',
+    filePath: '',
+    ifCondition: '',
+    elseIfConditions: [],
+    elseCondition: '',
+    intentConfigs: []
+  }
+  
+  // 同时清空原始数据
+  originalNodeData.value = JSON.parse(JSON.stringify(nodeForm.value))
+  
   elements.value = elements.value.filter(el => 
     el.id !== selectedNode.value && 
     !(el.source === selectedNode.value || el.target === selectedNode.value)
   )
   selectedNode.value = null
-  drawerVisible.value = false
+  handleDrawerClose(true)
   ElMessage.success('节点删除成功')
 }
 
 // 处理抽屉关闭
-const handleDrawerClose = () => {
+const handleDrawerClose = (isDeleting = false) => {
+  // 如果是删除节点操作，直接关闭抽屉
+  if (isDeleting) {
+    drawerVisible.value = false
+    selectedNode.value = null
+    return
+  }
+
   // 创建一个新的对象，排除codeContent字段
   const originalWithoutCode = { ...originalNodeData.value }
   delete originalWithoutCode.codeContent
@@ -2326,6 +2371,7 @@ const removeIntentConfig = (index) => {
   display: flex;
   flex-direction: column;
   gap: 20px;
+  padding: 10px;
 }
 
 .intent-config-group {
@@ -2333,6 +2379,7 @@ const removeIntentConfig = (index) => {
   border: 1px solid #ebeef5;
   border-radius: 4px;
   background-color: #fafafa;
+  margin-bottom: 10px;
 }
 
 .config-group-header {
@@ -2340,6 +2387,8 @@ const removeIntentConfig = (index) => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 15px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #ebeef5;
 }
 
 .config-group-title {
@@ -2354,5 +2403,25 @@ const removeIntentConfig = (index) => {
 
 :deep(.el-empty__description) {
   margin-top: 10px;
+}
+
+:deep(.el-scrollbar__wrap) {
+  overflow-x: hidden;
+}
+
+:deep(.el-scrollbar__bar.is-horizontal) {
+  display: none;
+}
+
+:deep(.el-card__body) {
+  padding: 0;
+}
+
+:deep(.el-form-item) {
+  margin-bottom: 18px;
+}
+
+:deep(.el-form-item:last-child) {
+  margin-bottom: 0;
 }
 </style>
