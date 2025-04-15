@@ -432,7 +432,8 @@
 </template>
 
 <script setup>
-import { ref, computed, nextTick } from 'vue'
+import { ref, computed, nextTick, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { VueFlow, useVueFlow, Handle } from '@vue-flow/core'
 import { Background } from '@vue-flow/background'
 import { Controls } from '@vue-flow/controls'
@@ -468,6 +469,9 @@ const processTypeDialogVisible = ref(false)
 const selectedProcessType = ref('code')
 const pendingProcessNode = ref(null)
 const workflowName = ref('')
+
+// 获取路由实例
+const route = useRoute()
 
 // 节点表单
 const nodeForm = ref({
@@ -1012,12 +1016,45 @@ const saveWorkflow = async () => {
         id: node.id,
         type: node.type,
         position: node.position,
-        data: node.data
+        data: {
+          // 基本信息
+          name: node.data.name || '',
+          type: node.data.type,
+          label: node.data.label,
+          description: node.data.description || '',
+          // 输入节点配置
+          inputType: node.data.inputType || 'text',
+          defaultValue: node.data.defaultValue || '',
+          fileType: node.data.fileType || 'text',
+          apiUrl: node.data.apiUrl || '',
+          apiMethod: node.data.apiMethod || 'get',
+          // 处理节点配置
+          processType: node.data.processType || 'code',
+          codeType: node.data.codeType || 'javascript',
+          codeContent: node.data.codeContent || '',
+          conditionType: node.data.conditionType || 'equals',
+          conditionValue: node.data.conditionValue || '',
+          loopType: node.data.loopType || 'fixed',
+          loopCount: node.data.loopCount || 1,
+          loopCondition: node.data.loopCondition || '',
+          intentType: node.data.intentType || 'text',
+          intentModel: node.data.intentModel || 'bert',
+          batchSize: node.data.batchSize || 32,
+          parallel: node.data.parallel ?? true,
+          aggregateType: node.data.aggregateType || 'sum',
+          aggregateField: node.data.aggregateField || '',
+          // 输出节点配置
+          outputType: node.data.outputType || 'text',
+          fileFormat: node.data.fileFormat || 'json',
+          filePath: node.data.filePath || ''
+        }
       })),
       edges: elements.value.filter(el => el.type === 'smoothstep').map(edge => ({
         id: edge.id,
         source: edge.source,
-        target: edge.target
+        target: edge.target,
+        type: edge.type,
+        animated: edge.animated
       }))
     }
 
@@ -1056,6 +1093,133 @@ const clearWorkflow = () => {
   drawerVisible.value = false
   ElMessage.warning('工作流已清空')
 }
+
+// 加载工作流
+const loadWorkflow = async (workflowId) => {
+  try {
+    const token = localStorage.getItem('token')
+    if (!token) {
+      ElMessage.error('请先登录')
+      return
+    }
+
+    const response = await fetch(`/agent/workflowLoad/${workflowId}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
+
+    if (!response.ok) {
+      throw new Error('加载工作流失败')
+    }
+
+    const result = await response.json()
+    if (result.code === 200) {
+      const workflowData = result.data
+      
+      // 设置工作流名称
+      workflowName.value = workflowData.name
+      
+      // 清空当前画布
+      elements.value = []
+      
+      // 添加节点
+      workflowData.nodes.forEach(node => {
+        // 根据节点类型和处理类型确定样式配置
+        let icon = ''
+        let color = ''
+        let bgColor = ''
+
+        if (node.type === 'input') {
+          icon = 'Upload'
+          color = '#409EFF'
+          bgColor = '#f0f9ff'
+        } else if (node.type === 'output') {
+          icon = 'Download'
+          color = '#E6A23C'
+          bgColor = '#fdf6ec'
+        } else if (node.type === 'process') {
+          const processType = node.data.processType
+          const processTypeConfig = processTypes.find(type => type.value === processType)
+          if (processTypeConfig) {
+            icon = processTypeConfig.icon
+            color = processTypeConfig.color
+            bgColor = processTypeConfig.bgColor
+          }
+        }
+
+        elements.value.push({
+          id: node.id,
+          type: node.type,
+          position: node.position,
+          data: {
+            // 基本信息
+            name: node.data.name,
+            type: node.data.type,
+            label: node.data.label,
+            description: node.data.description,
+            // 输入节点配置
+            inputType: node.data.inputType,
+            defaultValue: node.data.defaultValue,
+            fileType: node.data.fileType,
+            apiUrl: node.data.apiUrl,
+            apiMethod: node.data.apiMethod,
+            // 处理节点配置
+            processType: node.data.processType,
+            codeType: node.data.codeType,
+            codeContent: node.data.codeContent,
+            conditionType: node.data.conditionType,
+            conditionValue: node.data.conditionValue,
+            loopType: node.data.loopType,
+            loopCount: node.data.loopCount,
+            loopCondition: node.data.loopCondition,
+            intentType: node.data.intentType,
+            intentModel: node.data.intentModel,
+            batchSize: node.data.batchSize,
+            parallel: node.data.parallel,
+            aggregateType: node.data.aggregateType,
+            aggregateField: node.data.aggregateField,
+            // 输出节点配置
+            outputType: node.data.outputType,
+            fileFormat: node.data.fileFormat,
+            filePath: node.data.filePath,
+            // 动态生成的样式配置
+            icon,
+            color,
+            bgColor
+          }
+        })
+      })
+      
+      // 添加边
+      workflowData.edges.forEach(edge => {
+        elements.value.push({
+          id: edge.id,
+          source: edge.source,
+          target: edge.target,
+          type: edge.type,
+          animated: edge.animated
+        })
+      })
+      
+      ElMessage.success('工作流加载成功')
+    } else {
+      throw new Error(result.message || '加载工作流失败')
+    }
+  } catch (error) {
+    console.error('加载工作流失败:', error)
+    ElMessage.error('加载工作流失败，请稍后重试')
+  }
+}
+
+// 在组件挂载时加载工作流（如果有workflowId）
+onMounted(() => {
+  const workflowId = route.query.id
+  if (workflowId) {
+    loadWorkflow(workflowId)
+  }
+})
 </script>
 
 <style scoped>
