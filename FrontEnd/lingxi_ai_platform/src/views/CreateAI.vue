@@ -195,6 +195,55 @@
               backgroundColor: nodeProps.data.bgColor,
               borderColor: nodeProps.data.color
             }"
+            v-else-if="nodeProps.data.processType === 'batch'"
+          >
+            <div class="node-content">
+              <Handle type="target" position="top" :style="{ background: nodeProps.data.color }" />
+              <el-icon :size="20" :style="{ color: nodeProps.data.color }">
+                <component :is="nodeProps.data.icon" />
+              </el-icon>
+              <div class="node-label" :style="{ color: nodeProps.data.color }">
+                {{ nodeProps.data.label }}
+              </div>
+              <div class="batch-handles">
+                <Handle 
+                  type="source" 
+                  position="bottom" 
+                  :style="{ 
+                    background: nodeProps.data.color,
+                    left: '50%'
+                  }"
+                  :id="'default'"
+                />
+              </div>
+              <div class="batch-side-handles">
+                <Handle 
+                  type="source" 
+                  position="left" 
+                  :style="{ 
+                    background: nodeProps.data.color,
+                    top: '30%'
+                  }"
+                  :id="'batch-entry'"
+                />
+                <Handle 
+                  type="source" 
+                  position="left" 
+                  :style="{ 
+                    background: nodeProps.data.color,
+                    top: '70%'
+                  }"
+                  :id="'batch-exit'"
+                />
+              </div>
+            </div>
+          </div>
+          <div 
+            class="process-node"
+            :style="{
+              backgroundColor: nodeProps.data.bgColor,
+              borderColor: nodeProps.data.color
+            }"
             v-else
           >
             <div class="node-content">
@@ -1238,7 +1287,7 @@ const handleNodeDragStop = (node) => {
 
 // 连接事件
 const handleConnect = (params) => {
-  // 检查源节点是否是选择器节点或循环节点
+  // 检查源节点是否是选择器节点、循环节点或批处理节点
   const sourceNode = elements.value.find(el => el.id === params.source);
   if (sourceNode) {
     if (sourceNode.data.processType === 'selector') {
@@ -1266,17 +1315,44 @@ const handleConnect = (params) => {
           return;
         }
       }
+    } else if (sourceNode.data.processType === 'batch') {
+      // 如果是批处理节点，需要检查连接点的ID
+      const handleId = params.sourceHandle;
+      if (!handleId || (handleId !== 'batch-entry' && handleId !== 'batch-exit' && handleId !== 'default')) {
+        ElMessage.warning('请选择有效的批处理连接点');
+        return;
+      }
+      
+      // 检查目标节点是否是批处理节点
+      const targetNode = elements.value.find(el => el.id === params.target);
+      if (targetNode && targetNode.data.processType === 'batch') {
+        // 如果目标也是批处理节点，检查连接点
+        const targetHandleId = params.targetHandle;
+        if (targetHandleId === 'batch-entry' || targetHandleId === 'batch-exit') {
+          ElMessage.warning('批处理节点之间不能直接连接入口或出口');
+          return;
+        }
+      }
     }
   }
 
-  // 检查目标节点是否是循环节点
+  // 检查目标节点是否是循环节点或批处理节点
   const targetNode = elements.value.find(el => el.id === params.target);
-  if (targetNode && targetNode.data.processType === 'loop') {
-    // 如果目标是循环节点，检查连接点
-    const targetHandleId = params.targetHandle;
-    if (targetHandleId === 'loop-entry') {
-      ElMessage.warning('不能直接连接到循环节点的入口');
-      return;
+  if (targetNode) {
+    if (targetNode.data.processType === 'loop') {
+      // 如果目标是循环节点，检查连接点
+      const targetHandleId = params.targetHandle;
+      if (targetHandleId === 'loop-entry') {
+        ElMessage.warning('不能直接连接到循环节点的入口');
+        return;
+      }
+    } else if (targetNode.data.processType === 'batch') {
+      // 如果目标是批处理节点，检查连接点
+      const targetHandleId = params.targetHandle;
+      if (targetHandleId === 'batch-entry') {
+        ElMessage.warning('不能直接连接到批处理节点的入口');
+        return;
+      }
     }
   }
 
@@ -2423,5 +2499,37 @@ const removeIntentConfig = (index) => {
 
 :deep(.el-form-item:last-child) {
   margin-bottom: 0;
+}
+
+.batch-handles {
+  position: relative;
+  width: 100%;
+  height: 20px;
+  margin-top: 10px;
+}
+
+.batch-side-handles {
+  position: absolute;
+  left: -4px;
+  top: 0;
+  bottom: 0;
+  width: 8px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+:deep(.vue-flow__handle[data-handleid="batch-entry"]) {
+  transform: translateY(-50%);
+  left: -4px;
+}
+
+:deep(.vue-flow__handle[data-handleid="batch-exit"]) {
+  transform: translateY(-50%);
+  left: -4px;
+}
+
+:deep(.vue-flow__handle[data-handleid="default"]) {
+  transform: translateX(-50%);
 }
 </style>
