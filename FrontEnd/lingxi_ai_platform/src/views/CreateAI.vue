@@ -69,15 +69,46 @@
               backgroundColor: nodeProps.data.bgColor,
               borderColor: nodeProps.data.color
             }"
+            v-if="nodeProps.data.processType === 'code'"
           >
-            <Handle type="target" position="top" :style="{ background: nodeProps.data.color }" />
-            <el-icon :size="20" :style="{ color: nodeProps.data.color }">
-              <component :is="nodeProps.data.icon" />
-            </el-icon>
-            <div class="node-label" :style="{ color: nodeProps.data.color }">
-              {{ nodeProps.data.label }}
+            <el-tooltip
+              :content="nodeProps.data.codeContent || '暂无代码内容'"
+              placement="top"
+              :show-after="500"
+              :hide-after="0"
+              :effect="'light'"
+              :raw-content="true"
+            >
+              <div class="node-content">
+                <Handle type="target" position="top" :style="{ background: nodeProps.data.color }" />
+                <el-icon :size="20" :style="{ color: nodeProps.data.color }">
+                  <component :is="nodeProps.data.icon" />
+                </el-icon>
+                <div class="node-label" :style="{ color: nodeProps.data.color }">
+                  {{ nodeProps.data.label }}
+                </div>
+                <Handle type="source" position="bottom" :style="{ background: nodeProps.data.color }" />
+              </div>
+            </el-tooltip>
+          </div>
+          <div 
+            class="process-node"
+            :style="{
+              backgroundColor: nodeProps.data.bgColor,
+              borderColor: nodeProps.data.color
+            }"
+            v-else
+          >
+            <div class="node-content">
+              <Handle type="target" position="top" :style="{ background: nodeProps.data.color }" />
+              <el-icon :size="20" :style="{ color: nodeProps.data.color }">
+                <component :is="nodeProps.data.icon" />
+              </el-icon>
+              <div class="node-label" :style="{ color: nodeProps.data.color }">
+                {{ nodeProps.data.label }}
+              </div>
+              <Handle type="source" position="bottom" :style="{ background: nodeProps.data.color }" />
             </div>
-            <Handle type="source" position="bottom" :style="{ background: nodeProps.data.color }" />
           </div>
         </template>
 
@@ -249,7 +280,16 @@
                     </el-select>
                   </el-form-item>
                   <el-form-item label="代码内容">
-                    <el-input v-model="nodeForm.codeContent" type="textarea" :rows="6" />
+                    <div class="code-editor-action">
+                      <el-button 
+                        type="primary" 
+                        @click="openCodeEditor"
+                        class="code-editor-btn"
+                      >
+                        <el-icon><Edit /></el-icon>
+                        打开代码编辑器
+                      </el-button>
+                    </div>
                   </el-form-item>
                 </template>
 
@@ -1023,30 +1063,30 @@ const saveWorkflow = async () => {
           label: node.data.label,
           description: node.data.description || '',
           // 输入节点配置
-          inputType: node.data.inputType || 'text',
-          defaultValue: node.data.defaultValue || '',
-          fileType: node.data.fileType || 'text',
-          apiUrl: node.data.apiUrl || '',
-          apiMethod: node.data.apiMethod || 'get',
+          inputType: node.data.inputType,
+          defaultValue: node.data.defaultValue,
+          fileType: node.data.fileType,
+          apiUrl: node.data.apiUrl,
+          apiMethod: node.data.apiMethod,
           // 处理节点配置
-          processType: node.data.processType || 'code',
-          codeType: node.data.codeType || 'javascript',
-          codeContent: node.data.codeContent || '',
-          conditionType: node.data.conditionType || 'equals',
-          conditionValue: node.data.conditionValue || '',
-          loopType: node.data.loopType || 'fixed',
-          loopCount: node.data.loopCount || 1,
-          loopCondition: node.data.loopCondition || '',
-          intentType: node.data.intentType || 'text',
-          intentModel: node.data.intentModel || 'bert',
-          batchSize: node.data.batchSize || 32,
-          parallel: node.data.parallel ?? true,
-          aggregateType: node.data.aggregateType || 'sum',
-          aggregateField: node.data.aggregateField || '',
+          processType: node.data.processType,
+          codeType: node.data.codeType,
+          codeContent: node.data.codeContent,
+          conditionType: node.data.conditionType,
+          conditionValue: node.data.conditionValue,
+          loopType: node.data.loopType,
+          loopCount: node.data.loopCount,
+          loopCondition: node.data.loopCondition,
+          intentType: node.data.intentType,
+          intentModel: node.data.intentModel,
+          batchSize: node.data.batchSize,
+          parallel: node.data.parallel,
+          aggregateType: node.data.aggregateType,
+          aggregateField: node.data.aggregateField,
           // 输出节点配置
-          outputType: node.data.outputType || 'text',
-          fileFormat: node.data.fileFormat || 'json',
-          filePath: node.data.filePath || ''
+          outputType: node.data.outputType,
+          fileFormat: node.data.fileFormat,
+          filePath: node.data.filePath
         }
       })),
       edges: elements.value.filter(el => el.type === 'smoothstep').map(edge => ({
@@ -1210,6 +1250,36 @@ const loadWorkflow = async (workflowId) => {
   } catch (error) {
     console.error('加载工作流失败:', error)
     ElMessage.error('加载工作流失败，请稍后重试')
+  }
+}
+
+// 打开代码编辑器
+const openCodeEditor = () => {
+  // 保存当前编辑状态
+  const currentCode = nodeForm.value.codeContent
+  const currentCodeType = nodeForm.value.codeType
+  
+  // 将代码内容编码后作为URL参数
+  const encodedCode = encodeURIComponent(currentCode)
+  const encodedType = encodeURIComponent(currentCodeType)
+  
+  // 打开新窗口，跳转到代码编辑器
+  const editorUrl = `/code-editor?code=${encodedCode}&type=${encodedType}`
+  window.open(editorUrl, '_blank')
+  
+  // 监听消息事件，接收从编辑器返回的代码
+  window.addEventListener('message', handleEditorMessage)
+}
+
+const handleEditorMessage = (event) => {
+  // 验证消息来源
+  if (event.origin !== window.location.origin) return
+  
+  // 处理编辑器返回的消息
+  if (event.data.type === 'code-update') {
+    nodeForm.value.codeContent = event.data.code
+    // 移除消息监听器
+    window.removeEventListener('message', handleEditorMessage)
   }
 }
 
@@ -1764,5 +1834,108 @@ onMounted(() => {
   background: #e9e9eb;
   border-color: #c6c6c6;
   color: #606266;
+}
+
+.code-editor-action {
+  display: flex;
+  justify-content: flex-start;
+  margin: 0;
+}
+
+.code-editor-btn {
+  padding: 8px 16px;
+  font-size: 14px;
+  border-radius: 4px;
+  background-color: #409EFF;
+  color: white;
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+}
+
+.code-editor-btn:hover {
+  background-color: #66b1ff;
+}
+
+.code-editor-btn .el-icon {
+  font-size: 16px;
+}
+
+.node-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+
+:deep(.el-tooltip__trigger) {
+  width: 100%;
+  height: 100%;
+}
+
+:deep(.el-tooltip__content) {
+  max-width: 600px;
+  max-height: 400px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 14px;
+  line-height: 1.5;
+  padding: 0;
+  background-color: #1e1e1e;
+  border: 1px solid #333;
+  border-radius: 4px;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.3);
+  color: #d4d4d4;
+  tab-size: 4;
+}
+
+:deep(.el-tooltip__content pre) {
+  margin: 0;
+  padding: 12px;
+  background-color: #1e1e1e;
+  color: #d4d4d4;
+  white-space: pre-wrap;
+  word-break: break-word;
+  tab-size: 4;
+}
+
+:deep(.el-tooltip__content code) {
+  display: block;
+  background-color: #1e1e1e;
+  color: #d4d4d4;
+  white-space: pre-wrap;
+  word-break: break-word;
+  tab-size: 4;
+}
+
+:deep(.el-tooltip__content::-webkit-scrollbar) {
+  width: 8px;
+  height: 8px;
+}
+
+:deep(.el-tooltip__content::-webkit-scrollbar-track) {
+  background: #1e1e1e;
+  border-radius: 4px;
+}
+
+:deep(.el-tooltip__content::-webkit-scrollbar-thumb) {
+  background: #3c3c3c;
+  border-radius: 4px;
+}
+
+:deep(.el-tooltip__content::-webkit-scrollbar-thumb:hover) {
+  background: #4c4c4c;
+}
+
+:deep(.el-tooltip__content::-webkit-scrollbar-corner) {
+  background: #1e1e1e;
 }
 </style>
