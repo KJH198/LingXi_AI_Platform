@@ -1872,13 +1872,25 @@ const openCodeEditor = () => {
   const currentCode = nodeForm.value.codeContent
   const currentCodeType = nodeForm.value.codeType
   
-  // 将代码内容编码后作为URL参数
-  const encodedCode = encodeURIComponent(currentCode)
-  const encodedType = encodeURIComponent(currentCodeType)
+  // 只传递必要的参数
+  const params = new URLSearchParams({
+    type: currentCodeType,
+    nodeId: selectedNode.value
+  })
   
   // 打开新窗口，跳转到代码编辑器
-  const editorUrl = `/code-editor?code=${encodedCode}&type=${encodedType}`
-  window.open(editorUrl, '_blank')
+  const editorUrl = `/editor?${params.toString()}`
+  const editorWindow = window.open(editorUrl, '_blank')
+  
+  // 等待编辑器窗口加载完成后，通过 postMessage 发送代码内容
+  if (editorWindow) {
+    editorWindow.onload = () => {
+      editorWindow.postMessage({
+        type: 'init-code',
+        code: currentCode
+      }, window.location.origin)
+    }
+  }
   
   // 监听消息事件，接收从编辑器返回的代码
   window.addEventListener('message', handleEditorMessage)

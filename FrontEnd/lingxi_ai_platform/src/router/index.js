@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import Editor from '../views/Editor.vue'
 
 const routes = [
   {
@@ -59,6 +60,11 @@ const routes = [
     path: '/code-editor',
     name: 'CodeEditor',
     component: () => import('../views/CodeEditor.vue')
+  },
+  {
+    path: '/editor',
+    name: 'Editor',
+    component: Editor
   }
 ]
 
