@@ -224,29 +224,58 @@ class UserManagementView(APIView):
         
         # 获取用户列表及统计信息
         users = User.objects.all()
-        serializer = UserSerializer(users, many=True)
+        user_data = []
+        for user in users:
+            user_dict = {
+                'id': user.id,
+                'username': user.username,
+                'registerTime': user.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                'lastLoginTime': user.last_login.strftime('%Y-%m-%d %H:%M:%S') if user.last_login else None,
+                'status': 'normal' if user.is_active else 'banned',
+                'violationType': None
+            }
+            # 根据封禁原因设置违规类型
+            if not user.is_active and user.ban_reason:
+                # 从封禁原因中提取违规类型
+                if 'light违规' in user.ban_reason:
+                    user_dict['violationType'] = 'light'
+                elif 'medium违规' in user.ban_reason:
+                    user_dict['violationType'] = 'medium'
+                elif 'severe违规' in user.ban_reason:
+                    user_dict['violationType'] = 'severe'
+                elif 'permanent违规' in user.ban_reason:
+                    user_dict['violationType'] = 'permanent'
+                else:
+                    user_dict['violationType'] = 'severe'  # 默认设置为严重违规
+            user_data.append(user_dict)
         
         return Response({
-            'users': serializer.data,
+            'users': user_data,
             'total': User.objects.count(),
             'active_users': User.objects.filter(is_active=True).count(),
             'banned_users': User.objects.filter(is_active=False).count(),
             'message': '获取用户列表成功'
         })
 
-    def post(self, request):
+    def post(self, request, user_id=None):
         """封禁用户"""
         # 验证管理员权限
         if not request.user.is_staff:
             return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
         
-        user_id = request.data.get('user_id')
+        if not user_id:
+            return Response({'error': '用户ID不能为空'}, status=status.HTTP_400_BAD_REQUEST)
+            
+        ban_type = request.data.get('type', 'severe')  # 获取封禁类型，默认为严重违规
         reason = request.data.get('reason', '违反社区规定')
+        
+        # 根据封禁类型设置封禁原因
+        ban_reason = f"{ban_type}违规：{reason}"
         
         try:
             user = User.objects.get(id=user_id)
             user.is_active = False
-            user.ban_reason = reason
+            user.ban_reason = ban_reason
             user.save()
             
             return Response({
@@ -257,13 +286,14 @@ class UserManagementView(APIView):
         except User.DoesNotExist:
             return Response({'error': '用户不存在'}, status=status.HTTP_404_NOT_FOUND)
 
-    def delete(self, request):
+    def delete(self, request, user_id=None):
         """解封用户"""
         # 验证管理员权限
         if not request.user.is_staff:
             return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
         
-        user_id = request.data.get('user_id')
+        if not user_id:
+            return Response({'error': '用户ID不能为空'}, status=status.HTTP_400_BAD_REQUEST)
         
         try:
             user = User.objects.get(id=user_id)
