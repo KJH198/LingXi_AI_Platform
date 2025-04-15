@@ -146,6 +146,55 @@
               backgroundColor: nodeProps.data.bgColor,
               borderColor: nodeProps.data.color
             }"
+            v-else-if="nodeProps.data.processType === 'loop'"
+          >
+            <div class="node-content">
+              <Handle type="target" position="top" :style="{ background: nodeProps.data.color }" />
+              <el-icon :size="20" :style="{ color: nodeProps.data.color }">
+                <component :is="nodeProps.data.icon" />
+              </el-icon>
+              <div class="node-label" :style="{ color: nodeProps.data.color }">
+                {{ nodeProps.data.label }}
+              </div>
+              <div class="loop-handles">
+                <Handle 
+                  type="source" 
+                  position="bottom" 
+                  :style="{ 
+                    background: nodeProps.data.color,
+                    left: '50%'
+                  }"
+                  :id="'default'"
+                />
+              </div>
+              <div class="loop-side-handles">
+                <Handle 
+                  type="source" 
+                  position="right" 
+                  :style="{ 
+                    background: nodeProps.data.color,
+                    top: '30%'
+                  }"
+                  :id="'loop-entry'"
+                />
+                <Handle 
+                  type="source" 
+                  position="right" 
+                  :style="{ 
+                    background: nodeProps.data.color,
+                    top: '70%'
+                  }"
+                  :id="'loop-exit'"
+                />
+              </div>
+            </div>
+          </div>
+          <div 
+            class="process-node"
+            :style="{
+              backgroundColor: nodeProps.data.bgColor,
+              borderColor: nodeProps.data.color
+            }"
             v-else
           >
             <div class="node-content">
@@ -1118,14 +1167,45 @@ const handleNodeDragStop = (node) => {
 
 // 连接事件
 const handleConnect = (params) => {
-  // 检查源节点是否是选择器节点
-  const sourceNode = elements.value.find(el => el.id === params.source)
-  if (sourceNode && sourceNode.data.processType === 'selector') {
-    // 如果是选择器节点，需要检查连接点的ID
-    const handleId = params.sourceHandle
-    if (!handleId) {
-      ElMessage.warning('请选择有效的输出连接点')
-      return
+  // 检查源节点是否是选择器节点或循环节点
+  const sourceNode = elements.value.find(el => el.id === params.source);
+  if (sourceNode) {
+    if (sourceNode.data.processType === 'selector') {
+      // 如果是选择器节点，需要检查连接点的ID
+      const handleId = params.sourceHandle;
+      if (!handleId) {
+        ElMessage.warning('请选择有效的输出连接点');
+        return;
+      }
+    } else if (sourceNode.data.processType === 'loop') {
+      // 如果是循环节点，需要检查连接点的ID
+      const handleId = params.sourceHandle;
+      if (!handleId || (handleId !== 'loop-entry' && handleId !== 'loop-exit' && handleId !== 'default')) {
+        ElMessage.warning('请选择有效的循环连接点');
+        return;
+      }
+      
+      // 检查目标节点是否是循环节点
+      const targetNode = elements.value.find(el => el.id === params.target);
+      if (targetNode && targetNode.data.processType === 'loop') {
+        // 如果目标也是循环节点，检查连接点
+        const targetHandleId = params.targetHandle;
+        if (targetHandleId === 'loop-entry' || targetHandleId === 'loop-exit') {
+          ElMessage.warning('循环节点之间不能直接连接入口或出口');
+          return;
+        }
+      }
+    }
+  }
+
+  // 检查目标节点是否是循环节点
+  const targetNode = elements.value.find(el => el.id === params.target);
+  if (targetNode && targetNode.data.processType === 'loop') {
+    // 如果目标是循环节点，检查连接点
+    const targetHandleId = params.targetHandle;
+    if (targetHandleId === 'loop-entry') {
+      ElMessage.warning('不能直接连接到循环节点的入口');
+      return;
     }
   }
 
@@ -1134,9 +1214,10 @@ const handleConnect = (params) => {
     source: params.source,
     target: params.target,
     sourceHandle: params.sourceHandle,
+    targetHandle: params.targetHandle,
     type: 'smoothstep',
     animated: true
-  })
+  });
 }
 
 // 添加画布点击事件处理
@@ -2148,6 +2229,48 @@ onMounted(() => {
 }
 
 .handle-label {
+  position: absolute;
+  font-size: 12px;
+  color: #666;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  top: 15px;
+  font-weight: bold;
+}
+
+.loop-handles {
+  position: relative;
+  width: 100%;
+  height: 20px;
+  margin-top: 10px;
+}
+
+.loop-side-handles {
+  position: absolute;
+  right: -4px;
+  top: 0;
+  bottom: 0;
+  width: 8px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+:deep(.vue-flow__handle[data-handleid="loop-entry"]) {
+  transform: translateY(-50%);
+  right: -4px;
+}
+
+:deep(.vue-flow__handle[data-handleid="loop-exit"]) {
+  transform: translateY(-50%);
+  right: -4px;
+}
+
+:deep(.vue-flow__handle[data-handleid="default"]) {
+  transform: translateX(-50%);
+}
+
+.loop-handle-label {
   position: absolute;
   font-size: 12px;
   color: #666;
