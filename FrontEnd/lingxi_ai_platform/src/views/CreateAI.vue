@@ -1878,8 +1878,8 @@ const openCodeEditor = () => {
     nodeId: selectedNode.value
   })
   
-  // 打开新窗口，跳转到代码编辑器
-  const editorUrl = `/editor?${params.toString()}`
+  // 使用相对路径打开新窗口
+  const editorUrl = `#/editor?${params.toString()}`
   const editorWindow = window.open(editorUrl, '_blank')
   
   // 等待编辑器窗口加载完成后，通过 postMessage 发送代码内容
