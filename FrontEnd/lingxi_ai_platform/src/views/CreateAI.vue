@@ -52,7 +52,16 @@
               borderColor: '#409EFF'
             }"
           >
-            <Handle type="source" position="bottom" :style="{ background: '#409EFF' }" />
+            <el-tooltip
+              content="输入节点输出"
+              placement="top"
+              :show-after="500"
+              :hide-after="0"
+              :effect="'light'"
+              popper-class="flow-handle-tooltip"
+            >
+              <Handle type="source" position="bottom" :style="{ background: '#409EFF' }" />
+            </el-tooltip>
             <el-icon :size="20" color="#409EFF">
               <Upload />
             </el-icon>
@@ -78,16 +87,35 @@
               :hide-after="0"
               :effect="'light'"
               :raw-content="true"
+              popper-class="flow-node-tooltip"
             >
               <div class="node-content">
-                <Handle type="target" position="top" :style="{ background: nodeProps.data.color }" />
+                <el-tooltip
+                  content="处理节点输入"
+                  placement="top"
+                  :show-after="500"
+                  :hide-after="0"
+                  :effect="'light'"
+                  popper-class="flow-handle-tooltip"
+                >
+                  <Handle type="target" position="top" :style="{ background: nodeProps.data.color }" />
+                </el-tooltip>
                 <el-icon :size="20" :style="{ color: nodeProps.data.color }">
                   <component :is="nodeProps.data.icon" />
                 </el-icon>
                 <div class="node-label" :style="{ color: nodeProps.data.color }">
                   {{ nodeProps.data.label }}
                 </div>
-                <Handle type="source" position="bottom" :style="{ background: nodeProps.data.color }" />
+                <el-tooltip
+                  content="处理节点输出"
+                  placement="bottom"
+                  :show-after="500"
+                  :hide-after="0"
+                  :effect="'light'"
+                  popper-class="flow-handle-tooltip"
+                >
+                  <Handle type="source" position="bottom" :style="{ background: nodeProps.data.color }" />
+                </el-tooltip>
               </div>
             </el-tooltip>
           </div>
@@ -100,7 +128,16 @@
             v-else-if="nodeProps.data.processType === 'selector'"
           >
             <div class="node-content">
-              <Handle type="target" position="top" :style="{ background: nodeProps.data.color }" />
+              <el-tooltip
+                content="选择器输入"
+                placement="top"
+                :show-after="500"
+                :hide-after="0"
+                :effect="'light'"
+                popper-class="flow-handle-tooltip"
+              >
+                <Handle type="target" position="top" :style="{ background: nodeProps.data.color }" />
+              </el-tooltip>
               <el-icon :size="20" :style="{ color: nodeProps.data.color }">
                 <component :is="nodeProps.data.icon" />
               </el-icon>
@@ -108,35 +145,62 @@
                 {{ nodeProps.data.label }}
               </div>
               <div class="selector-handles">
-                <Handle 
-                  type="source" 
-                  position="bottom" 
-                  :style="{ 
-                    background: nodeProps.data.color,
-                    left: '33%'
-                  }"
-                  :id="'if'"
-                />
-                <template v-for="(condition, index) in nodeProps.data.elseIfConditions" :key="index">
+                <el-tooltip
+                  content="如果条件输出"
+                  placement="bottom"
+                  :show-after="500"
+                  :hide-after="0"
+                  :effect="'light'"
+                  popper-class="flow-handle-tooltip"
+                >
                   <Handle 
                     type="source" 
                     position="bottom" 
                     :style="{ 
                       background: nodeProps.data.color,
-                      left: `${33 + (index + 1) * (33 / (nodeProps.data.elseIfConditions.length + 1))}%`
+                      left: '33%'
                     }"
-                    :id="`elseif-${index}`"
+                    :id="'if'"
                   />
+                </el-tooltip>
+                <template v-for="(condition, index) in nodeProps.data.elseIfConditions" :key="index">
+                  <el-tooltip
+                    :content="`否则如果条件${index + 1}输出`"
+                    placement="bottom"
+                    :show-after="500"
+                    :hide-after="0"
+                    :effect="'light'"
+                    popper-class="flow-handle-tooltip"
+                  >
+                    <Handle 
+                      type="source" 
+                      position="bottom" 
+                      :style="{ 
+                        background: nodeProps.data.color,
+                        left: `${33 + (index + 1) * (33 / (nodeProps.data.elseIfConditions.length + 1))}%`
+                      }"
+                      :id="`elseif-${index}`"
+                    />
+                  </el-tooltip>
                 </template>
-                <Handle 
-                  type="source" 
-                  position="bottom" 
-                  :style="{ 
-                    background: nodeProps.data.color,
-                    left: '66%'
-                  }"
-                  :id="'else'"
-                />
+                <el-tooltip
+                  content="否则条件输出"
+                  placement="bottom"
+                  :show-after="500"
+                  :hide-after="0"
+                  :effect="'light'"
+                  popper-class="flow-handle-tooltip"
+                >
+                  <Handle 
+                    type="source" 
+                    position="bottom" 
+                    :style="{ 
+                      background: nodeProps.data.color,
+                      left: '66%'
+                    }"
+                    :id="'else'"
+                  />
+                </el-tooltip>
               </div>
             </div>
           </div>
@@ -149,7 +213,16 @@
             v-else-if="nodeProps.data.processType === 'loop'"
           >
             <div class="node-content">
-              <Handle type="target" position="top" :style="{ background: nodeProps.data.color }" />
+              <el-tooltip
+                content="循环节点输入"
+                placement="top"
+                :show-after="500"
+                :hide-after="0"
+                :effect="'light'"
+                popper-class="flow-handle-tooltip"
+              >
+                <Handle type="target" position="top" :style="{ background: nodeProps.data.color }" />
+              </el-tooltip>
               <el-icon :size="20" :style="{ color: nodeProps.data.color }">
                 <component :is="nodeProps.data.icon" />
               </el-icon>
@@ -157,35 +230,62 @@
                 {{ nodeProps.data.label }}
               </div>
               <div class="loop-handles">
-                <Handle 
-                  type="source" 
-                  position="bottom" 
-                  :style="{ 
-                    background: nodeProps.data.color,
-                    left: '50%'
-                  }"
-                  :id="'default'"
-                />
+                <el-tooltip
+                  content="循环默认输出"
+                  placement="bottom"
+                  :show-after="500"
+                  :hide-after="0"
+                  :effect="'light'"
+                  popper-class="flow-handle-tooltip"
+                >
+                  <Handle 
+                    type="source" 
+                    position="bottom" 
+                    :style="{ 
+                      background: nodeProps.data.color,
+                      left: '50%'
+                    }"
+                    :id="'default'"
+                  />
+                </el-tooltip>
               </div>
               <div class="loop-side-handles">
-                <Handle 
-                  type="source" 
-                  position="right" 
-                  :style="{ 
-                    background: nodeProps.data.color,
-                    top: '30%'
-                  }"
-                  :id="'loop-entry'"
-                />
-                <Handle 
-                  type="source" 
-                  position="right" 
-                  :style="{ 
-                    background: nodeProps.data.color,
-                    top: '70%'
-                  }"
-                  :id="'loop-exit'"
-                />
+                <el-tooltip
+                  content="循环入口"
+                  placement="right"
+                  :show-after="500"
+                  :hide-after="0"
+                  :effect="'light'"
+                  popper-class="flow-handle-tooltip"
+                >
+                  <Handle 
+                    type="source" 
+                    position="right" 
+                    :style="{ 
+                      background: nodeProps.data.color,
+                      top: '30%'
+                    }"
+                    :id="'loop-entry'"
+                  />
+                </el-tooltip>
+                <el-tooltip
+                  content="循环出口"
+                  placement="right"
+                  :show-after="500"
+                  :hide-after="0"
+                  :effect="'light'"
+                  popper-class="flow-handle-tooltip"
+                >
+                  <Handle 
+                    type="source" 
+                    position="right" 
+                    :style="{ 
+                      background: nodeProps.data.color,
+                      top: '70%'
+                    }"
+                    :id="'loop-exit'"
+                  />
+                </el-tooltip>
               </div>
             </div>
           </div>
@@ -198,7 +298,16 @@
             v-else-if="nodeProps.data.processType === 'batch'"
           >
             <div class="node-content">
-              <Handle type="target" position="top" :style="{ background: nodeProps.data.color }" />
+              <el-tooltip
+                content="批处理节点输入"
+                placement="top"
+                :show-after="500"
+                :hide-after="0"
+                :effect="'light'"
+                popper-class="flow-handle-tooltip"
+              >
+                <Handle type="target" position="top" :style="{ background: nodeProps.data.color }" />
+              </el-tooltip>
               <el-icon :size="20" :style="{ color: nodeProps.data.color }">
                 <component :is="nodeProps.data.icon" />
               </el-icon>
@@ -206,35 +315,62 @@
                 {{ nodeProps.data.label }}
               </div>
               <div class="batch-handles">
-                <Handle 
-                  type="source" 
-                  position="bottom" 
-                  :style="{ 
-                    background: nodeProps.data.color,
-                    left: '50%'
-                  }"
-                  :id="'default'"
-                />
+                <el-tooltip
+                  content="批处理默认输出"
+                  placement="bottom"
+                  :show-after="500"
+                  :hide-after="0"
+                  :effect="'light'"
+                  popper-class="flow-handle-tooltip"
+                >
+                  <Handle 
+                    type="source" 
+                    position="bottom" 
+                    :style="{ 
+                      background: nodeProps.data.color,
+                      left: '50%'
+                    }"
+                    :id="'default'"
+                  />
+                </el-tooltip>
               </div>
               <div class="batch-side-handles">
-                <Handle 
-                  type="source" 
-                  position="left" 
-                  :style="{ 
-                    background: nodeProps.data.color,
-                    top: '30%'
-                  }"
-                  :id="'batch-entry'"
-                />
-                <Handle 
-                  type="source" 
-                  position="left" 
-                  :style="{ 
-                    background: nodeProps.data.color,
-                    top: '70%'
-                  }"
-                  :id="'batch-exit'"
-                />
+                <el-tooltip
+                  content="批处理入口"
+                  placement="left"
+                  :show-after="500"
+                  :hide-after="0"
+                  :effect="'light'"
+                  popper-class="flow-handle-tooltip"
+                >
+                  <Handle 
+                    type="source" 
+                    position="left" 
+                    :style="{ 
+                      background: nodeProps.data.color,
+                      top: '30%'
+                    }"
+                    :id="'batch-entry'"
+                  />
+                </el-tooltip>
+                <el-tooltip
+                  content="批处理出口"
+                  placement="left"
+                  :show-after="500"
+                  :hide-after="0"
+                  :effect="'light'"
+                  popper-class="flow-handle-tooltip"
+                >
+                  <Handle 
+                    type="source" 
+                    position="left" 
+                    :style="{ 
+                      background: nodeProps.data.color,
+                      top: '70%'
+                    }"
+                    :id="'batch-exit'"
+                  />
+                </el-tooltip>
               </div>
             </div>
           </div>
@@ -247,14 +383,32 @@
             v-else
           >
             <div class="node-content">
-              <Handle type="target" position="top" :style="{ background: nodeProps.data.color }" />
+              <el-tooltip
+                content="处理节点输入"
+                placement="top"
+                :show-after="500"
+                :hide-after="0"
+                :effect="'light'"
+                popper-class="flow-handle-tooltip"
+              >
+                <Handle type="target" position="top" :style="{ background: nodeProps.data.color }" />
+              </el-tooltip>
               <el-icon :size="20" :style="{ color: nodeProps.data.color }">
                 <component :is="nodeProps.data.icon" />
               </el-icon>
               <div class="node-label" :style="{ color: nodeProps.data.color }">
                 {{ nodeProps.data.label }}
               </div>
-              <Handle type="source" position="bottom" :style="{ background: nodeProps.data.color }" />
+              <el-tooltip
+                content="处理节点输出"
+                placement="bottom"
+                :show-after="500"
+                :hide-after="0"
+                :effect="'light'"
+                popper-class="flow-handle-tooltip"
+              >
+                <Handle type="source" position="bottom" :style="{ background: nodeProps.data.color }" />
+              </el-tooltip>
             </div>
           </div>
         </template>
@@ -267,7 +421,16 @@
               borderColor: '#E6A23C'
             }"
           >
-            <Handle type="target" position="top" :style="{ background: '#E6A23C' }" />
+            <el-tooltip
+              content="输出节点输入"
+              placement="top"
+              :show-after="500"
+              :hide-after="0"
+              :effect="'light'"
+              popper-class="flow-handle-tooltip"
+            >
+              <Handle type="target" position="top" :style="{ background: '#E6A23C' }" />
+            </el-tooltip>
             <el-icon :size="20" color="#E6A23C">
               <Download />
             </el-icon>
@@ -2571,5 +2734,179 @@ const removeIntentConfig = (index) => {
 
 :deep(.vue-flow__handle[data-handleid="default"]) {
   transform: translateX(-50%);
+}
+
+/* 工作流画布中的 tooltip 样式 */
+:deep(.flow-handle-tooltip) {
+  z-index: 2000;
+}
+
+:deep(.flow-handle-tooltip .el-tooltip__trigger) {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  position: relative;
+  cursor: pointer;
+}
+
+:deep(.flow-handle-tooltip .el-tooltip__popper) {
+  background: #fff;
+  border: 1px solid #ebeef5;
+  border-radius: 4px;
+  padding: 8px 12px;
+  font-size: 12px;
+  color: #606266;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+}
+
+:deep(.flow-handle-tooltip .el-tooltip__popper.is-light) {
+  background: #fff;
+  border: 1px solid #ebeef5;
+}
+
+:deep(.flow-handle-tooltip .el-tooltip__popper.is-light[x-placement^="top"] .popper__arrow) {
+  border-top-color: #ebeef5;
+}
+
+:deep(.flow-handle-tooltip .el-tooltip__popper.is-light[x-placement^="bottom"] .popper__arrow) {
+  border-bottom-color: #ebeef5;
+}
+
+:deep(.flow-handle-tooltip .el-tooltip__popper.is-light[x-placement^="left"] .popper__arrow) {
+  border-left-color: #ebeef5;
+}
+
+:deep(.flow-handle-tooltip .el-tooltip__popper.is-light[x-placement^="right"] .popper__arrow) {
+  border-right-color: #ebeef5;
+}
+
+/* 节点代码内容的 tooltip 样式 */
+:deep(.flow-node-tooltip) {
+  z-index: 2000;
+}
+
+:deep(.flow-node-tooltip .el-tooltip__popper) {
+  max-width: 600px;
+  max-height: 400px;
+  overflow: auto;
+  white-space: pre;
+  word-break: normal;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 14px;
+  line-height: 1.5;
+  padding: 0;
+  background-color: #1e1e1e;
+  border: 1px solid #333;
+  border-radius: 4px;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.3);
+  color: #d4d4d4;
+  tab-size: 4;
+}
+
+:deep(.flow-node-tooltip .el-tooltip__popper pre) {
+  margin: 0;
+  padding: 12px;
+  background-color: #1e1e1e;
+  color: #d4d4d4;
+  white-space: pre;
+  word-break: normal;
+  tab-size: 4;
+}
+
+:deep(.flow-node-tooltip .el-tooltip__popper code) {
+  display: block;
+  background-color: #1e1e1e;
+  color: #d4d4d4;
+  white-space: pre;
+  word-break: normal;
+  tab-size: 4;
+}
+
+:deep(.flow-node-tooltip .el-tooltip__popper::-webkit-scrollbar) {
+  width: 8px;
+  height: 8px;
+}
+
+:deep(.flow-node-tooltip .el-tooltip__popper::-webkit-scrollbar-track) {
+  background: #1e1e1e;
+  border-radius: 4px;
+}
+
+:deep(.flow-node-tooltip .el-tooltip__popper::-webkit-scrollbar-thumb) {
+  background: #3c3c3c;
+  border-radius: 4px;
+}
+
+:deep(.flow-node-tooltip .el-tooltip__popper::-webkit-scrollbar-thumb:hover) {
+  background: #4c4c4c;
+}
+
+:deep(.flow-node-tooltip .el-tooltip__popper::-webkit-scrollbar-corner) {
+  background: #1e1e1e;
+}
+
+/* 修复连接点定位问题 */
+:deep(.vue-flow__handle) {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  position: absolute;
+  z-index: 1;
+}
+
+:deep(.vue-flow__handle-top) {
+  top: -4px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+:deep(.vue-flow__handle-bottom) {
+  bottom: -4px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+:deep(.vue-flow__handle-left) {
+  left: -4px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+:deep(.vue-flow__handle-right) {
+  right: -4px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+/* 确保连接点容器正确定位 */
+.selector-handles,
+.loop-handles,
+.batch-handles {
+  position: relative;
+  width: 100%;
+  height: 20px;
+  margin-top: 10px;
+}
+
+.loop-side-handles,
+.batch-side-handles {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 8px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.loop-side-handles {
+  right: -4px;
+}
+
+.batch-side-handles {
+  left: -4px;
 }
 </style>
