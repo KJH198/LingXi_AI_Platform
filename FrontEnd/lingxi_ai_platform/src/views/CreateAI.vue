@@ -1401,6 +1401,26 @@ const saveWorkflow = async () => {
       userId: localStorage.getItem('userId'),
       AgentId: localStorage.getItem('agentId') || 123,
       name: workflowName.value,
+      // 添加视口状态
+      viewport: {
+        x: viewport.value.x,
+        y: viewport.value.y,
+        zoom: viewport.value.zoom
+      },
+      // 添加画布配置
+      canvasConfig: {
+        minZoom: 0.2,
+        maxZoom: 4,
+        snapToGrid: true,
+        snapGrid: [15, 15],
+        panOnDrag: true,
+        panOnScroll: true,
+        zoomOnScroll: true,
+        preventScrolling: true,
+        panOnScrollMode: 'free',
+        panOnDragMode: 'free',
+        touchAction: 'none'
+      },
       nodes: elements.value.filter(el => 
         el.type === 'input' || 
         el.type === 'process' || 
@@ -1456,6 +1476,8 @@ const saveWorkflow = async () => {
         id: edge.id,
         source: edge.source,
         target: edge.target,
+        sourceHandle: edge.sourceHandle,
+        targetHandle: edge.targetHandle,
         type: edge.type,
         animated: edge.animated
       }))
@@ -1527,6 +1549,22 @@ const loadWorkflow = async (workflowId) => {
       // 清空当前画布
       elements.value = []
       
+      // 恢复视口状态
+      if (workflowData.viewport) {
+        viewport.value = {
+          x: workflowData.viewport.x,
+          y: workflowData.viewport.y,
+          zoom: workflowData.viewport.zoom
+        }
+      }
+      
+      // 恢复画布配置
+      if (workflowData.canvasConfig) {
+        // 注意：这些配置在VueFlow组件初始化时已经设置，这里不需要再次设置
+        // 但我们可以保存这些配置以供将来使用
+        console.log('画布配置已加载:', workflowData.canvasConfig)
+      }
+      
       // 添加节点
       workflowData.nodes.forEach(node => {
         // 根据节点类型和处理类型确定样式配置
@@ -1592,9 +1630,9 @@ const loadWorkflow = async (workflowId) => {
             elseIfConditions: node.data.elseIfConditions || [],
             elseCondition: node.data.elseCondition || '',
             // 动态生成的样式配置
-            icon,
-            color,
-            bgColor,
+            icon: node.data.icon || icon,
+            color: node.data.color || color,
+            bgColor: node.data.bgColor || bgColor,
             // 意图识别配置
             intentConfigs: node.data.intentConfigs,
           }
@@ -1607,6 +1645,8 @@ const loadWorkflow = async (workflowId) => {
           id: edge.id,
           source: edge.source,
           target: edge.target,
+          sourceHandle: edge.sourceHandle,
+          targetHandle: edge.targetHandle,
           type: edge.type,
           animated: edge.animated
         })
