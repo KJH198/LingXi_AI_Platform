@@ -72,7 +72,7 @@
             v-if="nodeProps.data.processType === 'code'"
           >
             <el-tooltip
-              :content="nodeProps.data.codeContent || '暂无代码内容'"
+              :content="nodeProps.data.codeContent ? nodeProps.data.codeContent.replace(/\n/g, '<br>') : '暂无代码内容'"
               placement="top"
               :show-after="500"
               :hide-after="0"
@@ -1883,8 +1883,8 @@ onMounted(() => {
   max-width: 600px;
   max-height: 400px;
   overflow: auto;
-  white-space: pre-wrap;
-  word-break: break-word;
+  white-space: pre;
+  word-break: normal;
   font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
   font-size: 14px;
   line-height: 1.5;
@@ -1902,8 +1902,8 @@ onMounted(() => {
   padding: 12px;
   background-color: #1e1e1e;
   color: #d4d4d4;
-  white-space: pre-wrap;
-  word-break: break-word;
+  white-space: pre;
+  word-break: normal;
   tab-size: 4;
 }
 
@@ -1911,8 +1911,8 @@ onMounted(() => {
   display: block;
   background-color: #1e1e1e;
   color: #d4d4d4;
-  white-space: pre-wrap;
-  word-break: break-word;
+  white-space: pre;
+  word-break: normal;
   tab-size: 4;
 }
 

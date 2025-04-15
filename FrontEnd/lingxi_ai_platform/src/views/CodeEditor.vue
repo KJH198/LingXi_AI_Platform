@@ -39,7 +39,8 @@ onMounted(() => {
   const codeType = route.query.type
   
   if (encodedCode) {
-    code.value = decodeURIComponent(encodedCode)
+    // 确保换行符被正确解码
+    code.value = decodeURIComponent(encodedCode).replace(/%0A/g, '\n')
   }
 })
 
