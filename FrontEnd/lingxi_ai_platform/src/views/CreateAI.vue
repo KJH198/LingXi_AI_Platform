@@ -334,17 +334,17 @@
                   <span>基本信息</span>
                 </div>
               </template>
-              <el-form-item label="节点名称">
+              <el-form-item label="节点名称" label-width="100px">
                 <el-input v-model="nodeForm.name" placeholder="请输入节点名称" />
               </el-form-item>
-              <el-form-item label="节点类型">
+              <el-form-item label="节点类型" label-width="100px">
                 <el-select v-model="nodeForm.type" disabled>
                   <el-option label="输入节点" value="input" />
                   <el-option label="处理节点" value="process" />
                   <el-option label="输出节点" value="output" />
                 </el-select>
               </el-form-item>
-              <el-form-item label="节点描述">
+              <el-form-item label="节点描述" label-width="100px">
                 <el-input
                   v-model="nodeForm.description"
                   type="textarea"
@@ -362,7 +362,7 @@
                     <span>输入配置</span>
                   </div>
                 </template>
-                <el-form-item label="输入类型">
+                <el-form-item label="输入类型" label-width="100px">
                   <el-select v-model="nodeForm.inputType">
                     <el-option label="文本" value="text" />
                     <el-option label="文件" value="file" />
@@ -370,12 +370,12 @@
                   </el-select>
                 </el-form-item>
                 <template v-if="nodeForm.inputType === 'text'">
-                  <el-form-item label="默认值">
+                  <el-form-item label="默认值" label-width="100px">
                     <el-input v-model="nodeForm.defaultValue" type="textarea" :rows="3" />
                   </el-form-item>
                 </template>
                 <template v-if="nodeForm.inputType === 'file'">
-                  <el-form-item label="文件类型">
+                  <el-form-item label="文件类型" label-width="100px">
                     <el-select v-model="nodeForm.fileType">
                       <el-option label="文本文件" value="text" />
                       <el-option label="CSV文件" value="csv" />
@@ -384,10 +384,10 @@
                   </el-form-item>
                 </template>
                 <template v-if="nodeForm.inputType === 'api'">
-                  <el-form-item label="API地址">
+                  <el-form-item label="API地址" label-width="100px">
                     <el-input v-model="nodeForm.apiUrl" />
                   </el-form-item>
-                  <el-form-item label="请求方法">
+                  <el-form-item label="请求方法" label-width="100px">
                     <el-select v-model="nodeForm.apiMethod">
                       <el-option label="GET" value="get" />
                       <el-option label="POST" value="post" />
@@ -407,7 +407,7 @@
                     <span>处理配置</span>
                   </div>
                 </template>
-                <el-form-item label="处理类型">
+                <el-form-item label="处理类型" label-width="100px">
                   <el-select v-model="nodeForm.processType">
                     <el-option label="代码处理" value="code" />
                     <el-option label="选择器" value="selector" />
@@ -420,13 +420,13 @@
 
                 <!-- 代码处理配置 -->
                 <template v-if="nodeForm.processType === 'code'">
-                  <el-form-item label="代码类型">
+                  <el-form-item label="代码类型" label-width="100px">
                     <el-select v-model="nodeForm.codeType">
                       <el-option label="JavaScript" value="javascript" />
                       <el-option label="Python" value="python" />
                     </el-select>
                   </el-form-item>
-                  <el-form-item label="代码内容">
+                  <el-form-item label="代码内容" label-width="100px">
                     <div class="code-editor-action">
                       <el-button 
                         type="primary" 
@@ -442,7 +442,7 @@
 
                 <!-- 选择器配置 -->
                 <template v-if="nodeForm.processType === 'selector'">
-                  <el-form-item label="条件配置">
+                  <el-form-item label="条件配置" label-width="100px">
                     <div class="condition-container">
                       <div class="condition-item">
                         <el-input v-model="nodeForm.ifCondition" placeholder="如果条件" />
@@ -466,16 +466,16 @@
 
                 <!-- 循环配置 -->
                 <template v-if="nodeForm.processType === 'loop'">
-                  <el-form-item label="循环类型">
+                  <el-form-item label="循环类型" label-width="100px">
                     <el-select v-model="nodeForm.loopType">
                       <el-option label="固定次数" value="fixed" />
                       <el-option label="条件循环" value="conditional" />
                     </el-select>
                   </el-form-item>
-                  <el-form-item v-if="nodeForm.loopType === 'fixed'" label="循环次数">
+                  <el-form-item v-if="nodeForm.loopType === 'fixed'" label="循环次数" label-width="100px">
                     <el-input-number v-model="nodeForm.loopCount" :min="1" :max="1000" />
                   </el-form-item>
-                  <el-form-item v-if="nodeForm.loopType === 'conditional'" label="条件表达式">
+                  <el-form-item v-if="nodeForm.loopType === 'conditional'" label="条件表达式" label-width="100px">
                     <el-input v-model="nodeForm.loopCondition" />
                   </el-form-item>
                 </template>
@@ -501,10 +501,10 @@
                               <el-icon><Delete /></el-icon>
                             </el-button>
                           </div>
-                          <el-form-item label="分析要素">
+                          <el-form-item label="分析要素" label-width="100px">
                             <el-input v-model="config.analysisElement" placeholder="请输入分析要素" />
                           </el-form-item>
-                          <el-form-item label="意图类型">
+                          <el-form-item label="意图类型" label-width="100px">
                             <el-input v-model="config.intentType" placeholder="请输入意图类型" />
                           </el-form-item>
                         </div>
@@ -518,17 +518,17 @@
 
                 <!-- 批处理配置 -->
                 <template v-if="nodeForm.processType === 'batch'">
-                  <el-form-item label="批处理大小">
+                  <el-form-item label="批处理大小" label-width="100px">
                     <el-input-number v-model="nodeForm.batchSize" :min="1" :max="1000" />
                   </el-form-item>
-                  <el-form-item label="并行处理">
+                  <el-form-item label="并行处理" label-width="100px">
                     <el-switch v-model="nodeForm.parallel" />
                   </el-form-item>
                 </template>
 
                 <!-- 变量聚合配置 -->
                 <template v-if="nodeForm.processType === 'aggregate'">
-                  <el-form-item label="聚合方式">
+                  <el-form-item label="聚合方式" label-width="100px">
                     <el-select v-model="nodeForm.aggregateType">
                       <el-option label="求和" value="sum" />
                       <el-option label="平均值" value="avg" />
@@ -537,7 +537,7 @@
                       <el-option label="计数" value="count" />
                     </el-select>
                   </el-form-item>
-                  <el-form-item label="聚合字段">
+                  <el-form-item label="聚合字段" label-width="100px">
                     <el-input v-model="nodeForm.aggregateField" />
                   </el-form-item>
                 </template>
@@ -552,7 +552,7 @@
                     <span>输出配置</span>
                   </div>
                 </template>
-                <el-form-item label="输出类型">
+                <el-form-item label="输出类型" label-width="100px">
                   <el-select v-model="nodeForm.outputType">
                     <el-option label="文本" value="text" />
                     <el-option label="文件" value="file" />
@@ -560,22 +560,22 @@
                   </el-select>
                 </el-form-item>
                 <template v-if="nodeForm.outputType === 'file'">
-                  <el-form-item label="文件格式">
+                  <el-form-item label="文件格式" label-width="100px">
                     <el-select v-model="nodeForm.fileFormat">
                       <el-option label="JSON" value="json" />
                       <el-option label="CSV" value="csv" />
                       <el-option label="TXT" value="txt" />
                     </el-select>
                   </el-form-item>
-                  <el-form-item label="文件路径">
+                  <el-form-item label="文件路径" label-width="100px">
                     <el-input v-model="nodeForm.filePath" />
                   </el-form-item>
                 </template>
                 <template v-if="nodeForm.outputType === 'api'">
-                  <el-form-item label="API地址">
+                  <el-form-item label="API地址" label-width="100px">
                     <el-input v-model="nodeForm.apiUrl" />
                   </el-form-item>
-                  <el-form-item label="请求方法">
+                  <el-form-item label="请求方法" label-width="100px">
                     <el-select v-model="nodeForm.apiMethod">
                       <el-option label="GET" value="get" />
                       <el-option label="POST" value="post" />
