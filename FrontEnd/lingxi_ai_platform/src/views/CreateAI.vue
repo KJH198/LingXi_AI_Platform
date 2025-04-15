@@ -97,6 +97,55 @@
               backgroundColor: nodeProps.data.bgColor,
               borderColor: nodeProps.data.color
             }"
+            v-else-if="nodeProps.data.processType === 'selector'"
+          >
+            <div class="node-content">
+              <Handle type="target" position="top" :style="{ background: nodeProps.data.color }" />
+              <el-icon :size="20" :style="{ color: nodeProps.data.color }">
+                <component :is="nodeProps.data.icon" />
+              </el-icon>
+              <div class="node-label" :style="{ color: nodeProps.data.color }">
+                {{ nodeProps.data.label }}
+              </div>
+              <div class="selector-handles">
+                <Handle 
+                  type="source" 
+                  position="bottom" 
+                  :style="{ 
+                    background: nodeProps.data.color,
+                    left: `${100 / (nodeProps.data.elseIfConditions.length + 2)}%`
+                  }"
+                  :id="'if'"
+                />
+                <template v-for="(condition, index) in nodeProps.data.elseIfConditions" :key="index">
+                  <Handle 
+                    type="source" 
+                    position="bottom" 
+                    :style="{ 
+                      background: nodeProps.data.color,
+                      left: `${(index + 2) * (100 / (nodeProps.data.elseIfConditions.length + 2))}%`
+                    }"
+                    :id="`elseif-${index}`"
+                  />
+                </template>
+                <Handle 
+                  type="source" 
+                  position="bottom" 
+                  :style="{ 
+                    background: nodeProps.data.color,
+                    left: `${(nodeProps.data.elseIfConditions.length + 1) * (100 / (nodeProps.data.elseIfConditions.length + 2))}%`
+                  }"
+                  :id="'else'"
+                />
+              </div>
+            </div>
+          </div>
+          <div 
+            class="process-node"
+            :style="{
+              backgroundColor: nodeProps.data.bgColor,
+              borderColor: nodeProps.data.color
+            }"
             v-else
           >
             <div class="node-content">
@@ -295,16 +344,25 @@
 
                 <!-- 选择器配置 -->
                 <template v-if="nodeForm.processType === 'selector'">
-                  <el-form-item label="条件类型">
-                    <el-select v-model="nodeForm.conditionType">
-                      <el-option label="等于" value="equals" />
-                      <el-option label="大于" value="greater" />
-                      <el-option label="小于" value="less" />
-                      <el-option label="包含" value="contains" />
-                    </el-select>
-                  </el-form-item>
-                  <el-form-item label="条件值">
-                    <el-input v-model="nodeForm.conditionValue" />
+                  <el-form-item label="条件配置">
+                    <div class="condition-container">
+                      <div class="condition-item">
+                        <el-input v-model="nodeForm.ifCondition" placeholder="如果条件" />
+                      </div>
+                      <div v-for="(condition, index) in nodeForm.elseIfConditions" :key="index" class="condition-item">
+                        <el-input v-model="condition.value" placeholder="否则如果条件" />
+                        <el-button type="danger" @click="removeElseIfCondition(index)" circle>
+                          <el-icon><Delete /></el-icon>
+                        </el-button>
+                      </div>
+                      <div class="condition-item">
+                        <el-input v-model="nodeForm.elseCondition" placeholder="否则" />
+                      </div>
+                      <el-button type="primary" @click="addElseIfCondition" class="add-condition-btn">
+                        <el-icon><Plus /></el-icon>
+                        添加否则如果条件
+                      </el-button>
+                    </div>
                   </el-form-item>
                 </template>
 
@@ -492,7 +550,8 @@ import {
   Collection,
   Check,
   Close,
-  Delete
+  Delete,
+  Plus
 } from '@element-plus/icons-vue'
 
 // 引入 Vue Flow 样式
@@ -542,7 +601,11 @@ const nodeForm = ref({
   // 输出节点配置
   outputType: 'text',
   fileFormat: 'json',
-  filePath: ''
+  filePath: '',
+  // 选择器配置
+  ifCondition: '',
+  elseIfConditions: [],
+  elseCondition: '',
 })
 
 // 添加表单引用
@@ -630,7 +693,11 @@ const addNode = (type) => {
       data: {
         label: `${type}`,
         type,
-        description: ''
+        description: '',
+        // 如果是选择器节点，初始化条件数组
+        elseIfConditions: type === 'process' ? [] : undefined,
+        ifCondition: type === 'process' ? '' : undefined,
+        elseCondition: type === 'process' ? '' : undefined
       }
     })
   }
@@ -652,7 +719,11 @@ const confirmAddProcessNode = () => {
         processType: selectedType.value,
         icon: selectedType.icon,
         color: selectedType.color,
-        bgColor: selectedType.bgColor
+        bgColor: selectedType.bgColor,
+        // 如果是选择器节点，初始化条件数组
+        elseIfConditions: selectedType.value === 'selector' ? [] : undefined,
+        ifCondition: selectedType.value === 'selector' ? '' : undefined,
+        elseCondition: selectedType.value === 'selector' ? '' : undefined
       }
     })
     
@@ -775,7 +846,11 @@ const handleNodeClick = (event) => {
     // 输出节点配置
     outputType: node.data?.outputType || 'text',
     fileFormat: node.data?.fileFormat || 'json',
-    filePath: node.data?.filePath || ''
+    filePath: node.data?.filePath || '',
+    // 选择器配置
+    ifCondition: node.data?.ifCondition || '',
+    elseIfConditions: node.data?.elseIfConditions || [],
+    elseCondition: node.data?.elseCondition || '',
   }
   
   // 保存原始数据
@@ -863,7 +938,11 @@ const updateNode = async () => {
       // 输出节点配置
       outputType: nodeForm.value.outputType,
       fileFormat: nodeForm.value.fileFormat,
-      filePath: nodeForm.value.filePath
+      filePath: nodeForm.value.filePath,
+      // 选择器配置
+      ifCondition: nodeForm.value.ifCondition,
+      elseIfConditions: nodeForm.value.elseIfConditions,
+      elseCondition: nodeForm.value.elseCondition,
     }
     
     // 使用 Vue Flow 的 updateNode 方法更新节点
@@ -889,7 +968,11 @@ const updateNode = async () => {
       // 输出节点配置
       outputType: nodeForm.value.outputType,
       fileFormat: nodeForm.value.fileFormat,
-      filePath: nodeForm.value.filePath
+      filePath: nodeForm.value.filePath,
+      // 选择器配置
+      ifCondition: nodeForm.value.ifCondition,
+      elseIfConditions: nodeForm.value.elseIfConditions,
+      elseCondition: nodeForm.value.elseCondition,
     }
     
     // 使用 Vue Flow 的 updateNode 方法更新节点
@@ -942,6 +1025,25 @@ const handleDrawerClose = () => {
     ).then(() => {
       // 如果用户选择放弃更改，恢复原始数据
       nodeForm.value = JSON.parse(JSON.stringify(originalNodeData.value))
+      
+      // 更新节点数据，恢复原始状态
+      if (selectedNode.value) {
+        const node = elements.value.find(el => el.id === selectedNode.value)
+        if (node && node.data) {
+          const newNodeData = {
+            ...node.data,
+            ...originalNodeData.value,
+            // 确保条件数组也被恢复
+            elseIfConditions: originalNodeData.value.elseIfConditions || []
+          }
+          
+          // 使用 Vue Flow 的 updateNode 方法更新节点
+          vueFlowUpdateNode(node.id, {
+            data: newNodeData
+          })
+        }
+      }
+      
       drawerVisible.value = false
       selectedNode.value = null
     }).catch(() => {
@@ -991,7 +1093,11 @@ const onSelectionChange = (params) => {
       // 输出节点配置
       outputType: node.data?.outputType || 'text',
       fileFormat: node.data?.fileFormat || 'json',
-      filePath: node.data?.filePath || ''
+      filePath: node.data?.filePath || '',
+      // 选择器配置
+      ifCondition: node.data?.ifCondition || '',
+      elseIfConditions: node.data?.elseIfConditions || [],
+      elseCondition: node.data?.elseCondition || '',
     }
     
     // 保存原始数据
@@ -1012,10 +1118,22 @@ const handleNodeDragStop = (node) => {
 
 // 连接事件
 const handleConnect = (params) => {
+  // 检查源节点是否是选择器节点
+  const sourceNode = elements.value.find(el => el.id === params.source)
+  if (sourceNode && sourceNode.data.processType === 'selector') {
+    // 如果是选择器节点，需要检查连接点的ID
+    const handleId = params.sourceHandle
+    if (!handleId) {
+      ElMessage.warning('请选择有效的输出连接点')
+      return
+    }
+  }
+
   elements.value.push({
-    id: `edge-${params.source}-${params.target}`,
+    id: `edge-${params.source}-${params.target}-${params.sourceHandle || ''}`,
     source: params.source,
     target: params.target,
+    sourceHandle: params.sourceHandle,
     type: 'smoothstep',
     animated: true
   })
@@ -1093,7 +1211,15 @@ const saveWorkflow = async () => {
           // 输出节点配置
           outputType: node.data.outputType,
           fileFormat: node.data.fileFormat,
-          filePath: node.data.filePath
+          filePath: node.data.filePath,
+          // 选择器配置
+          ifCondition: node.data.ifCondition || '',
+          elseIfConditions: node.data.elseIfConditions || [],
+          elseCondition: node.data.elseCondition || '',
+          // 动态生成的样式配置
+          icon: node.data.icon,
+          color: node.data.color,
+          bgColor: node.data.bgColor
         }
       })),
       edges: elements.value.filter(el => el.type === 'smoothstep').map(edge => ({
@@ -1231,6 +1357,10 @@ const loadWorkflow = async (workflowId) => {
             outputType: node.data.outputType,
             fileFormat: node.data.fileFormat,
             filePath: node.data.filePath,
+            // 选择器配置
+            ifCondition: node.data.ifCondition || '',
+            elseIfConditions: node.data.elseIfConditions || [],
+            elseCondition: node.data.elseCondition || '',
             // 动态生成的样式配置
             icon,
             color,
@@ -1306,6 +1436,15 @@ const handleEditorMessage = (event) => {
     // 移除消息监听器
     window.removeEventListener('message', handleEditorMessage)
   }
+}
+
+// 添加选择器相关的方法
+const addElseIfCondition = () => {
+  nodeForm.value.elseIfConditions.push({ value: '' })
+}
+
+const removeElseIfCondition = (index) => {
+  nodeForm.value.elseIfConditions.splice(index, 1)
 }
 
 // 在组件挂载时加载工作流（如果有workflowId）
@@ -1962,5 +2101,59 @@ onMounted(() => {
 
 :deep(.el-tooltip__content::-webkit-scrollbar-corner) {
   background: #1e1e1e;
+}
+
+.condition-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.condition-item {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.add-condition-btn {
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+:deep(.el-button--danger.is-circle) {
+  padding: 6px;
+  min-width: auto;
+  height: auto;
+}
+
+.selector-handles {
+  position: relative;
+  width: 100%;
+  height: 20px;
+  margin-top: 10px;
+}
+
+:deep(.vue-flow__handle[data-handleid^="elseif"]) {
+  transform: translateX(-50%);
+}
+
+:deep(.vue-flow__handle[data-handleid="if"]) {
+  transform: translateX(-50%);
+}
+
+:deep(.vue-flow__handle[data-handleid="else"]) {
+  transform: translateX(-50%);
+}
+
+.handle-label {
+  position: absolute;
+  font-size: 12px;
+  color: #666;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  top: 15px;
+  font-weight: bold;
 }
 </style>
