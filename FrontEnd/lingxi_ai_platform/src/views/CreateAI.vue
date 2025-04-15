@@ -231,7 +231,7 @@
                 </template>
                 <el-form-item label="处理类型">
                   <el-select v-model="nodeForm.processType">
-                    <el-option label="代码" value="code" />
+                    <el-option label="代码处理" value="code" />
                     <el-option label="选择器" value="selector" />
                     <el-option label="循环" value="loop" />
                     <el-option label="意图识别" value="intent" />
