@@ -929,10 +929,9 @@ const api = {
   },
 
   // 封禁用户
-  async banUser(userId, banData) {
+  async banUser(userId) {
     try {
-      console.log('Ban data:', banData) // 添加日志
-      const response = await fetch(`/user/adminGetUsers`, {
+      const response = await fetch(`/user/adminGetUsersDetail/${userId}/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -940,22 +939,30 @@ const api = {
         },
         body: JSON.stringify({
           user_id: userId,
-          type: banData.type,
-          reason: banData.reason
+          reason: banForm.reason
         })
       })
       if (!response.ok) throw new Error('封禁用户失败')
-      return await response.json()
+      const data = await response.json()
+      if (data.success) {
+        ElMessage.success('封禁用户成功')
+        // 更新用户列表
+        await handleUserSearch()
+        // 关闭弹窗
+        banDialogVisible.value = false
+      } else {
+        throw new Error(data.message || '封禁用户失败')
+      }
     } catch (error) {
-      ElMessage.error('封禁用户失败')
-      throw error
+      console.error('封禁用户失败:', error)
+      ElMessage.error(error.message || '封禁用户失败')
     }
   },
 
   // 解封用户
   async unbanUser(userId) {
     try {
-      const response = await fetch(`/user/adminGetUsers`, {
+      const response = await fetch(`/user/adminGetUsersDetail/${userId}/`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
@@ -966,10 +973,17 @@ const api = {
         })
       })
       if (!response.ok) throw new Error('解封用户失败')
-      return await response.json()
+      const data = await response.json()
+      if (data.success) {
+        ElMessage.success('解封用户成功')
+        // 更新用户列表
+        await handleUserSearch()
+      } else {
+        throw new Error(data.message || '解封用户失败')
+      }
     } catch (error) {
-      ElMessage.error('解封用户失败')
-      throw error
+      console.error('解封用户失败:', error)
+      ElMessage.error(error.message || '解封用户失败')
     }
   }
 }
@@ -1136,14 +1150,7 @@ const handleBan = async () => {
     )
 
     loading.value = true
-    await api.banUser(selectedUser.value.id, {
-      type: banForm.type,
-      reason: banForm.reason
-    })
-    ElMessage.success('封禁成功')
-    banDialogVisible.value = false
-    // 刷新用户列表
-    await handleUserSearch()
+    await api.banUser(selectedUser.value.id)
   } catch (error) {
     if (error !== 'cancel') {
       console.error('封禁用户失败:', error)
@@ -1167,9 +1174,6 @@ const handleUnbanUser = async (user) => {
     )
     loading.value = true
     await api.unbanUser(user.id)
-    ElMessage.success('已解除封禁')
-    // 刷新用户列表
-    await handleUserSearch()
   } catch (error) {
     if (error !== 'cancel') {
       console.error('解封用户失败:', error)
