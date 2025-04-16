@@ -223,25 +223,6 @@
                   </el-button>
                 </div>
               </el-tab-pane>
-              <el-tab-pane label="高级逻辑" name="advanced">
-                <h4>回复约束</h4>
-                <el-form :model="agentData.constraints" label-width="120px">
-                  <el-form-item label="最大回复长度">
-                    <el-input-number
-                      v-model="agentData.constraints.maxLength"
-                      :min="10"
-                      :max="2000"
-                    ></el-input-number>
-                  </el-form-item>
-                  <el-form-item label="回复格式">
-                    <el-select v-model="agentData.constraints.format" placeholder="请选择回复格式">
-                      <el-option label="纯文本" value="text"></el-option>
-                      <el-option label="Markdown" value="markdown"></el-option>
-                      <el-option label="结构化JSON" value="json"></el-option>
-                    </el-select>
-                  </el-form-item>
-                </el-form>
-              </el-tab-pane>
             </el-tabs>
             <div class="step-actions">
               <el-button @click="prevStep">上一步</el-button>
@@ -266,7 +247,6 @@
               <el-table :data="knowledgeBases" style="width: 100%">
                 <el-table-column prop="name" label="名称" />
                 <el-table-column prop="description" label="描述" />
-                <el-table-column prop="documentCount" label="文档数量" />
                 <el-table-column prop="createdAt" label="创建时间" />
                 <el-table-column fixed="right" label="操作" width="150">
                   <template #default="scope">
@@ -292,7 +272,7 @@
                 @close="removeKnowledgeBase(kb.id)"
                 class="knowledge-tag"
               >
-                {{ kb.name }} ({{ kb.documentCount }}文档)
+                {{ kb.name }}
               </el-tag>
             </div>
             
@@ -452,25 +432,38 @@
       >
         <el-form :model="newKnowledgeBase" label-width="80px">
           <el-form-item label="名称" required>
-            <el-input v-model="newKnowledgeBase.name" placeholder="请输入知识库名称"></el-input>
+        <el-input v-model="newKnowledgeBase.name" placeholder="请输入知识库名称"></el-input>
+          </el-form-item>
+          <el-form-item label="类型" required>
+        <el-select v-model="newKnowledgeBase.type" placeholder="请选择知识库类型">
+          <el-option label="文本知识库" value="text"></el-option>
+          <el-option label="图片知识库" value="image"></el-option>
+        </el-select>
+        <div class="el-form-item-description">
+          <small v-if="newKnowledgeBase.type === 'text'">
+            文本知识库支持PDF、TXT、DOCX、MD等格式文件和URL导入
+          </small>
+          <small v-else-if="newKnowledgeBase.type === 'image'">
+            图片知识库支持JPG、PNG、GIF等图片格式
+          </small>
+        </div>
           </el-form-item>
           <el-form-item label="描述">
-            <el-input
-              v-model="newKnowledgeBase.description"
-              type="textarea"
-              :rows="3"
-              placeholder="请输入知识库描述"
-            ></el-input>
+        <el-input
+          v-model="newKnowledgeBase.description"
+          type="textarea"
+          :rows="3"
+          placeholder="请输入知识库描述"
+        ></el-input>
           </el-form-item>
         </el-form>
         <template #footer>
           <span class="dialog-footer">
-            <el-button @click="createKnowledgeDialogVisible = false">取消</el-button>
-            <el-button type="primary" @click="createKnowledgeBase">创建</el-button>
+        <el-button @click="createKnowledgeDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="createKnowledgeBase">创建</el-button>
           </span>
         </template>
       </el-dialog>
-  
       <!-- 上传文件对话框 -->
       <el-dialog
         v-model="uploadKnowledgeDialogVisible"
@@ -479,7 +472,11 @@
       >
         <el-form label-width="100px">
           <el-form-item label="选择知识库" required>
-            <el-select v-model="selectedUploadKnowledgeBaseId" placeholder="请选择知识库">
+            <el-select 
+              v-model="selectedUploadKnowledgeBaseId" 
+              placeholder="请选择知识库" 
+              @change="handleKnowledgeBaseChange"
+            >
               <el-option
                 v-for="kb in knowledgeBases"
                 :key="kb.id"
@@ -488,26 +485,58 @@
               ></el-option>
             </el-select>
           </el-form-item>
-          <el-form-item label="上传文件">
-            <el-upload
-              action="#"
-              :auto-upload="false"
-              :on-change="handleFileChange"
-              multiple
-            >
-              <el-button icon="Upload">选择文件</el-button>
-              <template #tip>
-                <div class="el-upload__tip">
-                  支持上传 PDF、TXT、DOCX、MD 等格式文件，单个文件不超过10MB
-                </div>
-              </template>
-            </el-upload>
-          </el-form-item>
+          
+          <!-- 文本知识库上传选项 -->
+          <template v-if="selectedKnowledgeBaseType === 'text'">
+            <el-form-item label="上传文件">
+              <el-upload
+                action="#"
+                :auto-upload="false"
+                :on-change="handleTextFileChange"
+                multiple
+              >
+                <el-button icon="Upload">选择文件</el-button>
+                <template #tip>
+                  <div class="el-upload__tip">
+                    支持上传 PDF、TXT、DOCX、MD 等格式文件，单个文件不超过10MB
+                  </div>
+                </template>
+              </el-upload>
+            </el-form-item>
+            
+          </template>
+          
+          <!-- 图片知识库上传选项 -->
+          <template v-else-if="selectedKnowledgeBaseType === 'image'">
+            <el-form-item label="上传图片">
+              <el-upload
+                action="#"
+                :auto-upload="false"
+                :on-change="handleImageFileChange"
+                multiple
+                accept="image/*"
+                list-type="picture-card"
+              >
+                <el-icon><Plus /></el-icon>
+                <template #tip>
+                  <div class="el-upload__tip">
+                    支持上传 JPG、PNG、GIF 等图片格式，单个图片不超过5MB
+                  </div>
+                </template>
+              </el-upload>
+            </el-form-item>
+          </template>
         </el-form>
         <template #footer>
           <span class="dialog-footer">
             <el-button @click="uploadKnowledgeDialogVisible = false">取消</el-button>
-            <el-button type="primary" @click="uploadKnowledgeFiles" :disabled="!selectedUploadKnowledgeBaseId">上传</el-button>
+            <el-button 
+              type="primary" 
+              @click="uploadKnowledgeFiles" 
+              :disabled="!canUpload"
+            >
+              上传
+            </el-button>
           </span>
         </template>
       </el-dialog>
@@ -515,9 +544,9 @@
   </template>
   
   <script setup lang="ts">
-  import { ref, reactive, computed, nextTick, onMounted } from 'vue'
+  import { ref, reactive, computed, nextTick, onMounted, watch} from 'vue'
   import { useRoute, useRouter } from 'vue-router'
-  import { ElMessage, ElMessageBox } from 'element-plus'
+  import { ElMessage, ElMessageBox, ElLoading } from 'element-plus'
   import { Plus, ArrowLeft, Position } from '@element-plus/icons-vue'
   import { marked } from 'marked'
   import DOMPurify from 'dompurify'
@@ -537,6 +566,28 @@
   const uploadKnowledgeDialogVisible = ref(false)
   const selectedUploadKnowledgeBaseId = ref('')
   const uploadFiles = ref<File[]>([])
+  // 创建新知识库数据
+const newKnowledgeBase = reactive({
+  name: '',
+  description: '',
+  type: 'text' // 默认为文本类型
+})
+
+// 上传相关变量
+const selectedKnowledgeBaseType = ref('')
+
+// 计算属性：是否可以上传
+const canUpload = computed(() => {
+  if (!selectedUploadKnowledgeBaseId.value) return false
+  
+  if (selectedKnowledgeBaseType.value === 'text') {
+    return uploadFiles.value.length > 0 
+  } else if (selectedKnowledgeBaseType.value === 'image') {
+    return uploadFiles.value.length > 0
+  }
+  
+  return false
+})
   
   // 聊天预览相关
   const userInput = ref('')
@@ -570,7 +621,7 @@
       background: ''
     },
     systemPrompt: '',
-    useWorkflow: false,
+    useWorkflow: true,
     useReactMode: false,
     constraints: {
       maxLength: 500,
@@ -581,10 +632,7 @@
   })
   
   // 创建新知识库数据
-  const newKnowledgeBase = reactive({
-    name: '',
-    description: ''
-  })
+  // (This duplicate declaration is removed as it already exists earlier in the code)
   
   // 可选模型列表
   const availableModels = ref([
@@ -679,29 +727,34 @@
   
   // 模拟知识库数据
   const knowledgeBases = ref([
-    {
-      id: 'kb1',
-      name: '产品手册库',
-      description: '包含所有产品说明书和用户手册',
-      documentCount: 24,
-      createdAt: '2025-03-15'
-    },
-    {
-      id: 'kb2',
-      name: '技术博客集',
-      description: '各类技术博客和文章整理',
-      documentCount: 47,
-      createdAt: '2025-03-20'
-    },
-    {
-      id: 'kb3',
-      name: '公司政策库',
-      description: '公司内部政策和规章制度',
-      documentCount: 12,
-      createdAt: '2025-03-25'
-    }
-  ])
-  
+  {
+    id: 'kb1',
+    name: '产品手册库',
+    description: '包含所有产品说明书和用户手册',
+    createdAt: '2025-03-15',
+    type: 'text'  // 添加默认类型
+  },
+  {
+    id: 'kb2',
+    name: '技术博客集',
+    description: '各类技术博客和文章整理',
+    createdAt: '2025-03-20',
+    type: 'text'  // 添加默认类型
+  },
+  {
+    id: 'kb3',
+    name: '公司政策库',
+    description: '公司内部政策和规章制度',
+    createdAt: '2025-03-25',
+    type: 'text'  // 添加默认类型
+  }
+])
+
+watch(activeStep, (newStep) => {
+  if (newStep === 3) { // 3是知识库配置的步骤索引
+    fetchKnowledgeBases()
+  }
+})
   // 计算选中的知识库信息
   const selectedKnowledgeBasesInfo = computed(() => {
     return knowledgeBases.value.filter(kb => 
@@ -745,35 +798,99 @@
   const showCreateKnowledgeDialog = () => {
     createKnowledgeDialogVisible.value = true
   }
+
+  const fetchKnowledgeBases = async () => {
+    try {
+      const response = await fetch('/fetch_knowledgebases',
+        {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        }
+      )
+      const data = await response.json()
+      if (response.status === 200) {
+        knowledgeBases.value = data.knowledgeBases
+      } else {
+        throw new Error(data.message || '获取知识库失败')
+      }
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch knowledge bases')
+      }
+
+    } catch (error) {
+      console.error('获取知识库失败:', error)
+      ElMessage.error('获取知识库失败，请稍后重试')
+    }
+  }
   
-  const createKnowledgeBase = () => {
-    if (!newKnowledgeBase.name) {
-      ElMessage.warning('请输入知识库名称')
-      return
+  const createKnowledgeBase = async () => {
+  if (!newKnowledgeBase.name) {
+    ElMessage.warning('请输入知识库名称')
+    return
+  }
+  
+  if (!newKnowledgeBase.type) {
+    ElMessage.warning('请选择知识库类型')
+    return
+  }
+  
+  const loadingInstance = ElLoading.service({
+    lock: true,
+    text: '创建知识库中...',
+    background: 'rgba(0, 0, 0, 0.7)',
+  })
+  
+  try {
+    // 调用API创建知识库
+    const response = await fetch('/create_knowledgebase', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        name: newKnowledgeBase.name,
+        description: newKnowledgeBase.description,
+        type: newKnowledgeBase.type
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to create knowledge base');
+    }
+
+    const data = await response.json();
+
+    if (response.status !== 200) {
+      throw new Error(data.message || '创建知识库失败');
     }
     
-    // 生成随机ID
-    const id = 'kb' + Date.now()
-    
-    // 添加到知识库列表
+    ElMessage.success('知识库创建成功');
+    // 更新知识库列表
     knowledgeBases.value.push({
-      id,
+      id: data.id,
       name: newKnowledgeBase.name,
       description: newKnowledgeBase.description,
-      documentCount: 0,
-      createdAt: new Date().toISOString().split('T')[0]
+      type: newKnowledgeBase.type,
+      createdAt: data.createdAt
     })
-    
-    // 自动选择新创建的知识库
-    agentData.knowledgeBases.push(id)
     
     // 重置表单
     newKnowledgeBase.name = ''
     newKnowledgeBase.description = ''
-    
+    newKnowledgeBase.type = 'text'  // 重置为默认类型
     createKnowledgeDialogVisible.value = false
-    ElMessage.success('知识库创建成功')
+    
+    loadingInstance.close()
+  } catch (error) {
+    console.error('创建知识库失败:', error)
+    ElMessage.error('创建知识库失败，请稍后重试')
+  } finally {
+    loadingInstance.close()
   }
+}
   
   // 上传知识文件
   const showUploadKnowledgeDialog = () => {
@@ -784,31 +901,139 @@
     uploadFiles.value.push(file.raw)
   }
   
-  const uploadKnowledgeFiles = () => {
-    if (!selectedUploadKnowledgeBaseId.value) {
-      ElMessage.warning('请选择知识库')
-      return
-    }
-    
+  const uploadKnowledgeFiles = async () => {
+  if (!selectedUploadKnowledgeBaseId.value) {
+    ElMessage.warning('请选择知识库')
+    return
+  }
+  
+  const kb = knowledgeBases.value.find(item => item.id === selectedUploadKnowledgeBaseId.value)
+  if (!kb) {
+    ElMessage.warning('选择的知识库无效')
+    return
+  }
+  
+  // 文本类型知识库
+  if (kb.type === 'text') {
     if (uploadFiles.value.length === 0) {
       ElMessage.warning('请选择要上传的文件')
       return
     }
-    
-    // 模拟上传成功，更新知识库文档计数
-    const kb = knowledgeBases.value.find(kb => kb.id === selectedUploadKnowledgeBaseId.value)
-    if (kb) {
-      kb.documentCount += uploadFiles.value.length
+  } 
+  // 图片类型知识库
+  else if (kb.type === 'image') {
+    if (uploadFiles.value.length === 0) {
+      ElMessage.warning('请选择要上传的图片')
+      return
     }
+  }
+  
+  const loadingInstance = ElLoading.service({
+    lock: true,
+    text: '上传中...',
+    background: 'rgba(0, 0, 0, 0.7)',
+  })
+  
+  try {
+    const formData = new FormData()
+    
+    // 添加文件
+    uploadFiles.value.forEach(file => {
+      formData.append('files', file)
+    })
+    
+    // 添加知识库类型信息
+    formData.append('type', kb.type)
+    
+    const response = await fetch(
+      `/knowledgebase/${selectedUploadKnowledgeBaseId.value}/upload`, 
+      {
+        method: 'POST',
+        body: formData
+      }
+    )
+    
+    if (!response.ok || response.status !== 200) {
+      throw new Error('上传失败')
+    }
+    
+    const data = await response.json()
     
     // 重置表单
     uploadFiles.value = []
     selectedUploadKnowledgeBaseId.value = ''
-    
+    selectedKnowledgeBaseType.value = ''
     uploadKnowledgeDialogVisible.value = false
-    ElMessage.success('文件上传成功')
+    
+    ElMessage.success(`上传成功，共${data.uploaded_count || 
+      (uploadFiles.value.length)}个文件`)
+  } catch (error) {
+    console.error('上传失败:', error)
+    ElMessage.error('上传失败，请稍后重试')
+  } finally {
+    loadingInstance.close()
+  }
+}
+  
+// 处理知识库选择变化
+const handleKnowledgeBaseChange = (kbId) => {
+  const kb = knowledgeBases.value.find(item => item.id === kbId)
+  if (kb) {
+    selectedKnowledgeBaseType.value = kb.type
+    // 切换知识库类型时清空上传列表
+    uploadFiles.value = []
+  }
+}
+
+// 处理文本文件上传
+const handleTextFileChange = (file) => {
+  // 文本类型验证
+  const allowedTypes = ['application/pdf', 'text/plain', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/markdown']
+  const allowedExtensions = ['.pdf', '.txt', '.docx', '.md']
+  
+  const fileExtension = file.name.substring(file.name.lastIndexOf('.')).toLowerCase()
+  const isAllowedType = allowedTypes.includes(file.raw.type) || 
+                         allowedExtensions.includes(fileExtension)
+                      
+  // 文件大小验证 (10MB)
+  const isLessThan10M = file.raw.size / 1024 / 1024 < 10
+  
+  if (!isAllowedType) {
+    ElMessage.error('不支持的文件类型，请上传PDF、TXT、DOCX或MD文件')
+    return false
   }
   
+  if (!isLessThan10M) {
+    ElMessage.error('文件大小不能超过10MB')
+    return false
+  }
+  
+  uploadFiles.value.push(file.raw)
+  return false // 阻止自动上传
+}
+
+// 处理图片文件上传
+const handleImageFileChange = (file) => {
+  // 图片类型验证
+  const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
+  
+  // 文件大小验证 (5MB)
+  const isLessThan5M = file.raw.size / 1024 / 1024 < 5
+  
+  if (!allowedTypes.includes(file.raw.type)) {
+    ElMessage.error('不支持的图片格式，请上传JPG、PNG、GIF或WEBP图片')
+    return false
+  }
+  
+  if (!isLessThan5M) {
+    ElMessage.error('图片大小不能超过5MB')
+    return false
+  }
+  
+  uploadFiles.value.push(file.raw)
+  return false // 阻止自动上传
+}
+
   // 知识库操作
   const toggleKnowledgeBase = (kb: any) => {
     const index = agentData.knowledgeBases.indexOf(kb.id)
@@ -830,9 +1055,57 @@
     }
   }
   
-  const viewKnowledgeBase = (kb: any) => {
-    ElMessage.info(`查看知识库: ${kb.name}（此功能正在开发中）`)
+  const viewKnowledgeBase = async (kb) => {
+  try {
+    const response = await fetch(`/knowledgebase/${kb.id}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    })
+
+    if(!(response.status === 200) || !response.ok) {
+      throw new Error('获取知识库详情失败')
+    }
+    
+    const data = await response.json()
+    
+    // 获取知识库类型中文名称
+    const typeDisplayName = kb.type === 'text' ? '文本知识库' : kb.type === 'image' ? '图片知识库' : kb.type
+    
+    // 显示知识库详情
+    ElMessageBox.alert(
+      `<div>
+        <h3>知识库: ${kb.name}</h3>
+        <p><strong>类型:</strong> ${typeDisplayName}</p>
+        <p><strong>描述:</strong> ${kb.description || '无'}</p>
+        <p><strong>创建时间:</strong> ${kb.createdAt}</p>
+        <h4>文件列表:</h4>
+        ${data.documents && data.documents.length > 0 ? 
+          `<ul>
+            ${data.documents.map(doc => `
+              <li>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                  <span>${doc.filename}</span>
+                  <span>${Math.round(doc.size/1024)}KB</span>
+                </div>
+                ${doc.upload_time ? `<small style="color: #909399">上传时间: ${doc.upload_time}</small>` : ''}
+              </li>`).join('')}
+          </ul>` : 
+          '<p>暂无文件</p>'
+        }
+      </div>`,
+      '知识库详情',
+      {
+        dangerouslyUseHTMLString: true,
+        confirmButtonText: '确定'
+      }
+    )
+  } catch (error) {
+    console.error('获取知识库详情失败:', error)
+    ElMessage.error('获取知识库详情失败，请稍后重试')
   }
+}
   
   // 工作流相关
   const enableWorkflow = () => {
