@@ -13,7 +13,7 @@
           </el-menu>
         </div>
         <div class="header-right">
-          <el-button type="primary" @click="router.push('/agent-editor')">构建智能体</el-button>
+          <el-button type="primary" @click="showCreateAgentDialog">构建智能体</el-button>
           <el-button type="primary" @click="showPostDialog">发布帖子</el-button>
           <el-dropdown>
             <el-avatar :size="40" :src="userInfo.avatar" />
@@ -169,6 +169,48 @@
       </div>
     </el-dialog>
   </div>
+
+  <el-dialog
+      v-model="createAgentDialogVisible"
+      title="创建智能体"
+      width="50%"
+    >
+      <el-form :model="agentInitData" label-width="100px">
+        <el-form-item label="智能体名称" required>
+          <el-input v-model="agentInitData.name" placeholder="请输入智能体名称"></el-input>
+        </el-form-item>
+        <el-form-item label="简介">
+          <el-input
+            v-model="agentInitData.description"
+            type="textarea"
+            :rows="3"
+            placeholder="请输入智能体简介"
+          ></el-input>
+        </el-form-item>
+        <el-form-item label="分类">
+          <el-select v-model="agentInitData.category" placeholder="请选择分类">
+            <el-option
+              v-for="category in categories"
+              :key="category.value"
+              :label="category.label"
+              :value="category.value"
+            ></el-option>
+          </el-select>
+        </el-form-item>
+        <el-form-item label="可见性">
+          <el-radio-group v-model="agentInitData.visibility">
+            <el-radio label="public">公开</el-radio>
+            <el-radio label="private">私有</el-radio>
+          </el-radio-group>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="createAgentDialogVisible = false">取消</el-button>
+          <el-button type="primary" @click="handleCreateAgent">创建并进入编辑器</el-button>
+        </span>
+      </template>
+    </el-dialog>
 </template>
 
 <script setup lang="ts">
@@ -367,6 +409,47 @@ const handleLogout = () => {
   ElMessage.success('退出成功')
   router.push('/login')
 }
+
+const createAgentDialogVisible = ref(false)
+const agentInitData = reactive({
+  name: '',
+  description: '',
+  category: '',
+  visibility: 'public'
+})
+
+// 分类数据
+const categories = ref([
+  { label: '教育学习', value: 'education' },
+  { label: '工作效率', value: 'productivity' },
+  { label: '编程开发', value: 'programming' },
+  { label: '生活助手', value: 'lifestyle' },
+  { label: '创意设计', value: 'creative' },
+  { label: '健康医疗', value: 'health' },
+  { label: '娱乐休闲', value: 'entertainment' },
+  { label: '其他', value: 'other' }
+])
+
+// 显示创建智能体对话框
+const showCreateAgentDialog = () => {
+  createAgentDialogVisible.value = true
+}
+
+// 创建智能体
+const handleCreateAgent = () => {
+  if (!agentInitData.name.trim()) {
+    ElMessage.warning('请输入智能体名称')
+    return
+  }
+  
+  // 将基本信息存入本地缓存
+  localStorage.setItem('agentInitData', JSON.stringify(agentInitData))
+  
+  // 关闭对话框并导航到智能体编辑页面
+  createAgentDialogVisible.value = false
+  router.push('/agent-editor')
+}
+
 </script>
 
 <style scoped>

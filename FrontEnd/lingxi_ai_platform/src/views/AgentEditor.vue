@@ -224,20 +224,6 @@
                 </div>
               </el-tab-pane>
               <el-tab-pane label="高级逻辑" name="advanced">
-                <el-checkbox v-model="agentData.useWorkflow">启用工作流处理逻辑</el-checkbox>
-                <p class="tip-text" v-if="agentData.useWorkflow">
-                  启用工作流后，可以在工作流配置步骤中设计智能体的处理流程。
-                </p>
-                
-                <el-divider></el-divider>
-                
-                <el-checkbox v-model="agentData.useReactMode">启用 ReAct 模式</el-checkbox>
-                <p class="tip-text" v-if="agentData.useReactMode">
-                  ReAct模式允许智能体先进行推理，再执行动作，适合解决复杂问题。
-                </p>
-                
-                <el-divider></el-divider>
-                
                 <h4>回复约束</h4>
                 <el-form :model="agentData.constraints" label-width="120px">
                   <el-form-item label="最大回复长度">
@@ -320,11 +306,16 @@
           <div v-show="activeStep === 4" class="step-content">
             <h3>工作流配置</h3>
             
-            <div v-if="!agentData.useWorkflow" class="workflow-disabled">
-              <el-empty description="工作流未启用">
-                <p>在"人设与回复逻辑"步骤中启用工作流，即可配置处理流程</p>
-                <el-button type="primary" @click="enableWorkflow">启用工作流</el-button>
-              </el-empty>
+            <div v-if="!agentData.workflowId" class="workflow-enabled">
+              <p class="tip-text">
+                工作流允许您设计智能体的处理流程，包括输入处理、调用外部API、条件判断等。
+              </p>
+              <div class="workflow-actions">
+                <el-button type="primary" @click="navigateToWorkflowEditor">
+                  前往工作流编辑器
+                </el-button>
+                <el-button @click="importWorkflow">导入现有工作流</el-button>
+              </div>
             </div>
             
             <div v-else class="workflow-enabled">
@@ -1134,6 +1125,44 @@
       }
     ]
   })
+
+  onMounted(() => {
+  // 检查是否有来自前置对话框的初始数据
+  const savedAgentInitData = localStorage.getItem('agentInitData')
+  
+  if (savedAgentInitData) {
+    try {
+      const initData = JSON.parse(savedAgentInitData)
+      // 将初始数据填充到 agentData 中
+      agentData.name = initData.name || ''
+      agentData.description = initData.description || ''
+      agentData.category = initData.category || ''
+      agentData.visibility = initData.visibility || 'public'
+      
+      // 使用完后清除缓存数据
+      localStorage.removeItem('agentInitData')
+    } catch (error) {
+      console.error('解析初始数据失败:', error)
+    }
+  }
+  
+  // 如果URL中有agentId参数，尝试加载智能体数据
+  const agentId = route.query.agentId
+  if (agentId) {
+    // 模拟从API加载数据
+    ElMessage.info('正在加载智能体数据...')
+    // 这里可以添加加载逻辑
+  }
+  
+  // 添加初始消息
+  chatMessages.value = [
+    {
+      role: 'assistant',
+      content: `你好！我是${agentData.name || '智能助手'}。有什么我可以帮助你的吗？`,
+      time: new Date().toLocaleTimeString()
+    }
+  ]
+})
   </script>
   
   <style scoped>
