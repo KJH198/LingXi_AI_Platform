@@ -156,7 +156,7 @@ const handleLogin = async () => {
 }
 
 const goToAdminLogin = () => {
-  router.push('/adminLogin')
+  router.push('/admin')
 }
 const handleRegister = () => {
   router.push('/register') // 跳转到注册页面

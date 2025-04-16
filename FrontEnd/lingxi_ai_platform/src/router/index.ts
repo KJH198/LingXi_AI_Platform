@@ -1,79 +1,76 @@
-import { createRouter, createWebHistory } from 'vue-router'
-import Login from '../views/Login.vue'
-import AdminLogin from '../views/AdminLogin.vue'
-import AdminDashboard from '../views/AdminDashboard.vue'
-import Community from '../views/Community.vue'
-import Register from '../views/Register.vue'  
-import UserProfile from '../views/UserProfile.vue'
-import Followers from '../views/Followers.vue'
-import Following from '../views/Followings.vue'
-import CreateAI from '../views/CreateAI.vue'
-import AgentEditor from '../views/AgentEditor.vue'
-import MyAgent from '../views/MyAgent.vue'
+import { createRouter, createWebHashHistory, type RouteRecordRaw } from 'vue-router'
+import Editor from '../views/Editor.vue'
+
+const routes: RouteRecordRaw[] = [
+  {
+    path: '/',
+    redirect: '/login'
+  },
+  {
+    path: '/community',
+    name: 'Community',
+    component: () => import('../views/Community.vue')
+  },
+  {
+    path: '/my-posts',
+    name: 'MyPost',
+    component: () => import('../views/MyPost.vue')
+  },
+  {
+    path: '/profile',
+    name: 'UserProfile',
+    component: () => import('../views/UserProfile.vue')
+  },
+  {
+    path: '/my-agents',
+    name: 'MyAgent',
+    component: () => import('../views/MyAgent.vue')
+  },
+  {
+    path: '/agent-editor',
+    name: 'AgentEditor',
+    component: () => import('../views/AgentEditor.vue')
+  },
+  {
+    path: '/create-ai',
+    name: 'CreateAI',
+    component: () => import('../views/CreateAI.vue')
+  },
+  {
+    path: '/login',
+    name: 'Login',
+    component: () => import('../views/Login.vue')
+  },
+  {
+    path: '/register',
+    name: 'Register',
+    component: () => import('../views/Register.vue')
+  },
+  {
+    path: '/admin',
+    name: 'AdminLogin',
+    component: () => import('../views/AdminLogin.vue')
+  },
+  {
+    path: '/admin/dashboard',
+    name: 'AdminDashboard',
+    component: () => import('../views/AdminDashboard.vue')
+  },
+  {
+    path: '/code-editor',
+    name: 'CodeEditor',
+    component: () => import('../views/CodeEditor.vue')
+  },
+  {
+    path: '/editor',
+    name: 'Editor',
+    component: Editor
+  }
+]
 
 const router = createRouter({
-  history: createWebHistory(),
-  routes: [
-    {
-      path: '/login',
-      name: 'Login',
-      component: Login
-    },
-    {
-      path: '/adminLogin',
-      name: 'AdminLogin',
-      component: AdminLogin
-    },
-    {
-      path: '/admin/dashboard',
-      name: 'AdminDashboard',
-      component: AdminDashboard
-    },
-    {  
-      path: '/register',  
-      name: 'Register',
-      component: Register
-    },
-    {
-      path: '/profile',
-      name: 'UserProfile',
-      component: UserProfile
-    },
-    {
-      path: '/followers',
-      name: 'Followers',
-      component: Followers
-    },
-    {
-      path: '/following',
-      name: 'Following',
-      component: () => import('../views/Followings.vue')
-    },
-    {
-      path: '/community',
-      name: 'Community',
-      component: Community
-    },
-    {
-      path: '/create-ai',
-      name: 'CreatAI',
-      component: CreateAI
-    },
-    {
-      path: '/agent-editor',
-      name: 'AgentEditor',
-      component: AgentEditor
-    },
-    {
-      path: '/my-agents',
-      name: 'MyAgent',
-      component: MyAgent
-    },
-    {
-      path: '/',
-      redirect: '/login'
-    }
-  ]
+  history: createWebHashHistory(),
+  routes
 })
 
 export default router 
