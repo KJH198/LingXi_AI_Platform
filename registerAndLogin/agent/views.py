@@ -3,8 +3,15 @@ from rest_framework.response import Response
 from rest_framework import status
 from collections import defaultdict
 from django.shortcuts import get_object_or_404
-from .models import Agent, Workflow, Node
+from .models import Agent, Workflow, Node, KnowledgeBase, Document, DocumentChunk, AgentKnowledgeBase
 import json
+from rest_framework import viewsets, permissions
+from rest_framework.decorators import action
+from .serializers import (
+    AgentSerializer, WorkflowSerializer, NodeSerializer,
+    KnowledgeBaseSerializer, DocumentSerializer, DocumentChunkSerializer,
+    AgentKnowledgeBaseSerializer
+)
 
 class WorkflowSaveView(APIView):
 
@@ -113,3 +120,97 @@ class WorkflowRetrieveView(APIView):
 
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+# 知识库视图集
+class KnowledgeBaseViewSet(viewsets.ModelViewSet):
+    serializer_class = KnowledgeBaseSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return KnowledgeBase.objects.filter(owner=self.request.user)
+
+    def perform_create(self, serializer):
+        serializer.save(owner=self.request.user)
+
+    @action(detail=True, methods=['post'])
+    def add_document(self, request, pk=None):
+        knowledge_base = self.get_object()
+        serializer = DocumentSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save(knowledge_base=knowledge_base)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=['get'])
+    def documents(self, request, pk=None):
+        knowledge_base = self.get_object()
+        documents = Document.objects.filter(knowledge_base=knowledge_base)
+        serializer = DocumentSerializer(documents, many=True)
+        return Response(serializer.data)
+
+# 文档视图集
+class DocumentViewSet(viewsets.ModelViewSet):
+    serializer_class = DocumentSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return Document.objects.filter(knowledge_base__owner=self.request.user)
+
+    @action(detail=True, methods=['post'])
+    def chunk(self, request, pk=None):
+        document = self.get_object()
+        content = request.data.get('content')
+        chunk_index = request.data.get('chunk_index')
+        
+        if not content or chunk_index is None:
+            return Response(
+                {'error': 'Content and chunk_index are required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        chunk = DocumentChunk.objects.create(
+            document=document,
+            content=content,
+            chunk_index=chunk_index
+        )
+        
+        serializer = DocumentChunkSerializer(chunk)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+# 智能体知识库关联视图集
+class AgentKnowledgeBaseViewSet(viewsets.ModelViewSet):
+    serializer_class = AgentKnowledgeBaseSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return AgentKnowledgeBase.objects.filter(agent__user=self.request.user)
+
+    @action(detail=False, methods=['post'])
+    def add_to_agent(self, request):
+        agent_id = request.data.get('agent_id')
+        knowledge_base_id = request.data.get('knowledge_base_id')
+        priority = request.data.get('priority', 0)
+
+        agent = get_object_or_404(Agent, id=agent_id, user=request.user)
+        knowledge_base = get_object_or_404(KnowledgeBase, id=knowledge_base_id)
+
+        agent_kb = AgentKnowledgeBase.objects.create(
+            agent=agent,
+            knowledge_base=knowledge_base,
+            priority=priority
+        )
+
+        serializer = self.get_serializer(agent_kb)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=['post'])
+    def update_priority(self, request, pk=None):
+        agent_kb = self.get_object()
+        priority = request.data.get('priority')
+        
+        if priority is not None:
+            agent_kb.priority = priority
+            agent_kb.save()
+            
+        serializer = self.get_serializer(agent_kb)
+        return Response(serializer.data)
