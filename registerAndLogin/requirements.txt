@@ -1,8 +1,8 @@
-Django==5.0.2
-djangorestframework==3.14.0
-django-cors-headers==4.3.1
-drf-yasg==1.21.7
-djangorestframework-simplejwt==5.3.1
-mysqlclient==2.2.1 
-mysql-connector-python==8.0.5
-setuptools==65.5.0
+Django
+djangorestframework
+django-cors-headers
+drf-yasg
+djangorestframework-simplejwt
+mysqlclient
+mysql-connector-python
+setuptools
