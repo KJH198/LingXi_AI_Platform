@@ -198,6 +198,14 @@ const userInfo = reactive({
 // 获取用户信息的函数中添加模拟数据
 const fetchUserInfo = async () => {
   try {
+    // 首先尝试从本地存储获取用户信息
+    const storedUserInfo = localStorage.getItem('userInfo')
+    if (storedUserInfo) {
+      const parsedUserInfo = JSON.parse(storedUserInfo)
+      Object.assign(userInfo, parsedUserInfo)
+      return
+    }
+
     const token = localStorage.getItem('token')
     if (!token) {
       ElMessage.error('请先登录')
@@ -210,14 +218,14 @@ const fetchUserInfo = async () => {
     
     // 模拟返回的用户数据
     const mockUserData = {
-      username: '张小明',
-      phone_number: '13812345678',
-      email: 'xiaoming@example.com',
-      bio: '热爱AI技术，专注于大模型应用研发，喜欢分享技术心得。',
+      username: '未知',
+      phone_number: '未知',
+      email: '未知',
+      bio: '未知',
       avatar: 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png',
-      posts_count: 1,
-      followers: 3,
-      following: 3,
+      posts_count: 0,
+      followers: 0,
+      following: 0,
     }
 
     // 更新用户信息
@@ -242,7 +250,7 @@ const fetchUserInfo = async () => {
     }
 
     // 更新用户信息
-    Object.assign(userInfo, {
+    const newUserInfo = {
       username: data.username,
       phone_number: data.phone_number,
       email: data.email || '',
@@ -251,7 +259,11 @@ const fetchUserInfo = async () => {
       posts_count: data.posts_count || 0,
       followers: data.followers || 0,
       following: data.following || 0
-    })
+    }
+    Object.assign(userInfo, newUserInfo)
+    
+    // 更新本地存储
+    localStorage.setItem('userInfo', JSON.stringify(newUserInfo))
   } catch (error) {
     console.error('获取用户信息失败:', error)
     ElMessage.error('获取用户信息失败，请稍后重试')
@@ -298,7 +310,7 @@ const handleUpdateProfile = async () => {
         phone_number: userInfo.phone_number,
         email: userInfo.email,
         bio: userInfo.bio,
-        avatar : userInfo.avatar
+        avatar: userInfo.avatar
       })
     })
 
@@ -307,12 +319,23 @@ const handleUpdateProfile = async () => {
     }
     else {
       const result = await response.json()
-      if (result.code !== 200 && response.status !== 200) { // Adjust condition based on actual response structure
-        // console.log("code : ", result.code)
-        // console.log("status : ", response.status)
-        // console.log("message : ", result.message)
+      if (result.code !== 200 && response.status !== 200) {
         throw new Error(result.message || '更新个人信息失败')
       }
+      
+      // 更新本地存储的用户信息
+      const updatedUserInfo = {
+        username: userInfo.username,
+        phone_number: userInfo.phone_number,
+        email: userInfo.email,
+        bio: userInfo.bio,
+        avatar: userInfo.avatar,
+        posts_count: userInfo.posts_count,
+        followers: userInfo.followers,
+        following: userInfo.following
+      }
+      localStorage.setItem('userInfo', JSON.stringify(updatedUserInfo))
+      
       ElMessage.success('个人信息更新成功')
     }
     

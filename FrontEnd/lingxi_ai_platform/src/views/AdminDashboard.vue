@@ -1069,7 +1069,7 @@ onMounted(() => {
 const handleLogout = () => {
   localStorage.removeItem('adminToken')
   localStorage.removeItem('userRole')
-  router.push('/adminLogin')
+  router.push('/admin')
 }
 
 const getViolationTagType = (type) => {

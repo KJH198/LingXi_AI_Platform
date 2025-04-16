@@ -111,6 +111,38 @@ const handleLogin = async () => {
       ElMessage.success('登录成功')
       localStorage.setItem('token', data.token)  // 保存 token 到本地存储
       localStorage.setItem('userId', data.id) // 保存用户ID到本地存储
+      
+      // 立即获取用户信息并存储
+      try {
+        const userInfoResponse = await fetch('/user/user_info/', {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${data.token}`,
+            'Content-Type': 'application/json'
+          }
+        })
+        
+        if (userInfoResponse.ok) {
+          const userInfoData = await userInfoResponse.json()
+          if (userInfoData.code === 200) {
+            // 存储用户信息到本地
+            localStorage.setItem('userInfo', JSON.stringify({
+              username: userInfoData.username,
+              phone_number: userInfoData.phone_number,
+              email: userInfoData.email || '',
+              bio: userInfoData.bio || '这个人很懒，什么都没有留下',
+              avatar: userInfoData.avatar || 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png',
+              posts_count: userInfoData.posts_count || 0,
+              followers: userInfoData.followers || 0,
+              following: userInfoData.following || 0
+            }))
+          }
+        }
+      } catch (error) {
+        console.error('获取用户信息失败:', error)
+        // 即使获取用户信息失败也不影响登录流程
+      }
+      
       router.push('/community') // 跳转到其他页面
     } else {   // 登录失败提示
       ElMessage.error(data.message || '登录失败，请检查用户名和密码') // 使用服务器返回的错误信息
@@ -124,7 +156,7 @@ const handleLogin = async () => {
 }
 
 const goToAdminLogin = () => {
-  router.push('/adminLogin')
+  router.push('/admin')
 }
 const handleRegister = () => {
   router.push('/register') // 跳转到注册页面
