@@ -920,10 +920,12 @@ const api = {
           'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
         }
       })
-      if (!response.ok) throw new Error('搜索用户失败')
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || '搜索用户失败')
+      }
       return await response.json()
     } catch (error) {
-      ElMessage.error('搜索用户失败')
       throw error
     }
   },
@@ -1051,25 +1053,7 @@ const behaviorApi = {
   }
 }
 
-// 修改用户搜索函数
-const handleSearch = async () => {
-  if (!searchUserId.value) {
-    ElMessage.warning('请输入用户ID')
-    return
-  }
-  loading.value = true
-  try {
-    // 使用模拟数据
-    currentUser.value = mockUserData
-    // TODO: 实际API调用
-    // const data = await api.searchUser(searchUserId.value)
-    // currentUser.value = data
-  } catch (error) {
-    console.error('搜索用户失败:', error)
-  } finally {
-    loading.value = false
-  }
-}
+
 
 // 修改用户列表搜索函数
 const handleUserSearch = async () => {
@@ -1079,7 +1063,7 @@ const handleUserSearch = async () => {
       // 搜索单个用户
       const data = await api.searchUser(userSearchQuery.value)
       if (data.user) {
-        // 将用户数据转换为弹窗显示格式，与用户列表查看详情保持一致
+        // 将用户数据转换为弹窗显示格式
         selectedUser.value = {
           id: data.user.id,
           username: data.user.username,
@@ -1095,7 +1079,9 @@ const handleUserSearch = async () => {
         // 清空搜索框
         userSearchQuery.value = ''
       } else {
-        ElMessage.warning('未找到该用户')
+        // 用户不存在，显示错误信息
+        ElMessage.error('搜索失败，用户不存在')
+        userSearchQuery.value = ''
       }
     } else {
       // 获取所有用户列表
@@ -1106,8 +1092,9 @@ const handleUserSearch = async () => {
       bannedUsers.value = data.banned_users
     }
   } catch (error) {
-    console.error('获取用户列表失败:', error)
+    // 处理其他错误
     ElMessage.error('搜索用户失败')
+    userSearchQuery.value = ''
   } finally {
     loading.value = false
   }
