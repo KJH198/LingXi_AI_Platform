@@ -11,17 +11,18 @@ class WorkflowSaveView(APIView):
     def post(self, request):
         try:
             data = request.data
-            #print('接收到的工作流数据结构体:', data)
+            print('接收到的工作流数据结构体:', data)
 
-            workflow_name = data.get('name')
-            if not workflow_name:
+            user_id = request.data.get("userId")
+            name = data.get('name')
+            if not name:
                 raise ValueError("Workflow name is required.")
 
             # 使用filter查找workflow，如果没有找到就返回None
-            workflow = Workflow.objects.filter(name=workflow_name).first()
+            workflow = Workflow.objects.filter(name=name, user_id=user_id).first()
             if not workflow:
                 # 如果没有找到，创建新的工作流
-                workflow = Workflow.objects.create(name=workflow_name)
+                workflow = Workflow.objects.create(name=name, user_id=user_id)
             else:
                 # 如果找到了，删除原有节点
                 workflow.nodes.all().delete()
@@ -50,8 +51,16 @@ class WorkflowSaveView(APIView):
             for edge in raw_edges:
                 source = edge['source']
                 target = edge['target']
-                successors_map[source].append(target)
-                predecessors_map[target].append(source)
+                source_handle = edge.get('sourceHandle')
+                target_handle = edge.get('targetHandle')
+                successors_map[source].append({
+                    'target': target,
+                    'targetHandle': target_handle
+                })
+                predecessors_map[target].append({
+                    'source': source,
+                    'sourceHandle': source_handle
+                })
 
             for node in raw_nodes:
                 node_id = node['id']
@@ -65,15 +74,16 @@ class WorkflowSaveView(APIView):
                     workflow=workflow,
                     node_id=node_id,
                     node_type=node_type,
+                    node_data=node_data,
                     predecessors=predecessors_map.get(node_id, []),
                     successors=successors_map.get(node_id, [])
                 )
 
-            # print(workflow_name)
-            # for node in workflow.nodes.all():
-            #    print(f"Node {node.node_id}: type={node.node_type}")
-            #    print(f"  predecessors: {node.predecessors}")
-            #    print(f"  successors: {node.successors}")
+            print('workflow id:', workflow.id)
+            for node in workflow.nodes.all():
+                print(f"Node {node.node_id}: type={node.node_type}")
+                print(f"  predecessors: {node.predecessors}")
+                print(f"  successors: {node.successors}")
 
             return Response({
                 "code": 200,
