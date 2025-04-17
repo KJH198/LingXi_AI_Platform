@@ -4,11 +4,6 @@ registerAndLogin/registerAndLogin/__pycache__/
 registerAndLogin/user/__pycache__/
 registerAndLogin/create_db.py
 registerAndLogin/media/
-
-registerAndLogin/create_db.py
-registerAndLogin/venv/
-registerAndLogin/registerAndLogin/settings.py
-registerAndLogin/registerAndLogin/__pycache__/
+registerAndLogin/manage.py
 .history
 .idea
-registerAndLogin/manage.py
