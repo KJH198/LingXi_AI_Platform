@@ -5,6 +5,6 @@ registerAndLogin/user/__pycache__/
 registerAndLogin/create_db.py
 registerAndLogin/media/
 registerAndLogin/manage.py
-registerAndLogin/nohup.out
+nohup.out
 .history
 .idea
