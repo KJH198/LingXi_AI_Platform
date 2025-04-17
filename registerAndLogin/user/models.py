@@ -176,3 +176,18 @@ class UserActionLog(models.Model):
 
     def __str__(self):
         return f'{self.user.username} {self.get_action_display()} at {self.created_at}'
+
+    def ban(self, reason, is_permanent=False):
+        """简化封禁方法
+        Args:
+            reason (str): 封禁原因
+            is_permanent (bool): 是否永久封禁
+        """
+        self.is_active = False
+        self.ban_reason = reason
+        if not is_permanent:
+            # 默认封禁30天
+            self.ban_until = timezone.now() + timezone.timedelta(days=30)
+        else:
+            self.ban_until = None  # 永久封禁
+        self.save()

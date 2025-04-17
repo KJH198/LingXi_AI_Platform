@@ -111,7 +111,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'lingxi',
         'USER': 'root',
-        'PASSWORD': 'lsy20040705',
+        'PASSWORD': 'dr20040722',
         'HOST': '127.0.0.1',
         'ssl_disabled': True,  
         'PORT': '3306',         # 你的数据库端口

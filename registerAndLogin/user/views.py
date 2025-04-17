@@ -867,3 +867,42 @@ class UserActionLogView(APIView):
             'logs': data,
             'total': logs.count()
         })
+
+class SimpleBanView(APIView):
+    """简化封禁接口"""
+    permission_classes = [IsAuthenticated]
+    
+    def post(self, request, user_id):
+        # 验证管理员权限
+        if not request.user.is_staff:
+            return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
+            
+        serializer = UserBanSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            
+        try:
+            user = User.objects.get(id=user_id)
+            user.ban(
+                reason=serializer.validated_data['reason'],
+                is_permanent=serializer.validated_data['is_permanent']
+            )
+            return Response({
+                'success': True,
+                'message': '用户封禁成功'
+            })
+        except User.DoesNotExist:
+            return Response({'error': '用户不存在'}, status=status.HTTP_404_NOT_FOUND)
+
+class UserSearchView(APIView):
+    """用户搜索视图，返回完整用户信息"""
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        query = request.query_params.get('q', '')
+        users = User.objects.filter(username__icontains=query)
+        serializer = UserDetailSerializer(users, many=True)
+        return Response({
+            'success': True,
+            'data': serializer.data
+        })
