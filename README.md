@@ -12,5 +12,5 @@ cd .\FrontEnd\lingxi_ai_platform\ ; npm run build ; cd ..\..\registerAndLogin\ ;
 
 CentOS一键启动
 ```
-cd ./FrontEnd/lingxi_ai_platform/ && npm run build && cd ../../registerAndLogin/ && source venv/bin/activate && cd .. && python ./registerAndLogin/manage.py runserver
+cd ./FrontEnd/lingxi_ai_platform/ && npm run build && cd ../../registerAndLogin/ && source venv/bin/activate && cd .. && nohup python3.9 ./registerAndLogin/manage.py runserver 0.0.0.0:8000 &
 ```

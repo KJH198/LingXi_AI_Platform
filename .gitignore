@@ -5,5 +5,10 @@ registerAndLogin/user/__pycache__/
 registerAndLogin/create_db.py
 registerAndLogin/media/
 
+registerAndLogin/create_db.py
+registerAndLogin/venv/
+registerAndLogin/registerAndLogin/settings.py
+registerAndLogin/registerAndLogin/__pycache__/
 .history
 .idea
+registerAndLogin/manage.py
