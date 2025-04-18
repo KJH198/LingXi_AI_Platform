@@ -14,7 +14,7 @@ SECRET_KEY = 'django-insecure-q2l4$fn%to@_xbbb0l-4@gd#r!-vz#qy-gd9fuu5f&c1vwe9!0
 DEBUG = True
 
 # 配置允许访问的主机，根据实际情况添加
-ALLOWED_HOSTS = ['localhost', '127.0.0.1','122.9.37.3', '192.168.0.67', 'lingxiai.cloud'] 
+ALLOWED_HOSTS = ['localhost', '127.0.0.1','122.9.37.3', '192.168.0.67', 'www.lingxiai.cloud'] 
 
 # 配置用户模型
 AUTH_USER_MODEL = 'user.User'
