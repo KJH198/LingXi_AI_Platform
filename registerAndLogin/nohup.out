@@ -1,1 +1,46 @@
+Traceback (most recent call last):
+  File "/root/GitHub/LingXi_AI_Platform/registerAndLogin/manage.py", line 11, in main
+    from django.core.management import execute_from_command_line
+ModuleNotFoundError: No module named 'django'
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/root/GitHub/LingXi_AI_Platform/registerAndLogin/manage.py", line 22, in <module>
+    main()
+  File "/root/GitHub/LingXi_AI_Platform/registerAndLogin/manage.py", line 13, in main
+    raise ImportError(
+ImportError: Couldn't import Django. Are you sure it's installed and available on your PYTHONPATH environment variable? Did you forget to activate a virtual environment?
+Watching for file changes with StatReloader
+[18/Apr/2025 02:21:30] "GET / HTTP/1.0" 200 444
+[18/Apr/2025 02:21:30] "GET /assets/index-qGN8dWeY.css HTTP/1.0" 200 341188
+[18/Apr/2025 02:21:30] "GET /assets/index-CzmEjdAR.js HTTP/1.0" 200 1099359
+[18/Apr/2025 02:21:32] "GET /assets/Login-T9vNPHnZ.js HTTP/1.0" 200 3380
+[18/Apr/2025 02:21:32] "GET /assets/Login-yT6Y8o9m.css HTTP/1.0" 200 1585
+[18/Apr/2025 02:21:32] "GET /assets/favicon-Dmtl6pho.ico HTTP/1.0" 200 6628
+[18/Apr/2025 02:21:49] "POST /user/login HTTP/1.0" 200 267
+[18/Apr/2025 02:21:49] "GET /user/user_info/ HTTP/1.0" 200 209
+[18/Apr/2025 02:21:49] "GET /assets/Community-20NugIlO.js HTTP/1.0" 200 10042
+[18/Apr/2025 02:21:49] "GET /assets/Community-BT0WOwTK.css HTTP/1.0" 200 1790
+[18/Apr/2025 02:21:49] "GET /media/avatars/1_1744865907.png HTTP/1.0" 200 724452
+[18/Apr/2025 02:22:30] "GET / HTTP/1.0" 200 444
+/root/GitHub/LingXi_AI_Platform/registerAndLogin/registerAndLogin/settings.py changed, reloading.
+Performing system checks...
+
+System check identified no issues (0 silenced).
+April 18, 2025 - 02:21:08
+Django version 4.2.20, using settings 'registerAndLogin.settings'
+Starting development server at http://0.0.0.0:8000/
+Quit the server with CONTROL-C.
+
+Watching for file changes with StatReloader
+/root/GitHub/LingXi_AI_Platform/registerAndLogin/registerAndLogin/settings.py changed, reloading.
+Performing system checks...
+
+System check identified no issues (0 silenced).
+April 18, 2025 - 02:25:19
+Django version 4.2.20, using settings 'registerAndLogin.settings'
+Starting development server at http://0.0.0.0:8000/
+Quit the server with CONTROL-C.
+
 Watching for file changes with StatReloader
