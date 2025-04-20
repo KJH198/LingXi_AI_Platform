@@ -606,7 +606,7 @@ const deleteFile = async (file: KnowledgeBaseFileType): Promise<void> => {
       return;
     }
     
-    const response = await fetch(`/knowledge_base/knowledgebase/${currentKnowledgeBase.value.id}/file/${file.id}`, {
+    const response = await fetch(`/knowledge_base/knowledgebase/${currentKnowledgeBase.value.id}/delete_file/${file.id}`, {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json',
