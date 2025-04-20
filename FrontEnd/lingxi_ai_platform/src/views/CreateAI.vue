@@ -458,8 +458,8 @@
           <div 
             class="output-node"
             :style="{
-              backgroundColor: '#fdf6ec',
-              borderColor: '#E6A23C'
+              backgroundColor: '#f0f9ff',
+              borderColor: '#409EFF'
             }"
           >
             <el-tooltip
@@ -470,14 +470,88 @@
               :effect="'light'"
               popper-class="flow-handle-tooltip"
             >
-              <Handle type="target" position="top" :style="{ background: '#E6A23C' }" />
+              <Handle type="target" position="top" :style="{ background: '#409EFF' }" />
             </el-tooltip>
-            <el-icon :size="20" color="#E6A23C">
+            <el-icon :size="20" color="#409EFF">
               <Download />
             </el-icon>
-            <div class="node-label" style="color: #E6A23C">
+            <div class="node-label" style="color: #409EFF">
               {{ nodeProps.data.label }}
             </div>
+          </div>
+        </template>
+
+        <template #node-llm="nodeProps">
+          <div 
+            class="llm-node"
+            :style="{
+              backgroundColor: '#f9f0ff',
+              borderColor: '#9B59B6'
+            }"
+          >
+            <el-tooltip
+              content="大模型输入"
+              placement="top"
+              :show-after="500"
+              :hide-after="0"
+              :effect="'light'"
+              popper-class="flow-handle-tooltip"
+            >
+              <Handle type="target" position="top" :style="{ background: '#9B59B6' }" />
+            </el-tooltip>
+            <el-icon :size="20" color="#9B59B6">
+              <ChatDotRound />
+            </el-icon>
+            <div class="node-label" style="color: #9B59B6">
+              {{ nodeProps.data.label }}
+            </div>
+            <el-tooltip
+              content="大模型输出"
+              placement="bottom"
+              :show-after="500"
+              :hide-after="0"
+              :effect="'light'"
+              popper-class="flow-handle-tooltip"
+            >
+              <Handle type="source" position="bottom" :style="{ background: '#9B59B6' }" />
+            </el-tooltip>
+          </div>
+        </template>
+
+        <template #node-workflow="nodeProps">
+          <div 
+            class="workflow-node"
+            :style="{
+              backgroundColor: '#f0f0ff',
+              borderColor: '#7B68EE'
+            }"
+          >
+            <el-tooltip
+              content="工作流输入"
+              placement="top"
+              :show-after="500"
+              :hide-after="0"
+              :effect="'light'"
+              popper-class="flow-handle-tooltip"
+            >
+              <Handle type="target" position="top" :style="{ background: '#7B68EE' }" />
+            </el-tooltip>
+            <el-icon :size="20" color="#7B68EE">
+              <Share />
+            </el-icon>
+            <div class="node-label" style="color: #7B68EE">
+              {{ nodeProps.data.label }}
+            </div>
+            <el-tooltip
+              content="工作流输出"
+              placement="bottom"
+              :show-after="500"
+              :hide-after="0"
+              :effect="'light'"
+              popper-class="flow-handle-tooltip"
+            >
+              <Handle type="source" position="bottom" :style="{ background: '#7B68EE' }" />
+            </el-tooltip>
           </div>
         </template>
 
@@ -491,7 +565,15 @@
               <el-icon><Operation /></el-icon>
               处理节点
             </el-button>
-            <el-button @click="addNode('output')" type="warning">
+            <el-button @click="addNode('llm')" type="info">
+              <el-icon><ChatDotRound /></el-icon>
+              大模型
+            </el-button>
+            <el-button @click="addNode('workflow')" type="warning">
+              <el-icon><Share /></el-icon>
+              工作流
+            </el-button>
+            <el-button @click="addNode('output')" type="danger">
               <el-icon><Download /></el-icon>
               输出节点
             </el-button>
@@ -871,7 +953,9 @@ import {
   Check,
   Close,
   Delete,
-  Plus
+  Plus,
+  ChatDotRound,
+  Share
 } from '@element-plus/icons-vue'
 
 // 引入 Vue Flow 样式
@@ -949,8 +1033,8 @@ const processTypes = [
     label: '代码处理',
     icon: 'Edit',
     description: '执行自定义代码逻辑',
-    color: '#409EFF',  // 蓝色
-    bgColor: '#ecf5ff'
+    color: '#E6A23C',  // 橙色
+    bgColor: '#fdf6ec'
   },
   {
     value: 'selector',
@@ -965,16 +1049,16 @@ const processTypes = [
     label: '循环',
     icon: 'Refresh',
     description: '循环处理数据',
-    color: '#E6A23C',  // 橙色
-    bgColor: '#fdf6ec'
+    color: '#9B59B6',  // 紫色
+    bgColor: '#f9f0ff'
   },
   {
     value: 'intent',
     label: '意图识别',
     icon: 'Connection',
     description: '识别用户意图并分类',
-    color: '#F56C6C',  // 红色
-    bgColor: '#fef0f0'
+    color: '#FF6B6B',  // 红色
+    bgColor: '#fff0f0'
   },
   {
     value: 'batch',
@@ -989,8 +1073,8 @@ const processTypes = [
     label: '变量聚合',
     icon: 'Collection',
     description: '聚合多个变量数据',
-    color: '#9B59B6',  // 紫色
-    bgColor: '#f9f0ff'
+    color: '#7B68EE',  // 靛蓝色
+    bgColor: '#f0f0ff'
   }
 ]
 
@@ -1008,19 +1092,34 @@ const addNode = (type) => {
     const id = `${type}-${Date.now()}`
     const position = findAvailablePosition()
     
+    let nodeData = {
+      label: type === 'llm' ? '大模型' : type === 'workflow' ? '工作流' : type,
+      type,
+      description: '',
+    }
+
+    // 根据节点类型设置不同的样式和图标
+    if (type === 'llm') {
+      nodeData = {
+        ...nodeData,
+        icon: 'ChatDotRound',
+        color: '#9B59B6',
+        bgColor: '#f9f0ff'
+      }
+    } else if (type === 'workflow') {
+      nodeData = {
+        ...nodeData,
+        icon: 'Share',
+        color: '#7B68EE',
+        bgColor: '#f0f0ff'
+      }
+    }
+    
     elements.value.push({
       id,
       type,
       position,
-      data: {
-        label: `${type}`,
-        type,
-        description: '',
-        // 如果是选择器节点，初始化条件数组
-        elseIfConditions: type === 'process' ? [] : undefined,
-        ifCondition: type === 'process' ? '' : undefined,
-        elseCondition: type === 'process' ? '' : undefined
-      }
+      data: nodeData
     })
   }
 }
@@ -2068,7 +2167,9 @@ const removeIntentConfig = (index) => {
 
 .input-node,
 .process-node,
-.output-node {
+.output-node,
+.llm-node,
+.workflow-node {
   padding: 10px 15px;
   border-radius: 8px;
   border: 2px solid;
@@ -2091,8 +2192,8 @@ const removeIntentConfig = (index) => {
 }
 
 :deep(.vue-flow__node[data-type="output"]) {
-  background: #fdf6ec;
-  border-color: #E6A23C;
+  background: #f0f9ff;
+  border-color: #409EFF;
 }
 
 :deep(.vue-flow__node[data-type="process"]) {
@@ -2108,8 +2209,8 @@ const removeIntentConfig = (index) => {
 }
 
 :deep(.vue-flow__node[data-type="process"][data-process-type="code"]) {
-  background: #ecf5ff;
-  border-color: #409EFF;
+  background: #fdf6ec;
+  border-color: #E6A23C;
 }
 
 :deep(.vue-flow__node[data-type="process"][data-process-type="selector"]) {
@@ -2118,13 +2219,13 @@ const removeIntentConfig = (index) => {
 }
 
 :deep(.vue-flow__node[data-type="process"][data-process-type="loop"]) {
-  background: #fdf6ec;
-  border-color: #E6A23C;
+  background: #f9f0ff;
+  border-color: #9B59B6;
 }
 
 :deep(.vue-flow__node[data-type="process"][data-process-type="intent"]) {
-  background: #fef0f0;
-  border-color: #F56C6C;
+  background: #fff0f0;
+  border-color: #FF6B6B;
 }
 
 :deep(.vue-flow__node[data-type="process"][data-process-type="batch"]) {
@@ -2133,8 +2234,8 @@ const removeIntentConfig = (index) => {
 }
 
 :deep(.vue-flow__node[data-type="process"][data-process-type="aggregate"]) {
-  background: #f9f0ff;
-  border-color: #9B59B6;
+  background: #f0f0ff;
+  border-color: #7B68EE;
 }
 
 :deep(.vue-flow__node[data-type="process"] .vue-flow__node-label) {
@@ -2150,7 +2251,7 @@ const removeIntentConfig = (index) => {
 
 :deep(.vue-flow__node[data-type="process"][data-process-type="code"] .process-type-icon),
 :deep(.vue-flow__node[data-type="process"][data-process-type="code"] .vue-flow__node-label) {
-  color: #409EFF;
+  color: #E6A23C;
 }
 
 :deep(.vue-flow__node[data-type="process"][data-process-type="selector"] .process-type-icon),
@@ -2160,12 +2261,12 @@ const removeIntentConfig = (index) => {
 
 :deep(.vue-flow__node[data-type="process"][data-process-type="loop"] .process-type-icon),
 :deep(.vue-flow__node[data-type="process"][data-process-type="loop"] .vue-flow__node-label) {
-  color: #E6A23C;
+  color: #9B59B6;
 }
 
 :deep(.vue-flow__node[data-type="process"][data-process-type="intent"] .process-type-icon),
 :deep(.vue-flow__node[data-type="process"][data-process-type="intent"] .vue-flow__node-label) {
-  color: #F56C6C;
+  color: #FF6B6B;
 }
 
 :deep(.vue-flow__node[data-type="process"][data-process-type="batch"] .process-type-icon),
@@ -2175,7 +2276,67 @@ const removeIntentConfig = (index) => {
 
 :deep(.vue-flow__node[data-type="process"][data-process-type="aggregate"] .process-type-icon),
 :deep(.vue-flow__node[data-type="process"][data-process-type="aggregate"] .vue-flow__node-label) {
+  color: #7B68EE;
+}
+
+:deep(.vue-flow__node[data-type="llm"]) {
+  background: #f9f0ff;
+  border-color: #9B59B6;
+}
+
+:deep(.vue-flow__node[data-type="workflow"]) {
+  background: #f0f0ff;
+  border-color: #7B68EE;
+}
+
+:deep(.vue-flow__node[data-type="input"] .el-icon),
+:deep(.vue-flow__node[data-type="input"] .node-label) {
+  color: #409EFF;
+}
+
+:deep(.vue-flow__node[data-type="output"] .el-icon),
+:deep(.vue-flow__node[data-type="output"] .node-label) {
+  color: #409EFF;
+}
+
+:deep(.vue-flow__node[data-type="process"][data-process-type="code"] .el-icon),
+:deep(.vue-flow__node[data-type="process"][data-process-type="code"] .node-label) {
+  color: #E6A23C;
+}
+
+:deep(.vue-flow__node[data-type="process"][data-process-type="selector"] .el-icon),
+:deep(.vue-flow__node[data-type="process"][data-process-type="selector"] .node-label) {
+  color: #67C23A;
+}
+
+:deep(.vue-flow__node[data-type="process"][data-process-type="loop"] .el-icon),
+:deep(.vue-flow__node[data-type="process"][data-process-type="loop"] .node-label) {
   color: #9B59B6;
+}
+
+:deep(.vue-flow__node[data-type="process"][data-process-type="intent"] .el-icon),
+:deep(.vue-flow__node[data-type="process"][data-process-type="intent"] .node-label) {
+  color: #FF6B6B;
+}
+
+:deep(.vue-flow__node[data-type="process"][data-process-type="batch"] .el-icon),
+:deep(.vue-flow__node[data-type="process"][data-process-type="batch"] .node-label) {
+  color: #909399;
+}
+
+:deep(.vue-flow__node[data-type="process"][data-process-type="aggregate"] .el-icon),
+:deep(.vue-flow__node[data-type="process"][data-process-type="aggregate"] .node-label) {
+  color: #7B68EE;
+}
+
+:deep(.vue-flow__node[data-type="llm"] .el-icon),
+:deep(.vue-flow__node[data-type="llm"] .node-label) {
+  color: #9B59B6;
+}
+
+:deep(.vue-flow__node[data-type="workflow"] .el-icon),
+:deep(.vue-flow__node[data-type="workflow"] .node-label) {
+  color: #7B68EE;
 }
 
 .process-type-container {
