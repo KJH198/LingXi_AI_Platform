@@ -18,7 +18,7 @@ class InputNode(BaseNode):
     def __init__(self, node: Node):
         super().__init__(node)
         self.input_type = "文本"  # 暂未传入，先这么设吧
-        self.default_value = "家里来了十只猫"
+        self.default_value = "我养了鸭子和狗"
 
     def run(self, inputs, node_dict, results, handle):
         return self.default_value
@@ -29,6 +29,8 @@ class OutputNode(BaseNode):
         super().__init__(node)
 
     def run(self, inputs, node_dict, results, handle):
+        print("输出")
+        print(inputs)
         return inputs
 
 
@@ -92,11 +94,12 @@ class SelectorNode(BaseNode):
 class LoopNode(BaseNode):
     def __init__(self, node: Node):
         super().__init__(node)
+        self.loop_type = node.node_data.get('loopType', '')
+        self.loop_count = node.node_data.get('loopCount', '')
+        self.loop_condition = node.node_data.get('loopCondition', '')
 
     def run(self, inputs, node_dict, results, handle):
-        loop_count = self.data.get("count", 1)
-        print(f"[LoopNode] 循环执行 {loop_count} 次")
-        # ⚠️ 可迭代执行其 successors
+        return inputs
 
 
 class IntentNode(BaseNode):
@@ -104,18 +107,23 @@ class IntentNode(BaseNode):
         super().__init__(node)
 
     def run(self, inputs, node_dict, results, handle):
-        intent = self.data.get("intent", "unknown")
-        print(f"[IntentNode] 识别意图: {intent}")
-        # ⚠️ 可嵌入意图识别模块
+        print("意图识别")
+        # print(inputs)
+        return inputs
 
 
 class BatchNode(BaseNode):
     def __init__(self, node: Node):
         super().__init__(node)
+        self.loop_type = 'fixed'
+        self.loop_count = 1
+        self.inputs = ''
 
     def run(self, inputs, node_dict, results, handle):
-        items = self.data.get("items", [])
-        print(f"[BatchNode] 批处理 {len(items)} 个元素")
+        self.inputs = inputs
+        print("批处理")
+        print(inputs)
+        return inputs
         # ⚠️ 可用于并发/批量处理
 
 
@@ -160,16 +168,78 @@ def execute_node(node_id, node_dict, results, source_handle=None):
 
     node_instance = node_dict[node_id]
     inputs = []
+    normal_preds = []
+    loop_pred = None
+    pred_output = ''
 
-    for pred in node_instance.predecessors:
+    if node_instance.type == 'batch' or node_instance.type == 'loop':
+        for pred in node_instance.predecessors:
+            pred_id = pred['source']
+            pred_node = node_dict[pred_id]
+            is_loop = any(
+                succ['target'] == node_id and (succ['targetHandle'] == 'batch-exit' or succ['targetHandle'] == 'loop-exit')
+                for succ in pred_node.successors
+            )
+            if is_loop:
+                loop_pred = pred
+            else:
+                normal_preds.append(pred)
+    else:
+        normal_preds = node_instance.predecessors
+
+    for pred in normal_preds:
         pred_id = pred['source']
         pred_handle = pred['sourceHandle']  # 这个 pred 是当前节点的一个输入来源
         pred_output = execute_node(pred_id, node_dict, results, pred_handle) # 只要其中一个分支的输出
         inputs.append(pred_output)
 
     output = node_instance.run(inputs, node_dict, results, source_handle)
+
+    if loop_pred:
+        if node_instance.loop_type == 'fixed':
+            for i in range(node_instance.loop_count):
+                output = execute_loop(loop_pred['source'], node_dict, results, output)
+        else:
+            loop_counter = 0
+            while chat_with_condition(node_instance.loop_condition, output) and loop_counter < 100: # 防止死循环
+                output = execute_loop(loop_pred['source'], node_dict, results, output)
+                loop_counter += 1
+
+
     results[cache_key] = output
     return output
+
+def execute_loop(current_id, node_dict, results, inputs):
+    """
+    沿着 batch 的循环路径向上执行所有节点，直到遇到 batch-entry。
+    """
+    current_node = node_dict[current_id]
+
+    for pred in current_node.predecessors:
+        pred_id = pred['source']
+        pred_handle = pred['sourceHandle']
+
+        if pred_handle == 'batch-entry' or pred_handle == 'loop-entry':
+            # 找到批处理入口，使用 inputs 执行该入口节点
+            print(f"[Entry] 执行 {current_node.type} {current_id}")
+            output = current_node.run(inputs, node_dict, results, pred_handle)
+            print(output)
+            cache_key = (current_id, pred_handle)
+            results[cache_key] = output
+            return output
+        else:
+            # 先递归执行上一个节点（一路向上）
+            prev_output = execute_loop(pred_id, node_dict, results, inputs)
+
+            # 再用上一个节点的输出执行当前节点
+            print(f"[Loop Step] 执行 {current_node.type} {current_id}")
+            output = current_node.run(prev_output, node_dict, results, pred_handle)
+            print(output)
+            cache_key = (current_id, pred_handle)
+            results[cache_key] = output
+            return output
+
+    return None  # fallback：未找到入口
 
 def run_workflow_from_output_node(workflow):
     """

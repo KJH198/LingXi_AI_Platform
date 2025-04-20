@@ -4,6 +4,7 @@ from rest_framework import status
 from collections import defaultdict
 from django.shortcuts import get_object_or_404
 from .models import Agent, Workflow, Node
+from django.db import DatabaseError
 import json
 
 class WorkflowSaveView(APIView):
@@ -102,24 +103,57 @@ class WorkflowSaveView(APIView):
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-class WorkflowRetrieveView(APIView):
+class GetWorkflowDetailView(APIView):
 
     def post(self, request):
-        user_id = request.data.get('user_id')
-        agent_id = request.data.get('agent_id')
         workflow_id = request.data.get('workflow_id')
 
-        if not all([user_id, agent_id, workflow_id]):
-            return Response({"error": "Missing required parameters."}, status=status.HTTP_400_BAD_REQUEST)
-
         try:
-            # 查找智能体是否属于该用户
-            agent = get_object_or_404(Agent, id=agent_id, user_id=user_id)
-
-            # 查找工作流是否属于该智能体
-            workflow = get_object_or_404(Workflow, id=workflow_id, agent=agent)
+            workflow = get_object_or_404(Workflow, id=workflow_id)
 
             return Response({"workflow": workflow.structure}, status=status.HTTP_200_OK)
 
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class GetWorkflowsView(APIView):
+
+    def get(self, request):
+        try:
+            # 获取当前用户的 ID
+            user_id = request.user.id
+
+            # 过滤工作流
+            workflows = Workflow.objects.filter(user_id=user_id)
+
+            data = []
+            for workflow in workflows:
+                input_count = Node.objects.filter(workflow=workflow, node_type='input').count()
+                output_count = Node.objects.filter(workflow=workflow, node_type='output').count()
+                data.append({
+                    'id': workflow.id,
+                    'name': workflow.name,
+                    'input_count': input_count,
+                    'output_count': output_count,
+                })
+
+            return Response({
+                'code': 200,
+                'data': {
+                    'workflows': data,
+                    'total': workflows.count()
+                }
+            })
+        except DatabaseError as e:
+            # 数据库查询异常处理
+            return Response({
+                'code': 500,
+                'message': f'数据库查询出错: {str(e)}'
+            }, status=500)
+        except Exception as e:
+            # 其他未知异常处理
+            return Response({
+                'code': 500,
+                'message': f'发生未知错误: {str(e)}'
+            }, status=500)

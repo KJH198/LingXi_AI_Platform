@@ -12,7 +12,7 @@ from agent.models import Workflow
 from agent.node import run_workflow_from_output_node
 
 def main():
-    workflow = Workflow.objects.get(id=3)  # 你想测试哪个 workflow 自己改 id
+    workflow = Workflow.objects.get(id=4)  # 你想测试哪个 workflow 自己改 id
     result = run_workflow_from_output_node(workflow)
     print("最终输出节点的运行结果:", result)
 
