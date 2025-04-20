@@ -873,6 +873,34 @@
               </el-card>
             </template>
 
+            <!-- 大模型配置 -->
+            <template v-if="nodeForm.type === 'llm'">
+              <el-card shadow="never" class="form-card">
+                <template #header>
+                  <div class="card-header">
+                    <span>大模型配置</span>
+                  </div>
+                </template>
+                <el-form-item label="模型选择" label-width="100px">
+                  <el-select v-model="nodeForm.llmModel">
+                    <el-option label="LLaMA 3" value="LLaMA-3" />
+                    <el-option label="Claude 3" value="claude-3" />
+                    <el-option label="通义千问" value="Qwen" />
+                    <el-option label="GPT-3.5 Turbo" value="gpt-3.5-turbo" />
+                    <el-option label="GPT-4" value="gpt-4" />
+                  </el-select>
+                </el-form-item>
+                <el-form-item label="提示词" label-width="100px">
+                  <el-input
+                    v-model="nodeForm.llmPrompt"
+                    type="textarea"
+                    :rows="6"
+                    placeholder="请输入提示词"
+                  />
+                </el-form-item>
+              </el-card>
+            </template>
+
             <div class="form-actions">
               <el-button type="success" @click="updateNode">
                 <el-icon><Check /></el-icon>
@@ -1012,6 +1040,9 @@ const nodeForm = ref({
   elseCondition: '',
   // 意图识别配置
   intentConfigs: [],
+  // 大模型配置
+  llmModel: 'gpt-3.5-turbo',
+  llmPrompt: '',
 })
 
 // 添加表单引用
@@ -1288,6 +1319,9 @@ const handleNodeClick = (event) => {
     elseCondition: node.data?.elseCondition || '',
     // 意图识别配置
     intentConfigs: node.data?.intentConfigs || [],
+    // 大模型配置
+    llmModel: node.data?.llmModel || 'gpt-3.5-turbo',
+    llmPrompt: node.data?.llmPrompt || '',
   }
   
   // 保存原始数据
@@ -1382,6 +1416,9 @@ const updateNode = async () => {
       elseCondition: nodeForm.value.elseCondition,
       // 意图识别配置
       intentConfigs: nodeForm.value.intentConfigs,
+      // 大模型配置
+      llmModel: nodeForm.value.llmModel,
+      llmPrompt: nodeForm.value.llmPrompt,
     }
     
     // 使用 Vue Flow 的 updateNode 方法更新节点
@@ -1787,6 +1824,9 @@ const saveWorkflow = async () => {
           bgColor: node.data.bgColor,
           // 意图识别配置
           intentConfigs: node.data.intentConfigs,
+          // 大模型配置
+          llmModel: node.data.llmModel || 'gpt-3.5-turbo',
+          llmPrompt: node.data.llmPrompt || '',
         }
       })),
       edges: elements.value.filter(el => el.type === 'smoothstep').map(edge => ({
@@ -1952,6 +1992,9 @@ const loadWorkflow = async (workflowId) => {
             bgColor: node.data.bgColor || bgColor,
             // 意图识别配置
             intentConfigs: node.data.intentConfigs,
+            // 大模型配置
+            llmModel: node.data.llmModel || 'gpt-3.5-turbo',
+            llmPrompt: node.data.llmPrompt || '',
           }
         })
       })
