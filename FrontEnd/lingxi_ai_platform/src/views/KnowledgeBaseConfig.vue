@@ -725,7 +725,8 @@ const uploadKnowledgeFiles = async (): Promise<void> => {
     }
     
     const formData = new FormData();
-    
+    const uploaded_count = uploadFiles.value.length;
+
     // 添加所有文件
     uploadFiles.value.forEach(file => {
       formData.append('files', file);
@@ -733,6 +734,7 @@ const uploadKnowledgeFiles = async (): Promise<void> => {
     
     // 添加知识库类型
     formData.append('type', selectedKnowledgeBaseType.value);
+    formData.append('knowledgeBaseId', selectedUploadKnowledgeBaseId.value);
     
     const response = await fetch(`/knowledge_base/knowledgebase/${selectedUploadKnowledgeBaseId.value}/upload/`, {
       method: 'POST',
@@ -762,7 +764,7 @@ const uploadKnowledgeFiles = async (): Promise<void> => {
     // 刷新知识库列表
     await fetchKnowledgeBases(true);
     
-    ElMessage.success(`上传成功，共${result.uploaded_count}个文件`);
+    ElMessage.success(`上传成功，共${uploaded_count}个文件`);
   } catch (error) {
     console.error('上传失败:', error);
     ElMessage.error('上传失败，请稍后重试');
@@ -853,7 +855,9 @@ const fetchKnowledgeBases = async (forceRefresh = false): Promise<void> => {
     }
     
     const data = await response.json();
-    knowledgeBases.value = data.knowledgeBases || [];
+    console.log('知识库列表:', data);
+    knowledgeBases.value = data || [];
+    console.log('知识库列表:', knowledgeBases.value);
     knowledgeBasesLoaded.value = true;
   } catch (error) {
     console.error('获取知识库列表失败:', error);
