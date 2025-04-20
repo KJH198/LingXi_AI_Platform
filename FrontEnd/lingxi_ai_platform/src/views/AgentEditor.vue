@@ -137,6 +137,7 @@
         <div v-show="activeStep === 3" class="step-content">
           <workflow-list 
             :workflow-id="agentData.workflowId"
+            :active="activeStep === 3"
             @update:workflowId="updateWorkflowId">
           </workflow-list>
           <div class="step-actions">

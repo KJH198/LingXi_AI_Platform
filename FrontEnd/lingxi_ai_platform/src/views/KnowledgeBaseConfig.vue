@@ -733,6 +733,7 @@ const uploadKnowledgeFiles = async (): Promise<void> => {
     
     // 添加知识库类型
     formData.append('type', selectedKnowledgeBaseType.value);
+    formData.append('knowledgeBaseId', selectedUploadKnowledgeBaseId.value);
     
     const response = await fetch(`/knowledge_base/knowledgebase/${selectedUploadKnowledgeBaseId.value}/upload/`, {
       method: 'POST',
@@ -853,7 +854,9 @@ const fetchKnowledgeBases = async (forceRefresh = false): Promise<void> => {
     }
     
     const data = await response.json();
-    knowledgeBases.value = data.knowledgeBases || [];
+    console.log('知识库列表:', data);
+    knowledgeBases.value = data || [];
+    console.log('知识库列表:', knowledgeBases.value);
     knowledgeBasesLoaded.value = true;
   } catch (error) {
     console.error('获取知识库列表失败:', error);
