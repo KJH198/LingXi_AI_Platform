@@ -1041,7 +1041,7 @@ const nodeForm = ref({
   // 意图识别配置
   intentConfigs: [],
   // 大模型配置
-  llmModel: 'gpt-3.5-turbo',
+  llmModel: 'LLaMA-3',
   llmPrompt: '',
 })
 
@@ -1320,7 +1320,7 @@ const handleNodeClick = (event) => {
     // 意图识别配置
     intentConfigs: node.data?.intentConfigs || [],
     // 大模型配置
-    llmModel: node.data?.llmModel || 'gpt-3.5-turbo',
+    llmModel: node.data?.llmModel || 'LLaMA-3',
     llmPrompt: node.data?.llmPrompt || '',
   }
   
@@ -1825,7 +1825,7 @@ const saveWorkflow = async () => {
           // 意图识别配置
           intentConfigs: node.data.intentConfigs,
           // 大模型配置
-          llmModel: node.data.llmModel || 'gpt-3.5-turbo',
+          llmModel: node.data.llmModel || 'LLaMA-3',
           llmPrompt: node.data.llmPrompt || '',
         }
       })),
@@ -1993,7 +1993,7 @@ const loadWorkflow = async (workflowId) => {
             // 意图识别配置
             intentConfigs: node.data.intentConfigs,
             // 大模型配置
-            llmModel: node.data.llmModel || 'gpt-3.5-turbo',
+            llmModel: node.data.llmModel || 'LLaMA-3',
             llmPrompt: node.data.llmPrompt || '',
           }
         })
