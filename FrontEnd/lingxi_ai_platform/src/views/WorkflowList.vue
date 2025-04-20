@@ -85,7 +85,7 @@ const fetchWorkflows = async () => {
       return
     }
     
-    const response = await fetch('/agent/workflows', {
+    const response = await fetch('/agent/workflows/', {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
