@@ -14,7 +14,7 @@ SECRET_KEY = 'django-insecure-q2l4$fn%to@_xbbb0l-4@gd#r!-vz#qy-gd9fuu5f&c1vwe9!0
 DEBUG = True
 
 # 配置允许访问的主机，根据实际情况添加
-ALLOWED_HOSTS = ['127.0.0.1', 'localhost', '*']  # 这里添加 * 是为了方便本地测试，生产环境不建议这样设置，应设置具体的域名或 IP
+ALLOWED_HOSTS = ['localhost', '127.0.0.1','122.9.37.3', '192.168.0.67', 'www.lingxiai.cloud'] 
 
 # 配置用户模型
 AUTH_USER_MODEL = 'user.User'
@@ -32,6 +32,7 @@ INSTALLED_APPS = [
     'drf_yasg',
     'user',
     'agent',
+    'knowledge_base'
 ]
 
 MIDDLEWARE = [
@@ -51,6 +52,7 @@ CORS_ORIGIN_WHITELIST = (
     'http://localhost:8000',
     'http://127.0.0.1:3000',  # 添加前端开发服务器地址
     'http://localhost:3000',   # 添加前端开发服务器地址
+    'http://122.9.37.3:8000'   # 添加云服务器地址
 )
 
 # 允许所有跨域请求（仅用于开发环境）

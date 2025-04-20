@@ -141,6 +141,22 @@ class AggregateNode(BaseNode):
         return chat_with_aggregate(self.aggregate_type, self.aggregate_field, input_text)
 
 
+class LLMNode(BaseNode):
+    def __init__(self, node: Node):
+        super().__init__(node)
+
+    def run(self, inputs, node_dict, results, handle):
+        return inputs
+
+
+class WorkflowNode(BaseNode):
+    def __init__(self, node: Node):
+        super().__init__(node)
+
+    def run(self, inputs, node_dict, results, handle):
+        return inputs
+
+
 node_type_map = {
     "input": InputNode,
     "output": OutputNode,
@@ -150,6 +166,7 @@ node_type_map = {
     "intent": IntentNode,
     "batch": BatchNode,
     "aggregate": AggregateNode,
+    # 待补充工作流和大模型
 }
 
 def build_node_instance(node_model_instance):

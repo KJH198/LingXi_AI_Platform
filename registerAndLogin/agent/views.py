@@ -5,6 +5,7 @@ from collections import defaultdict
 from django.shortcuts import get_object_or_404
 from .models import Agent, Workflow, Node
 from django.db import DatabaseError
+from rest_framework.permissions import IsAuthenticated
 import json
 
 class WorkflowSaveView(APIView):
@@ -103,9 +104,10 @@ class WorkflowSaveView(APIView):
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-class GetWorkflowDetailView(APIView):
+class WorkflowRetrieveView(APIView):
 
-    def post(self, request):
+    def get(self, request):
+        print(request)
         workflow_id = request.data.get('workflow_id')
 
         try:
@@ -118,6 +120,7 @@ class GetWorkflowDetailView(APIView):
 
 
 class GetWorkflowsView(APIView):
+    permission_classes = [IsAuthenticated]
 
     def get(self, request):
         try:
@@ -129,21 +132,15 @@ class GetWorkflowsView(APIView):
 
             data = []
             for workflow in workflows:
-                input_count = Node.objects.filter(workflow=workflow, node_type='input').count()
-                output_count = Node.objects.filter(workflow=workflow, node_type='output').count()
                 data.append({
                     'id': workflow.id,
                     'name': workflow.name,
-                    'input_count': input_count,
-                    'output_count': output_count,
                 })
 
             return Response({
                 'code': 200,
-                'data': {
-                    'workflows': data,
-                    'total': workflows.count()
-                }
+                'message': 'success',
+                'data': data
             })
         except DatabaseError as e:
             # 数据库查询异常处理
@@ -157,3 +154,20 @@ class GetWorkflowsView(APIView):
                 'code': 500,
                 'message': f'发生未知错误: {str(e)}'
             }, status=500)
+
+class DeleteWorkflowView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, workflow_id):
+        try:
+            workflow = Workflow.objects.get(id=workflow_id, user_id=request.user.id)
+            workflow.delete()
+            return Response({
+                'code': 200,
+                'message': '删除成功'
+            })
+        except Workflow.DoesNotExist:
+            return Response({
+                'code': 404,
+                'message': '该工作流不存在或无权限删除'
+            })
