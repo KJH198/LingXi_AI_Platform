@@ -55,7 +55,7 @@
           <h3>通用模型选择</h3>
           <div class="model-cards">
             <el-card
-              v-for="model in availableModels"
+              v-for="model in availableModels" 
               :key="model.id"
               :class="{ 'model-card': true, 'model-selected': agentData.modelId === model.id }"
               @click="selectModel(model)"
@@ -65,56 +65,38 @@
                 <h4>{{ model.name }}</h4>
                 <p>{{ model.description }}</p>
                 <div class="model-features">
-                  <el-tag v-for="feature in model.features" :key="feature" size="small">
+                  <el-tag 
+                    v-for="feature in model.features" 
+                    :key="feature" 
+                    size="small"
+                  >
                     {{ feature }}
                   </el-tag>
                 </div>
               </div>
             </el-card>
           </div>
-          <div class="model-params" v-if="agentData.modelId">
-            <h4>模型参数设置</h4>
-            <el-form :model="agentData.modelParams" label-width="180px">
-              <el-form-item label="温度 (Temperature)">
-                <el-slider
-                  v-model="agentData.modelParams.temperature"
-                  :min="0"
-                  :max="1"
-                  :step="0.01"
-                  show-input
-                ></el-slider>
-                <div class="param-description">
-                  较低的值使输出更确定，较高的值使输出更多样化
-                </div>
-              </el-form-item>
-              <el-form-item label="最大输出长度">
-                <el-input-number
-                  v-model="agentData.modelParams.maxTokens"
-                  :min="1"
-                  :max="4096"
-                  step-strictly
-                ></el-input-number>
-                <div class="param-description">
-                  模型生成回复的最大 token 数量
-                </div>
-              </el-form-item>
-              <el-form-item label="Top P">
-                <el-slider
-                  v-model="agentData.modelParams.topP"
-                  :min="0"
-                  :max="1"
-                  :step="0.01"
-                  show-input
-                ></el-slider>
-                <div class="param-description">
-                  控制随机性，较低的值使输出更集中在高概率词上
-                </div>
-              </el-form-item>
-            </el-form>
+
+          <div v-if="agentData.modelId" class="selected-model-info">
+            <el-alert
+              type="success"
+              :title="`已选择: ${getSelectedModelName()}`"
+              show-icon
+              :closable="false"
+            >
+              <template #default>
+                <p>模型将使用默认参数配置。您可以继续下一步进行知识库配置。</p>
+              </template>
+            </el-alert>
           </div>
+
           <div class="step-actions">
             <el-button @click="prevStep">上一步</el-button>
-            <el-button type="primary" @click="nextStep" :disabled="!agentData.modelId">
+            <el-button 
+              type="primary" 
+              @click="nextStep"
+              :disabled="!agentData.modelId"
+            >
               下一步
             </el-button>
           </div>
@@ -487,21 +469,124 @@ watch(activeStep, (newStep) => {
 
 // 导航功能
 const goBack = () => {
+  // 离开前保存数据
+  saveToLocalStorage()
   router.push('/community')
+}
+
+// 将所有数据保存到本地存储
+const saveToLocalStorage = (): void => {
+  // 保存完整的 agentData 对象
+  localStorage.setItem('agentData', JSON.stringify({
+    id: agentData.id,
+    name: agentData.name,
+    description: agentData.description,
+    modelId: agentData.modelId,
+    modelParams: agentData.modelParams,
+    knowledgeBases: agentData.knowledgeBases,
+    workflowId: agentData.workflowId
+  }))
+  
+  console.log('所有数据已保存到本地存储:', agentData)
+}
+
+// 从本地存储恢复所有数据
+const restoreFromLocalStorage = (): void => {
+  console.log('从本地存储恢复数据')
+  
+  // 恢复agentData
+  const storedAgentData = localStorage.getItem('agentData')
+  if (storedAgentData) {
+    try {
+      const parsedData = JSON.parse(storedAgentData)
+      
+      // 基本信息
+      if (parsedData.id) agentData.id = parsedData.id
+      if (parsedData.name) agentData.name = parsedData.name
+      if (parsedData.description) agentData.description = parsedData.description
+      
+      // 恢复模型选择
+      if (parsedData.modelId) agentData.modelId = parsedData.modelId
+      
+      // 恢复模型参数
+      if (parsedData.modelParams) {
+        if (parsedData.modelParams.temperature !== undefined) 
+          agentData.modelParams.temperature = parsedData.modelParams.temperature
+        if (parsedData.modelParams.maxTokens !== undefined) 
+          agentData.modelParams.maxTokens = parsedData.modelParams.maxTokens
+        if (parsedData.modelParams.topP !== undefined) 
+          agentData.modelParams.topP = parsedData.modelParams.topP
+      }
+      
+      // 恢复知识库选择
+      if (parsedData.knowledgeBases && Array.isArray(parsedData.knowledgeBases)) {
+        agentData.knowledgeBases = parsedData.knowledgeBases
+      }
+      
+      // 恢复工作流选择
+      if (parsedData.workflowId) {
+        agentData.workflowId = parsedData.workflowId
+      }
+      
+      console.log('从localStorage恢复的数据:', parsedData)
+    } catch (e) {
+      console.error('解析存储的智能体数据失败:', e)
+    }
+  }
+  
+  // 同时检查单独保存的数据
+  const selectedWorkflowId = localStorage.getItem('selectedWorkflowId')
+  if (selectedWorkflowId && !agentData.workflowId) {
+    agentData.workflowId = selectedWorkflowId
+    console.log('从localStorage恢复工作流ID:', selectedWorkflowId)
+  }
+  
+  const selectedKnowledgeBasesStr = localStorage.getItem('selectedKnowledgeBases')
+  if (selectedKnowledgeBasesStr && agentData.knowledgeBases.length === 0) {
+    try {
+      const selectedKBs = JSON.parse(selectedKnowledgeBasesStr)
+      if (Array.isArray(selectedKBs)) {
+        agentData.knowledgeBases = selectedKBs
+        console.log('从localStorage恢复知识库:', selectedKBs)
+      }
+    } catch (e) {
+      console.error('解析存储的知识库数据失败:', e)
+    }
+  }
+}
+
+// 清除本地存储中的临时数据
+const clearLocalStorage = (): void => {
+  localStorage.removeItem('agentData')
+  localStorage.removeItem('selectedKnowledgeBases')
+  localStorage.removeItem('selectedWorkflowId')
+  localStorage.removeItem('selectedWorkflowName')
+  console.log('本地存储中的临时数据已清除')
+}
+
+const getSelectedModelName = (): string => {
+  const selectedModel = availableModels.value.find(model => model.id === agentData.modelId)
+  return selectedModel ? selectedModel.name : '未知模型'
 }
 
 // 步骤控制
 const setActiveStep = (step: number) => {
+  // 保存当前步骤数据到本地存储
+  saveToLocalStorage()
   activeStep.value = step
 }
 
 const nextStep = () => {
+  // 保存当前步骤数据到本地存储
+  saveToLocalStorage() 
   if (activeStep.value < 4) {
     activeStep.value++
   }
 }
 
 const prevStep = () => {
+  // 保存当前步骤数据到本地存储
+  saveToLocalStorage()
   if (activeStep.value > 0) {
     activeStep.value--
   }
@@ -510,16 +595,19 @@ const prevStep = () => {
 // 通用模型选择
 const selectModel = (model: AvailableModel) => {
   agentData.modelId = model.id
+  saveToLocalStorage() // 选择模型后立即保存
 }
 
 // 知识库更新回调
 const updateKnowledgeBases = (knowledgeBases: string[]) => {
   agentData.knowledgeBases = knowledgeBases
+  saveToLocalStorage() // 更新知识库后立即保存
 }
 
 // 工作流更新回调
 const updateWorkflowId = (workflowId: string) => {
   agentData.workflowId = workflowId
+  saveToLocalStorage() // 更新工作流后立即保存
 }
 
 // 聊天预览功能
@@ -781,67 +869,154 @@ const deleteKnowledgeBase = async (kb: KnowledgeBase): Promise<void> => {
 }
 
 // 保存草稿
-const handleSaveDraft = (): void => {
-  ElMessage.success('智能体草稿已保存')
+const handleSaveDraft = async (): Promise<void> => {
+  try {
+    // 检查必填字段
+    if (!agentData.name) {
+      ElMessage.warning('请填写智能体名称')
+      activeStep.value = 0
+      return
+    }
+    
+    // 首先保存当前所有数据到本地存储，以便在出错时能恢复
+    saveToLocalStorage()
+    
+    const token = localStorage.getItem('token')
+    if (!token) {
+      ElMessage.error('请先登录')
+      return
+    }
+    
+    // 这里实现真正的保存逻辑
+    // const response = await fetch('/api/agent/draft', {
+    //   method: 'POST',
+    //   headers: {
+    //     'Content-Type': 'application/json',
+    //     'Authorization': `Bearer ${token}`
+    //   },
+    //   body: JSON.stringify(agentData)
+    // })
+    
+    // if (!response.ok) {
+    //   throw new Error('保存草稿失败')
+    // }
+    
+    // const result = await response.json()
+    
+    // if (result.code === 200) {
+    //   // 设置返回的ID
+    //   if (result.data && result.data.id) {
+    //     agentData.id = result.data.id
+    //   }
+      
+    //   ElMessage.success('智能体草稿已保存')
+      
+    //   // 保存成功后，清除本地存储中的临时数据
+    //   clearLocalStorage()
+    // } else {
+    //   throw new Error(result.message || '保存草稿失败')
+    // }
+    
+    // 仅用于演示
+    ElMessage.success('智能体草稿已保存')
+  } catch (error) {
+    console.error('保存草稿失败:', error)
+    ElMessage.error('保存草稿失败，请稍后重试')
+  }
 }
 
 // 发布智能体
-const handlePublish = (): void => {
-  if (!agentData.name) {
-    ElMessage.warning('请填写智能体名称')
-    activeStep.value = 0
-    return
-  }
-  
-  if (!agentData.modelId) {
-    ElMessage.warning('请选择模型')
-    activeStep.value = 1
-    return
-  }
-  
-  ElMessageBox.confirm(
-    '确定要发布智能体吗？发布后，其他用户将可以访问您的智能体。',
-    '发布智能体',
-    { confirmButtonText: '确定', cancelButtonText: '取消', type: 'info' }
-  )
-    .then(() => {
-      // 这里应该有实际的API调用来保存智能体数据
-      console.log('发布智能体数据:', agentData)
+const handlePublish = async (): Promise<void> => {
+  try {
+    // 验证必填字段
+    if (!agentData.name) {
+      ElMessage.warning('请填写智能体名称')
+      activeStep.value = 0
+      return
+    }
+    
+    if (!agentData.modelId) {
+      ElMessage.warning('请选择模型')
+      activeStep.value = 1
+      return
+    }
+    
+    // 确认发布
+    await ElMessageBox.confirm(
+      '确定要发布智能体吗？发布后，其他用户将可以访问您的智能体。',
+      '发布智能体',
+      { confirmButtonText: '确定', cancelButtonText: '取消', type: 'info' }
+    )
+    
+    // 同样先保存到本地存储
+    saveToLocalStorage()
+    
+    const token = localStorage.getItem('token')
+    if (!token) {
+      ElMessage.error('请先登录')
+      return
+    }
+    
+    // 这里实现真正的发布逻辑
+    // const response = await fetch('/api/agent/publish', {
+    //   method: 'POST',
+    //   headers: {
+    //     'Content-Type': 'application/json',
+    //     'Authorization': `Bearer ${token}`
+    //   },
+    //   body: JSON.stringify(agentData)
+    // })
+    
+    // if (!response.ok) {
+    //   throw new Error('发布智能体失败')
+    // }
+    
+    // const result = await response.json()
+    
+    // if (result.code === 200) {
+    //   ElMessage.success(`智能体"${agentData.name}"发布成功！`)
+    //   isPublished.value = true
       
-      ElMessage.success(`智能体"${agentData.name}"发布成功！`)
-      isPublished.value = true
-      router.push('/community')
-    })
-    .catch(() => {
-      // 用户取消发布
-    })
+    //   // 发布成功后，清除本地存储中的临时数据
+    //   clearLocalStorage()
+      
+    //   // 跳转到社区页面
+    //   router.push('/community')
+    // } else {
+    //   throw new Error(result.message || '发布智能体失败')
+    // }
+    
+    // 仅用于演示
+    ElMessage.success(`智能体"${agentData.name}"发布成功！`)
+    isPublished.value = true
+    
+    // 发布成功后，清除本地存储中的临时数据
+    clearLocalStorage()
+    
+    // 跳转到社区页面
+    router.push('/community')
+  } catch (error) {
+    if (error === 'cancel') return
+    
+    console.error('发布智能体失败:', error)
+    ElMessage.error('发布智能体失败，请稍后重试')
+  }
 }
 
 // 初始化
 onMounted(() => {
-  // 从本地存储加载初始数据
-  const storedAgentData = localStorage.getItem('agentInitData')
-  if (storedAgentData) {
-    try {
-      const parsedData = JSON.parse(storedAgentData)
-      if (parsedData.name) agentData.name = parsedData.name
-      if (parsedData.description) agentData.description = parsedData.description
-      
-      // 加载完成后清除本地存储中的临时数据
-      localStorage.removeItem('agentInitData')
-    } catch (e) {
-      console.error('解析存储的智能体数据失败:', e)
-    }
-  }
-
+  console.log('AgentEditor 组件已挂载，开始初始化数据')
+  
+  // 从本地存储恢复所有数据
+  restoreFromLocalStorage()
+  
   // 添加初始消息
-  chatMessages.value = [
-    {
-      role: 'assistant',
-      content: `你好！我是${agentData.name || '智能助手'}。有什么我可以帮助你的吗？`,
-      time: new Date().toLocaleTimeString()
-    }
-  ]
+  resetChat()
+  
+  // 监听页面刷新或关闭事件，保存数据
+  window.addEventListener('beforeunload', () => {
+    saveToLocalStorage()
+  })
 })
 </script>
 
@@ -1079,7 +1254,7 @@ onMounted(() => {
   margin-top: 4px;
 }
 
-chat-input {
+.chat-input {
   padding: 16px;
   background-color: #fff;
   border-top: 1px solid #dcdfe6;
