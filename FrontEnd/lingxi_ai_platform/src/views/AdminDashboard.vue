@@ -39,7 +39,7 @@
                 <div class="search-box">
                   <el-input
                     v-model="userSearchQuery"
-                    placeholder="搜索用户ID/用户名"
+                    placeholder="搜索用户ID"
                     class="search-input"
                     clearable
                     @keyup.enter="handleUserSearch"
@@ -265,6 +265,42 @@
           </template>
         </el-dialog>
 
+        <!-- 搜索结果用户信息对话框 -->
+        <el-dialog
+          v-model="searchResultDialogVisible"
+          title="用户详细信息"
+          width="600px"
+        >
+          <el-descriptions :column="2" border>
+            <el-descriptions-item label="用户ID">{{ selectedUser?.id }}</el-descriptions-item>
+            <el-descriptions-item label="用户名">{{ selectedUser?.username }}</el-descriptions-item>
+            <el-descriptions-item label="注册时间">{{ selectedUser?.registerTime }}</el-descriptions-item>
+            <el-descriptions-item label="最后登录时间">{{ selectedUser?.lastLoginTime || '-' }}</el-descriptions-item>
+            <el-descriptions-item label="违规类型">
+              <el-tag 
+                v-if="selectedUser?.violationType"
+                :type="getViolationTagType(selectedUser.violationType)"
+                effect="plain"
+              >
+                {{ getViolationTypeText(selectedUser.violationType) }}
+              </el-tag>
+              <span v-else>-</span>
+            </el-descriptions-item>
+            <el-descriptions-item label="状态">
+              <el-tag :type="selectedUser?.status === 'normal' ? 'success' : 'danger'">
+                {{ selectedUser?.status === 'normal' ? '正常' : '已封禁' }}
+              </el-tag>
+            </el-descriptions-item>
+            <el-descriptions-item label="IP地址">{{ selectedUser?.ipAddress || '-' }}</el-descriptions-item>
+            <el-descriptions-item label="设备信息">{{ selectedUser?.device || '-' }}</el-descriptions-item>
+          </el-descriptions>
+          <template #footer>
+            <span class="dialog-footer">
+              <el-button @click="searchResultDialogVisible = false">关闭</el-button>
+            </span>
+          </template>
+        </el-dialog>
+
         <!-- 行为管理面板 -->
         <div v-if="activeMenu === '2'" class="behavior-management">
           <el-card class="behavior-card">
@@ -470,6 +506,37 @@
           </el-card>
         </div>
 
+        <!-- 行为管理搜索结果对话框 -->
+        <el-dialog
+          v-model="behaviorSearchResultDialogVisible"
+          title="行为记录详细信息"
+          width="600px"
+        >
+          <el-descriptions :column="2" border>
+            <el-descriptions-item label="用户ID">{{ selectedBehavior?.userId }}</el-descriptions-item>
+            <el-descriptions-item label="用户名">{{ selectedBehavior?.username }}</el-descriptions-item>
+            <el-descriptions-item label="行为时间">{{ selectedBehavior?.behaviorTime }}</el-descriptions-item>
+            <el-descriptions-item label="行为类型">
+              <el-tag :type="getBehaviorTypeTag(selectedBehavior?.behaviorType)">
+                {{ getBehaviorTypeText(selectedBehavior?.behaviorType) }}
+              </el-tag>
+            </el-descriptions-item>
+            <el-descriptions-item label="状态">
+              <el-tag :type="selectedBehavior?.status === 'normal' ? 'success' : 'danger'">
+                {{ selectedBehavior?.status === 'normal' ? '正常' : '异常' }}
+              </el-tag>
+            </el-descriptions-item>
+            <el-descriptions-item label="IP地址">{{ selectedBehavior?.ipAddress }}</el-descriptions-item>
+            <el-descriptions-item label="设备信息">{{ selectedBehavior?.device }}</el-descriptions-item>
+            <el-descriptions-item label="行为描述" :span="2">{{ selectedBehavior?.description }}</el-descriptions-item>
+          </el-descriptions>
+          <template #footer>
+            <span class="dialog-footer">
+              <el-button @click="behaviorSearchResultDialogVisible = false">关闭</el-button>
+            </span>
+          </template>
+        </el-dialog>
+
         <!-- 智能体审核面板 -->
         <div v-if="activeMenu === '3'" class="agent-review">
           <el-card class="review-card">
@@ -616,6 +683,50 @@
             </div>
           </el-card>
         </div>
+
+        <!-- 智能体审核搜索结果对话框 -->
+        <el-dialog
+          v-model="agentSearchResultDialogVisible"
+          title="智能体详细信息"
+          width="700px"
+        >
+          <el-descriptions :column="2" border>
+            <el-descriptions-item label="智能体ID">{{ selectedAgent?.agentId }}</el-descriptions-item>
+            <el-descriptions-item label="智能体名称">{{ selectedAgent?.agentName }}</el-descriptions-item>
+            <el-descriptions-item label="提交时间">{{ selectedAgent?.submitTime }}</el-descriptions-item>
+            <el-descriptions-item label="功能类型">
+              <el-tag :type="getFunctionTypeTag(selectedAgent?.functionType)">
+                {{ getFunctionTypeText(selectedAgent?.functionType) }}
+              </el-tag>
+            </el-descriptions-item>
+            <el-descriptions-item label="状态">
+              <el-tag :type="getReviewStatusTag(selectedAgent?.status)">
+                {{ getReviewStatusText(selectedAgent?.status) }}
+              </el-tag>
+            </el-descriptions-item>
+            <el-descriptions-item label="内容类型">
+              <el-tag :type="getContentTypeTag(selectedAgent?.contentType)">
+                {{ getContentTypeText(selectedAgent?.contentType) }}
+              </el-tag>
+            </el-descriptions-item>
+            <el-descriptions-item label="审核时间">{{ selectedAgent?.reviewTime }}</el-descriptions-item>
+            <el-descriptions-item label="审核人">{{ selectedAgent?.reviewer }}</el-descriptions-item>
+            <el-descriptions-item label="审核意见" :span="2">{{ selectedAgent?.reviewComment }}</el-descriptions-item>
+            <el-descriptions-item label="内容预览" :span="2">
+              <div class="content-preview">
+                <el-tag size="small" :type="getContentTypeTag(selectedAgent?.contentType)">
+                  {{ getContentTypeText(selectedAgent?.contentType) }}
+                </el-tag>
+                <span class="content-text">{{ selectedAgent?.content }}</span>
+              </div>
+            </el-descriptions-item>
+          </el-descriptions>
+          <template #footer>
+            <span class="dialog-footer">
+              <el-button @click="agentSearchResultDialogVisible = false">关闭</el-button>
+            </span>
+          </template>
+        </el-dialog>
 
         <!-- 公告管理面板 -->
         <div v-if="activeMenu === '4'" class="announcement-management">
@@ -767,15 +878,34 @@ const isEdit = ref(false)
 const announcementFormRef = ref(null)
 const currentAnnouncement = ref(null)
 
+// 添加用户信息对话框相关变量
+const userInfoDialogVisible = ref(false)
+const searchResultDialogVisible = ref(false)
+
+// 添加行为管理和智能体审核的搜索结果对话框变量
+const behaviorSearchResultDialogVisible = ref(false)
+const agentSearchResultDialogVisible = ref(false)
+const selectedBehavior = ref(null)
+const selectedAgent = ref(null)
+
 // API 请求函数
 const api = {
   // 获取用户列表
   async getUserList(params) {
     try {
-      const queryString = new URLSearchParams(params).toString()
-      const response = await fetch(`/user/adminGetUsers/${queryString}`)
+      const response = await fetch(`/user/adminGetUsers`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+        }
+      })
       if (!response.ok) throw new Error('获取用户列表失败')
-      return await response.json()
+      const data = await response.json()
+      return {
+        users: data.users,
+        total: data.total,
+        active_users: data.active_users,
+        banned_users: data.banned_users
+      }
     } catch (error) {
       ElMessage.error('获取用户列表失败')
       throw error
@@ -785,44 +915,77 @@ const api = {
   // 搜索用户
   async searchUser(userId) {
     try {
-      const response = await fetch(`/user/adminGetUsers/${userId}`)
-      if (!response.ok) throw new Error('搜索用户失败')
+      const response = await fetch(`/user/adminGetUsersDetail/${userId}/`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+        }
+      })
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || '搜索用户失败')
+      }
       return await response.json()
     } catch (error) {
-      ElMessage.error('搜索用户失败')
       throw error
     }
   },
 
   // 封禁用户
-  async banUser(userId, banData) {
+  async banUser(userId) {
     try {
-      const response = await fetch(`/api/admin/users/${userId}/ban`, {
+      const response = await fetch(`/user/adminGetUsersDetail/${userId}/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
         },
-        body: JSON.stringify(banData)
+        body: JSON.stringify({
+          user_id: userId,
+          reason: banForm.reason
+        })
       })
       if (!response.ok) throw new Error('封禁用户失败')
-      return await response.json()
+      const data = await response.json()
+      if (data.success) {
+        ElMessage.success('封禁用户成功')
+        // 更新用户列表
+        await handleUserSearch()
+        // 关闭弹窗
+        banDialogVisible.value = false
+      } else {
+        throw new Error(data.message || '封禁用户失败')
+      }
     } catch (error) {
-      ElMessage.error('封禁用户失败')
-      throw error
+      console.error('封禁用户失败:', error)
+      ElMessage.error(error.message || '封禁用户失败')
     }
   },
 
   // 解封用户
   async unbanUser(userId) {
     try {
-      const response = await fetch(`/api/admin/users/${userId}/unban`, {
-        method: 'POST'
+      const response = await fetch(`/user/adminGetUsersDetail/${userId}/`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+        },
+        body: JSON.stringify({
+          user_id: userId
+        })
       })
       if (!response.ok) throw new Error('解封用户失败')
-      return await response.json()
+      const data = await response.json()
+      if (data.success) {
+        ElMessage.success('解封用户成功')
+        // 更新用户列表
+        await handleUserSearch()
+      } else {
+        throw new Error(data.message || '解封用户失败')
+      }
     } catch (error) {
-      ElMessage.error('解封用户失败')
-      throw error
+      console.error('解封用户失败:', error)
+      ElMessage.error(error.message || '解封用户失败')
     }
   }
 }
@@ -836,67 +999,6 @@ const banForm = reactive({
 const banDialogVisible = ref(false)
 const selectedUser = ref(null)
 
-// 模拟用户列表数据
-const mockUserList = [
-  {
-    id: '12345',
-    username: 'test_user1',
-    registerTime: '2024-03-27 10:00:00',
-    violationType: 'medium',
-    status: 'normal'
-  },
-  {
-    id: '12346',
-    username: 'test_user2',
-    registerTime: '2024-03-26 09:15:00',
-    violationType: 'severe',
-    status: 'banned'
-  },
-  {
-    id: '12347',
-    username: 'test_user3',
-    registerTime: '2024-03-25 14:30:00',
-    violationType: 'light',
-    status: 'normal'
-  }
-]
-
-// 模拟用户数据
-const mockUserData = {
-  id: '12345',
-  username: 'test_user',
-  registerTime: '2024-03-27 10:00:00',
-  status: 'normal',
-  violationType: ''
-}
-
-// 模拟登录记录数据
-const mockLoginRecords = [
-  {
-    userId: '12345',
-    username: 'test_user1',
-    loginTime: '2024-03-27 10:00:00',
-    ipAddress: '192.168.1.1',
-    device: 'Windows 10 Chrome',
-    status: 'success'
-  },
-  {
-    userId: '12346',
-    username: 'test_user2',
-    loginTime: '2024-03-27 09:30:00',
-    ipAddress: '192.168.1.2',
-    device: 'MacOS Safari',
-    status: 'success'
-  },
-  {
-    userId: '12347',
-    username: 'test_user3',
-    loginTime: '2024-03-27 08:45:00',
-    ipAddress: '192.168.1.3',
-    device: 'Android Chrome',
-    status: 'abnormal'
-  }
-]
 
 // API 请求函数
 const behaviorApi = {
@@ -923,54 +1025,88 @@ const behaviorApi = {
       ElMessage.error('获取登录统计信息失败')
       throw error
     }
+  },
+
+  // 搜索行为记录
+  async searchBehavior(query) {
+    try {
+      const response = await fetch(`/user/adminSearchBehavior?query=${query}`)
+      if (!response.ok) throw new Error('搜索行为记录失败')
+      return await response.json()
+    } catch (error) {
+      ElMessage.error('搜索行为记录失败')
+      throw error
+    }
+  },
+
+  // 获取行为列表
+  async getBehaviorList(params) {
+    try {
+      const queryString = new URLSearchParams(params).toString()
+      const response = await fetch(`/user/adminGetBehaviorList?${queryString}`)
+      if (!response.ok) throw new Error('获取行为列表失败')
+      return await response.json()
+    } catch (error) {
+      ElMessage.error('获取行为列表失败')
+      throw error
+    }
   }
 }
 
-// 修改用户搜索函数
-const handleSearch = async () => {
-  if (!searchUserId.value) {
-    ElMessage.warning('请输入用户ID')
-    return
-  }
-  loading.value = true
-  try {
-    // 使用模拟数据
-    currentUser.value = mockUserData
-    // TODO: 实际API调用
-    // const data = await api.searchUser(searchUserId.value)
-    // currentUser.value = data
-  } catch (error) {
-    console.error('搜索用户失败:', error)
-  } finally {
-    loading.value = false
-  }
-}
+
 
 // 修改用户列表搜索函数
 const handleUserSearch = async () => {
   loading.value = true
   try {
-    // 使用模拟数据
-    userList.value = mockUserList
-    totalUsers.value = mockUserList.length
-    activeUsers.value = 2 // 模拟活跃用户数
-    bannedUsers.value = 9 // 模拟封禁用户数
-    // TODO: 实际API调用
-    // const params = {
-    //   page: currentPage.value,
-    //   pageSize: pageSize.value,
-    //   query: userSearchQuery.value
-    // }
-    // const data = await api.getUserList(params)
-    // userList.value = data.users
-    // totalUsers.value = data.total
-    // activeUsers.value = data.activeUsers
-    // bannedUsers.value = data.bannedUsers
+    if (userSearchQuery.value) {
+      // 搜索单个用户
+      const data = await api.searchUser(userSearchQuery.value)
+      if (data.user) {
+        // 将用户数据转换为弹窗显示格式
+        selectedUser.value = {
+          id: data.user.id,
+          username: data.user.username,
+          registerTime: data.user.registerTime || '-',
+          lastLoginTime: data.user.lastLoginTime || '-',
+          status: data.user.status || 'normal',
+          violationType: data.user.violationType || null,
+          ipAddress: data.user.ipAddress || '-',
+          device: data.user.device || '-'
+        }
+        // 显示搜索结果弹窗
+        searchResultDialogVisible.value = true
+        // 清空搜索框
+        userSearchQuery.value = ''
+      } else {
+        // 用户不存在，显示错误信息
+        ElMessage.error('搜索失败，用户不存在')
+        userSearchQuery.value = ''
+      }
+    } else {
+      // 获取所有用户列表
+      const data = await api.getUserList({})
+      userList.value = data.users
+      totalUsers.value = data.total
+      activeUsers.value = data.active_users
+      bannedUsers.value = data.banned_users
+    }
   } catch (error) {
-    console.error('获取用户列表失败:', error)
+    // 处理其他错误
+    ElMessage.error('搜索用户失败')
+    userSearchQuery.value = ''
   } finally {
     loading.value = false
   }
+}
+
+// 添加从封禁原因获取违规类型的辅助函数
+const getViolationTypeFromReason = (reason) => {
+  if (reason.includes('light违规')) return 'light'
+  if (reason.includes('medium违规')) return 'medium'
+  if (reason.includes('severe违规')) return 'severe'
+  if (reason.includes('permanent违规')) return 'permanent'
+  return 'severe' // 默认返回严重违规
 }
 
 // 修改封禁处理函数
@@ -1001,18 +1137,7 @@ const handleBan = async () => {
     )
 
     loading.value = true
-    // 使用模拟数据
-    selectedUser.value.status = 'banned'
-    selectedUser.value.violationType = banForm.type
-    ElMessage.success('封禁成功')
-    banDialogVisible.value = false
-    // TODO: 实际API调用
-    // const banData = {
-    //   type: banForm.type,
-    //   duration: banForm.type === 'permanent' ? -1 : banForm.duration,
-    //   reason: banForm.reason
-    // }
-    // await api.banUser(selectedUser.value.id, banData)
+    await api.banUser(selectedUser.value.id)
   } catch (error) {
     if (error !== 'cancel') {
       console.error('封禁用户失败:', error)
@@ -1035,12 +1160,7 @@ const handleUnbanUser = async (user) => {
       }
     )
     loading.value = true
-    // 使用模拟数据
-    user.status = 'normal'
-    user.violationType = ''
-    ElMessage.success('已解除封禁')
-    // TODO: 实际API调用
-    // await api.unbanUser(user.id)
+    await api.unbanUser(user.id)
   } catch (error) {
     if (error !== 'cancel') {
       console.error('解封用户失败:', error)
@@ -1069,7 +1189,7 @@ onMounted(() => {
 const handleLogout = () => {
   localStorage.removeItem('adminToken')
   localStorage.removeItem('userRole')
-  router.push('/admin')
+  router.push('/adminLogin')
 }
 
 const getViolationTagType = (type) => {
@@ -1234,24 +1354,50 @@ const mockAbnormalRecords = [
 const handleBehaviorSearch = async () => {
   loading.value = true
   try {
-    // 使用模拟数据
-    if (activeBehaviorTab.value === 'login') {
-      loginRecords.value = mockLoginRecords
-      totalRecords.value = mockLoginRecords.length
-    } else if (activeBehaviorTab.value === 'operation') {
-      operationRecords.value = mockOperationRecords
-      totalOperationRecords.value = mockOperationRecords.length
-    } else if (activeBehaviorTab.value === 'abnormal') {
-      abnormalRecords.value = mockAbnormalRecords
-      totalAbnormalRecords.value = mockAbnormalRecords.length
+    if (behaviorSearchQuery.value) {
+      // 搜索单个行为记录
+      const data = await behaviorApi.searchBehavior(behaviorSearchQuery.value)
+      if (data.behavior) {
+        // 将行为数据转换为弹窗显示格式
+        selectedBehavior.value = {
+          userId: data.behavior.userId,
+          username: data.behavior.username,
+          behaviorTime: data.behavior.behaviorTime || '-',
+          behaviorType: data.behavior.behaviorType || '-',
+          status: data.behavior.status || 'normal',
+          ipAddress: data.behavior.ipAddress || '-',
+          device: data.behavior.device || '-',
+          description: data.behavior.description || '-'
+        }
+        // 显示搜索结果弹窗
+        behaviorSearchResultDialogVisible.value = true
+        // 清空搜索框
+        behaviorSearchQuery.value = ''
+      } else {
+        ElMessage.warning('未找到该行为记录')
+      }
+    } else {
+      // 获取所有行为记录
+      const data = await behaviorApi.getBehaviorList({})
+      if (activeBehaviorTab.value === 'login') {
+        loginRecords.value = data.loginRecords
+        totalRecords.value = data.total
+      } else if (activeBehaviorTab.value === 'operation') {
+        operationRecords.value = data.operationRecords
+        totalOperationRecords.value = data.total
+      } else if (activeBehaviorTab.value === 'abnormal') {
+        abnormalRecords.value = data.abnormalRecords
+        totalAbnormalRecords.value = data.total
+      }
+      
+      // 更新统计数据
+      todayLogins.value = data.todayLogins
+      avgLoginDuration.value = data.avgLoginDuration
+      abnormalLogins.value = data.abnormalLogins
     }
-    
-    // 更新统计数据
-    todayLogins.value = 156
-    avgLoginDuration.value = 45
-    abnormalLogins.value = 12
   } catch (error) {
     console.error('获取行为记录失败:', error)
+    ElMessage.error('搜索行为记录失败')
   } finally {
     loading.value = false
   }
@@ -1272,197 +1418,7 @@ const handleMenuSelect = (index) => {
   }
 }
 
-// 添加用户信息对话框相关变量
-const userInfoDialogVisible = ref(false)
-
-// API 请求函数
-const reviewApi = {
-  // 获取审核列表
-  async getAgentReviews(params) {
-    try {
-      const queryString = new URLSearchParams(params).toString()
-      const response = await fetch(`/agent/review/reviews?${queryString}`)
-      if (!response.ok) throw new Error('获取审核列表失败')
-      return await response.json()
-    } catch (error) {
-      ElMessage.error('获取审核列表失败')
-      throw error
-    }
-  },
-
-  // 获取审核统计信息
-  async getReviewStats() {
-    try {
-      const response = await fetch('/agent/review/stats')
-      if (!response.ok) throw new Error('获取审核统计信息失败')
-      return await response.json()
-    } catch (error) {
-      ElMessage.error('获取审核统计信息失败')
-      throw error
-    }
-  },
-
-  // 审核智能体
-  async reviewAgent(agentId, reviewData) {
-    try {
-      const response = await fetch(`/agent/review/reviews/${agentId}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(reviewData)
-      })
-      if (!response.ok) throw new Error('审核智能体失败')
-      return await response.json()
-    } catch (error) {
-      ElMessage.error('审核智能体失败')
-      throw error
-    }
-  }
-}
-
-// 模拟审核数据
-const mockAgentReviews = [
-  {
-    agentId: 'A001',
-    agentName: '智能助手',
-    submitTime: '2024-03-27 10:00:00',
-    functionType: 'chat',
-    contentType: 'response',
-    content: '这是一个智能对话助手的示例回答，展示了其对话能力和知识范围...',
-    status: 'pending'
-  },
-  {
-    agentId: 'A002',
-    agentName: '数据分析',
-    submitTime: '2024-03-27 09:30:00',
-    functionType: 'analysis',
-    contentType: 'template',
-    content: '数据分析模板示例，包含数据清洗、分析和可视化等功能...',
-    status: 'approved'
-  },
-  {
-    agentId: 'A003',
-    agentName: '自动化工具',
-    submitTime: '2024-03-27 09:00:00',
-    functionType: 'automation',
-    contentType: 'prompt',
-    content: '自动化工作流程示例，包含任务调度、数据处理和结果输出...',
-    status: 'rejected'
-  }
-]
-
-// 查看详情
-const handleViewDetail = (review) => {
-  ElMessageBox.alert(
-    `智能体ID: ${review.agentId}
-智能体名称: ${review.agentName}
-提交时间: ${review.submitTime}
-功能类型: ${getFunctionTypeText(review.functionType)}
-内容类型: ${getContentTypeText(review.contentType)}
-内容详情: ${review.content}
-状态: ${getReviewStatusText(review.status)}`,
-    '审核详情',
-    {
-      confirmButtonText: '确定',
-      type: 'info'
-    }
-  )
-}
-
-// 审核通过
-const handleApprove = async (review) => {
-  try {
-    await ElMessageBox.confirm(
-      `确定要通过智能体 ${review.agentName} 的审核吗？`,
-      '提示',
-      {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'info',
-      }
-    )
-    loading.value = true
-    // 使用模拟数据
-    review.status = 'approved'
-    ElMessage.success('审核通过')
-    // TODO: 实际API调用
-    // await reviewApi.reviewAgent(review.agentId, {
-    //   status: 'approved',
-    //   comment: '审核通过'
-    // })
-  } catch (error) {
-    if (error !== 'cancel') {
-      console.error('审核失败:', error)
-    }
-  } finally {
-    loading.value = false
-  }
-}
-
-// 审核拒绝
-const handleReject = async (review) => {
-  try {
-    await ElMessageBox.confirm(
-      `确定要拒绝智能体 ${review.agentName} 的审核吗？`,
-      '警告',
-      {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'warning',
-      }
-    )
-    loading.value = true
-    // 使用模拟数据
-    review.status = 'rejected'
-    ElMessage.success('已拒绝')
-    // TODO: 实际API调用
-    // await reviewApi.reviewAgent(review.agentId, {
-    //   status: 'rejected',
-    //   comment: '审核不通过'
-    // })
-  } catch (error) {
-    if (error !== 'cancel') {
-      console.error('审核失败:', error)
-    }
-  } finally {
-    loading.value = false
-  }
-}
-
-// 处理智能体搜索
-const handleAgentSearch = async () => {
-  loading.value = true
-  try {
-    // 使用模拟数据
-    agentReviews.value = mockAgentReviews
-    totalReviews.value = mockAgentReviews.length
-    
-    // 更新统计数据
-    pendingReviews.value = 5
-    approvedAgents.value = 20
-    rejectedAgents.value = 3
-    // TODO: 实际API调用
-    // const params = {
-    //   page: currentPage.value,
-    //   pageSize: pageSize.value,
-    //   query: agentSearchQuery.value
-    // }
-    // const data = await reviewApi.getAgentReviews(params)
-    // agentReviews.value = data.reviews
-    // totalReviews.value = data.total
-    // const stats = await reviewApi.getReviewStats()
-    // pendingReviews.value = stats.pending
-    // approvedAgents.value = stats.approved
-    // rejectedAgents.value = stats.rejected
-  } catch (error) {
-    console.error('获取审核列表失败:', error)
-  } finally {
-    loading.value = false
-  }
-}
-
-// 获取功能类型标签样式
+// 获取操作类型标签样式
 const getFunctionTypeTag = (type) => {
   const tagTypes = {
     chat: 'success',
@@ -1750,6 +1706,70 @@ const handleAnnouncementSearch = async () => {
   } finally {
     loading.value = false
   }
+}
+
+// 修改智能体审核搜索函数
+const handleAgentSearch = async () => {
+  loading.value = true
+  try {
+    if (agentSearchQuery.value) {
+      // 搜索单个智能体
+      const data = await agentApi.searchAgent(agentSearchQuery.value)
+      if (data.agent) {
+        // 将智能体数据转换为弹窗显示格式
+        selectedAgent.value = {
+          agentId: data.agent.agentId,
+          agentName: data.agent.agentName,
+          submitTime: data.agent.submitTime || '-',
+          functionType: data.agent.functionType || '-',
+          status: data.agent.status || 'pending',
+          contentType: data.agent.contentType || '-',
+          content: data.agent.content || '-',
+          reviewTime: data.agent.reviewTime || '-',
+          reviewer: data.agent.reviewer || '-',
+          reviewComment: data.agent.reviewComment || '-'
+        }
+        // 显示搜索结果弹窗
+        agentSearchResultDialogVisible.value = true
+        // 清空搜索框
+        agentSearchQuery.value = ''
+      } else {
+        ElMessage.warning('未找到该智能体')
+      }
+    } else {
+      // 获取所有智能体列表
+      const data = await agentApi.getAgentList({})
+      agentReviews.value = data.agents
+      totalReviews.value = data.total
+      pendingReviews.value = data.pending
+      approvedAgents.value = data.approved
+      rejectedAgents.value = data.rejected
+    }
+  } catch (error) {
+    console.error('获取智能体列表失败:', error)
+    ElMessage.error('搜索智能体失败')
+  } finally {
+    loading.value = false
+  }
+}
+
+// 添加行为类型相关辅助函数
+const getBehaviorTypeTag = (type) => {
+  const tagTypes = {
+    login: 'success',
+    operation: 'warning',
+    abnormal: 'danger'
+  }
+  return tagTypes[type] || 'info'
+}
+
+const getBehaviorTypeText = (type) => {
+  const texts = {
+    login: '登录',
+    operation: '操作',
+    abnormal: '异常'
+  }
+  return texts[type] || type
 }
 </script>
 
