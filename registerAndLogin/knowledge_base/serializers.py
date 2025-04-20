@@ -4,7 +4,7 @@ from .models import KnowledgeBase, KnowledgeBaseFile
 class KnowledgeBaseFileSerializer(serializers.ModelSerializer):
     class Meta:
         model = KnowledgeBaseFile
-        fields = ['id', 'file', 'uploaded_at']
+        fields = ['id', 'file', 'knowledge_base', 'uploaded_at']
         read_only_fields = ['uploaded_at']
 
 class KnowledgeBaseSerializer(serializers.ModelSerializer):
