@@ -239,7 +239,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { 
   Star, 
   ChatDotRound, 
@@ -497,13 +497,62 @@ const showCreateAgentDialog = () => {
 }
 
 // 创建智能体
+// 在 Community.vue 中修改 handleCreateAgent 函数
 const handleCreateAgent = () => {
   if (!agentInitData.name.trim()) {
     ElMessage.warning('请输入智能体名称')
     return
   }
   
-  // 将基本信息存入本地缓存，仅保留名称和描述
+  // 检查是否存在之前的草稿数据
+  const storedAgentData = localStorage.getItem('agentData')
+  if (storedAgentData) {
+    try {
+      const parsedData = JSON.parse(storedAgentData)
+      // 只有当草稿包含有效数据时才询问
+      if (parsedData && (parsedData.name || parsedData.modelId || parsedData.knowledgeBases?.length > 0 || parsedData.workflowId)) {
+        ElMessageBox.confirm(
+          '检测到您有未完成的智能体草稿，是否继续编辑该草稿？',
+          '发现草稿',
+          {
+            confirmButtonText: '继续编辑草稿',
+            cancelButtonText: '创建新智能体',
+            type: 'info',
+            distinguishCancelAndClose: true,
+          }
+        ).then(() => {
+          // 用户选择继续编辑草稿
+          createAgentDialogVisible.value = false
+          router.push('/agent-editor')
+        }).catch((action) => {
+          if (action === 'cancel') {
+            // 用户选择创建新智能体，清除之前的草稿
+            localStorage.removeItem('agentData')
+            localStorage.removeItem('selectedKnowledgeBases')
+            localStorage.removeItem('selectedWorkflowId')
+            localStorage.removeItem('selectedWorkflowName')
+            
+            // 将基本信息存入本地缓存，仅保留名称和描述
+            const simpleAgentData = {
+              name: agentInitData.name,
+              description: agentInitData.description
+            }
+            localStorage.setItem('agentInitData', JSON.stringify(simpleAgentData))
+            
+            // 关闭对话框并导航到智能体编辑页面
+            createAgentDialogVisible.value = false
+            router.push('/agent-editor')
+          }
+        })
+        return
+      }
+    } catch (e) {
+      console.error('解析存储的智能体数据失败:', e)
+    }
+  }
+  
+  // 如果没有草稿或草稿无效，直接创建新智能体
+  // 将基本信息存入本地缓存
   const simpleAgentData = {
     name: agentInitData.name,
     description: agentInitData.description

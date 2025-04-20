@@ -484,7 +484,8 @@ const saveToLocalStorage = (): void => {
     modelId: agentData.modelId,
     modelParams: agentData.modelParams,
     knowledgeBases: agentData.knowledgeBases,
-    workflowId: agentData.workflowId
+    workflowId: agentData.workflowId,
+    activeStep: activeStep.value
   }))
   
   console.log('所有数据已保存到本地存储:', agentData)
@@ -527,7 +528,10 @@ const restoreFromLocalStorage = (): void => {
       if (parsedData.workflowId) {
         agentData.workflowId = parsedData.workflowId
       }
-      
+      if (parsedData.activeStep !== undefined) {
+        activeStep.value = parsedData.activeStep
+      }
+
       console.log('从localStorage恢复的数据:', parsedData)
     } catch (e) {
       console.error('解析存储的智能体数据失败:', e)
@@ -1003,12 +1007,38 @@ const handlePublish = async (): Promise<void> => {
   }
 }
 
-// 初始化
+// 在 AgentEditor.vue 中修改 onMounted 钩子
 onMounted(() => {
   console.log('AgentEditor 组件已挂载，开始初始化数据')
   
-  // 从本地存储恢复所有数据
-  restoreFromLocalStorage()
+  // 检查是否有从 Community 传递过来的初始数据
+  const initData = localStorage.getItem('agentInitData')
+  
+  if (initData) {
+    try {
+      // 有初始数据，说明是新建智能体
+      const parsedInitData = JSON.parse(initData)
+      
+      // 清除之前可能存在的所有数据
+      clearLocalStorage()
+      
+      // 只使用初始传入的数据
+      if (parsedInitData.name) agentData.name = parsedInitData.name
+      if (parsedInitData.description) agentData.description = parsedInitData.description
+      
+      // 清除 initData，防止下次进入页面时重复使用
+      localStorage.removeItem('agentInitData')
+      
+      // 重置步骤
+      activeStep.value = 0
+    } catch (e) {
+      console.error('解析初始数据失败:', e)
+    }
+  } else {
+    // 没有初始数据，可能是编辑现有智能体或从其他页面返回
+    // 从本地存储恢复所有数据
+    restoreFromLocalStorage()
+  }
   
   // 添加初始消息
   resetChat()
