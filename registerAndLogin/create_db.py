@@ -3,7 +3,7 @@ import mysql.connector
 # 数据库连接配置
 config = {      
     'user': 'root',
-    'password': '030607',   # 请根据本地数据库情况修改
+    'password': 'lsy20040705',   # 请根据本地数据库情况修改
     'host': '127.0.0.1',    # 请根据本地数据库情况修改
     'port': '3306'          # 请根据本地数据库情况修改
 }

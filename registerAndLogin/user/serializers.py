@@ -15,4 +15,28 @@ class UserSerializer(serializers.ModelSerializer):
             phone_number=validated_data['phone_number'],
             email=validated_data.get('email', '')
         )
-        return user 
+        return user
+
+
+
+class UserDetailSerializer(serializers.ModelSerializer):
+
+    """用户详情序列化器，包含所有字段"""
+
+    class Meta:
+
+        model = User
+
+        fields = '__all__'
+
+        read_only_fields = ('id', 'created_at', 'updated_at', 'last_login')
+
+
+
+class UserBanSerializer(serializers.Serializer):
+
+    """用户封禁序列化器"""
+
+    reason = serializers.CharField(max_length=500, required=True)
+
+    is_permanent = serializers.BooleanField(default=False)
