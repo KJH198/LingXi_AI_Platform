@@ -8,3 +8,4 @@ registerAndLogin/manage.py
 nohup.out
 .history
 .idea
+*.pyc
