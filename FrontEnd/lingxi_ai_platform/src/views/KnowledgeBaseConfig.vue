@@ -199,6 +199,84 @@
         </span>
       </template>
     </el-dialog>
+    
+    <!-- 知识库详情对话框 -->
+    <el-dialog
+      v-model="knowledgeBaseDetailVisible"
+      :title="`知识库详情: ${currentKnowledgeBase.name || ''}`"
+      width="650px"
+    >
+      <el-skeleton :rows="6" animated v-if="loadingDetail" />
+      
+      <div v-else class="kb-detail-container">
+        <el-descriptions :column="1" border>
+          <el-descriptions-item label="类型">
+            {{ currentKnowledgeBase.type === 'text' ? '文本知识库' : '图片知识库' }}
+          </el-descriptions-item>
+          <el-descriptions-item label="描述">
+            {{ currentKnowledgeBase.description || '无描述' }}
+          </el-descriptions-item>
+          <el-descriptions-item label="创建时间">
+            {{ currentKnowledgeBase.createdAt }}
+          </el-descriptions-item>
+          <el-descriptions-item label="状态">
+            <el-tag :type="currentKnowledgeBase.status === 'ready' ? 'success' : 'warning'">
+              {{ currentKnowledgeBase.status === 'ready' ? '已就绪' : '处理中' }}
+            </el-tag>
+          </el-descriptions-item>
+        </el-descriptions>
+        
+        <div class="kb-files">
+          <h4>文件列表</h4>
+          <div v-if="knowledgeBaseFiles.length === 0" class="empty-files">
+            <el-empty description="暂无文件" />
+          </div>
+          <el-table v-else :data="knowledgeBaseFiles" style="width: 100%">
+            <el-table-column prop="filename" label="文件名" />
+            <el-table-column label="大小">
+              <template #default="scope">
+                {{ Math.round(scope.row.size / 1024) }} KB
+              </template>
+            </el-table-column>
+            <el-table-column prop="upload_time" label="上传时间" />
+            <el-table-column label="状态">
+              <template #default="scope">
+                <el-tag :type="scope.row.status === 'processed' ? 'success' : 'warning'">
+                  {{ scope.row.status === 'processed' ? '已处理' : '处理中' }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column label="操作" width="150">
+              <template #default="scope">
+                <el-button link type="primary" size="small" @click="previewFile(scope.row)">
+                  预览
+                </el-button>
+                <el-button link type="danger" size="small" @click="deleteFile(scope.row)">
+                  删除
+                </el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+        </div>
+      </div>
+    </el-dialog>
+
+    <!-- 文件预览对话框 -->
+    <el-dialog
+      v-model="filePreviewVisible"
+      :title="`文件预览: ${currentPreviewFile?.filename || ''}`"
+      width="700px"
+    >
+      <el-skeleton :rows="15" animated v-if="previewLoading" />
+      
+      <div v-else-if="previewContent" class="file-preview">
+        <pre>{{ previewContent }}</pre>
+      </div>
+      
+      <div v-else class="empty-preview">
+        <el-empty description="无法预览文件内容" />
+      </div>
+    </el-dialog>
   </div>
 </template>
 
@@ -207,158 +285,190 @@ import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { ElMessage, ElMessageBox, ElLoading } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 
-const props = defineProps({
-  agentData: {
-    type: Object,
-    required: true
-  },
-  active: {
-    type: Boolean,
-    default: false
-  }
-})
+// 类型定义
+interface AgentDataType {
+  id: string;
+  name: string;
+  description: string;
+  modelId: string;
+  modelParams: {
+    temperature: number;
+    maxTokens: number;
+    topP: number;
+  };
+  knowledgeBases: string[];
+  workflowId: string;
+}
 
-const emit = defineEmits(['update:knowledgeBases'])
+interface KnowledgeBaseType {
+  id: string;
+  name: string;
+  description: string;
+  type: string;
+  status?: string;
+  createdAt: string;
+  updatedAt?: string;
+  isOwner?: boolean;
+}
+
+interface KnowledgeBaseFileType {
+  id: string;
+  filename: string;
+  size: number;
+  upload_time: string;
+  status: string;
+}
+
+interface NewKnowledgeBaseType {
+  name: string;
+  description: string;
+  type: string;
+}
+
+// Props 和 Emits
+const props = defineProps<{
+  agentData: AgentDataType;
+  active: boolean;
+}>();
+
+const emit = defineEmits(['update:knowledgeBases']);
 
 // 知识库列表
-const knowledgeBases = ref([
-  {
-    id: 'kb1',
-    name: '产品手册库',
-    description: '包含所有产品说明书和用户手册',
-    createdAt: '2025-03-15',
-    type: 'text'
-  },
-  {
-    id: 'kb2',
-    name: '技术博客集',
-    description: '各类技术博客和文章整理',
-    createdAt: '2025-03-20',
-    type: 'text'
-  },
-  {
-    id: 'kb3',
-    name: '公司政策库',
-    description: '公司内部政策和规章制度',
-    createdAt: '2025-03-25',
-    type: 'text'
-  },
-  {
-    id: 'kb4',
-    name: '产品宣传图库',
-    description: '产品宣传图片和市场素材',
-    createdAt: '2025-04-01',
-    type: 'image'
-  }
-])
+const knowledgeBases = ref<KnowledgeBaseType[]>([]);
 
 // 知识库详情对话框相关状态
-const knowledgeBaseDetailVisible = ref(false)
-const currentKnowledgeBase = ref({})
-const knowledgeBaseFiles = ref([])
+const knowledgeBaseDetailVisible = ref(false);
+const currentKnowledgeBase = ref<KnowledgeBaseType>({
+  id: '',
+  name: '',
+  description: '',
+  type: '',
+  status: '',
+  createdAt: ''
+});
+const knowledgeBaseFiles = ref<KnowledgeBaseFileType[]>([]);
+const loadingDetail = ref(false);
+
+// 文件预览相关状态
+const filePreviewVisible = ref(false);
+const currentPreviewFile = ref<KnowledgeBaseFileType | null>(null);
+const previewContent = ref('');
+const previewLoading = ref(false);
 
 // 添加缓存标记
-const knowledgeBasesLoaded = ref(false)
+const knowledgeBasesLoaded = ref(false);
 
 // 搜索与过滤
-const searchQuery = ref('')
-const typeFilter = ref('')
+const searchQuery = ref('');
+const typeFilter = ref('');
 
-const searchKnowledgeBases = () => {
-  console.log('搜索知识库:', searchQuery.value)
+const searchKnowledgeBases = (): void => {
+  console.log('搜索知识库:', searchQuery.value);
   // 实际应用中可以在这里调用API或过滤数据
-}
+};
 
-const filterKnowledgeBases = () => {
-  console.log('过滤知识库类型:', typeFilter.value)
+const filterKnowledgeBases = (): void => {
+  console.log('过滤知识库类型:', typeFilter.value);
   // 实际应用中可以在这里调用API或过滤数据
-}
+};
 
 // 对话框控制
-const createKnowledgeDialogVisible = ref(false)
-const uploadKnowledgeDialogVisible = ref(false)
+const createKnowledgeDialogVisible = ref(false);
+const uploadKnowledgeDialogVisible = ref(false);
 
 // 创建新知识库数据
-const newKnowledgeBase = reactive({
+const newKnowledgeBase = reactive<NewKnowledgeBaseType>({
   name: '',
   description: '',
   type: 'text' // 默认为文本类型
-})
+});
 
 // 上传文件相关
-const selectedUploadKnowledgeBaseId = ref('')
-const selectedKnowledgeBaseType = ref('')
-const uploadFiles = ref<File[]>([])
+const selectedUploadKnowledgeBaseId = ref('');
+const selectedKnowledgeBaseType = ref('');
+const uploadFiles = ref<File[]>([]);
 
 // 获取已选择知识库的详细信息
 const selectedKnowledgeBasesInfo = computed(() => {
   return props.agentData.knowledgeBases
     .map(id => knowledgeBases.value.find(kb => kb.id === id))
-    .filter(kb => kb !== undefined) as any[]
-})
+    .filter(kb => kb !== undefined) as KnowledgeBaseType[];
+});
 
 // 计算属性：是否可以上传
 const canUpload = computed(() => {
-  if (!selectedUploadKnowledgeBaseId.value) return false
-  return uploadFiles.value.length > 0
-})
+  if (!selectedUploadKnowledgeBaseId.value) return false;
+  return uploadFiles.value.length > 0;
+});
 
 // 检查知识库是否被选择
-const isKnowledgeBaseSelected = (id: string) => {
-  return props.agentData.knowledgeBases.includes(id)
-}
+const isKnowledgeBaseSelected = (id: string): boolean => {
+  return props.agentData.knowledgeBases.includes(id);
+};
 
 // 添加或移除知识库
-const toggleKnowledgeBase = (kb: any) => {
+const toggleKnowledgeBase = (kb: KnowledgeBaseType): void => {
   if (isKnowledgeBaseSelected(kb.id)) {
-    removeKnowledgeBase(kb.id)
+    removeKnowledgeBase(kb.id);
   } else {
-    addKnowledgeBase(kb.id)
+    addKnowledgeBase(kb.id);
   }
-}
+};
 
-const addKnowledgeBase = (id: string) => {
+const addKnowledgeBase = (id: string): void => {
   if (!props.agentData.knowledgeBases.includes(id)) {
-    const newKnowledgeBases = [...props.agentData.knowledgeBases, id]
-    emit('update:knowledgeBases', newKnowledgeBases)
+    const newKnowledgeBases = [...props.agentData.knowledgeBases, id];
+    emit('update:knowledgeBases', newKnowledgeBases);
   }
-}
+};
 
-const removeKnowledgeBase = (id: string) => {
-  const newKnowledgeBases = props.agentData.knowledgeBases.filter(kbId => kbId !== id)
-  emit('update:knowledgeBases', newKnowledgeBases)
-}
+const removeKnowledgeBase = (id: string): void => {
+  const newKnowledgeBases = props.agentData.knowledgeBases.filter(kbId => kbId !== id);
+  emit('update:knowledgeBases', newKnowledgeBases);
+};
 
 // 创建知识库
-const createKnowledgeBase = async () => {
+const createKnowledgeBase = async (): Promise<void> => {
   if (!newKnowledgeBase.name) {
-    ElMessage.warning('请输入知识库名称')
-    return
+    ElMessage.warning('请输入知识库名称');
+    return;
   }
   
   if (!newKnowledgeBase.type) {
-    ElMessage.warning('请选择知识库类型')
-    return
+    ElMessage.warning('请选择知识库类型');
+    return;
   }
   
   try {
-    const response = await fetch('/create_knowledgebase', {
+    // 获取认证 token
+    const token = localStorage.getItem('token');
+    if (!token) {
+      ElMessage.error('请先登录');
+      return;
+    }
+    
+    const response = await fetch('/knowledge_base/create_knowledgebase/', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`  // 添加认证 token
       },
       body: JSON.stringify({
         name: newKnowledgeBase.name,
         description: newKnowledgeBase.description,
         type: newKnowledgeBase.type
       })
-    })
+    });
     
     if (!response.ok) {
-      throw new Error('创建知识库失败')
+      if (response.status === 401) {
+        ElMessage.error('认证失败，请重新登录');
+        return;
+      }
+      throw new Error('创建知识库失败');
     }
     
-    const result = await response.json()
+    const result = await response.json();
     
     // 添加到知识库列表
     knowledgeBases.value.push({
@@ -367,254 +477,401 @@ const createKnowledgeBase = async () => {
       description: result.description,
       type: result.type,
       createdAt: result.createdAt
-    })
+    });
     
     // 自动选择新创建的知识库
-    addKnowledgeBase(result.id)
+    addKnowledgeBase(result.id);
     
     // 重置表单
-    newKnowledgeBase.name = ''
-    newKnowledgeBase.description = ''
-    newKnowledgeBase.type = 'text'
-    createKnowledgeDialogVisible.value = false
+    newKnowledgeBase.name = '';
+    newKnowledgeBase.description = '';
+    newKnowledgeBase.type = 'text';
+    createKnowledgeDialogVisible.value = false;
     
-    ElMessage.success('知识库创建成功')
+    ElMessage.success('知识库创建成功');
   } catch (error) {
-    console.error('创建知识库失败:', error)
-    ElMessage.error('创建知识库失败，请稍后重试')
+    console.error('创建知识库失败:', error);
+    ElMessage.error('创建知识库失败，请稍后重试');
   }
-}
+};
 
 // 查看知识库详情
-const viewKnowledgeBase = async (kb: any) => {
+const viewKnowledgeBase = async (kb: KnowledgeBaseType): Promise<void> => {
   try {
-    // 模拟API调用获取详情
-    await new Promise(resolve => setTimeout(resolve, 500))
+    loadingDetail.value = true;
+    knowledgeBaseDetailVisible.value = true;
     
-    // 示例文档列表
-    const documents = kb.type === 'text' ? [
-      { id: 'doc1', filename: '产品手册.pdf', size: 1024 * 1024 * 2, upload_time: '2025-03-16 10:30:45' },
-      { id: 'doc2', filename: 'API文档.md', size: 1024 * 512, upload_time: '2025-03-16 14:20:12' },
-      { id: 'doc3', filename: '安装指南.docx', size: 1024 * 768, upload_time: '2025-03-17 09:15:33' }
-    ] : [
-      { id: 'doc4', filename: '产品展示图1.jpg', size: 1024 * 512, upload_time: '2025-04-02 11:24:15' },
-      { id: 'doc5', filename: '宣传海报.png', size: 1024 * 1024, upload_time: '2025-04-03 15:42:18' },
-      { id: 'doc6', filename: '品牌Logo.png', size: 1024 * 256, upload_time: '2025-04-05 10:10:38' }
-    ]
+    // 先设置基本信息，让对话框有内容显示
+    currentKnowledgeBase.value = kb;
+    knowledgeBaseFiles.value = [];
     
-    // 获取知识库类型中文名称
-    const typeDisplayName = kb.type === 'text' ? '文本知识库' : kb.type === 'image' ? '图片知识库' : kb.type
+    // 获取认证 token
+    const token = localStorage.getItem('token');
+    if (!token) {
+      ElMessage.error('请先登录');
+      return;
+    }
     
-    // 显示知识库详情
-    ElMessageBox.alert(
-      `<div>
-        <h3>知识库: ${kb.name}</h3>
-        <p><strong>类型:</strong> ${typeDisplayName}</p>
-        <p><strong>描述:</strong> ${kb.description || '无'}</p>
-        <p><strong>创建时间:</strong> ${kb.createdAt}</p>
-        <h4>文件列表:</h4>
-        ${documents.length > 0 ? 
-          `<ul>
-            ${documents.map(doc => `
-              <li>
-                <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
-                  <span>${doc.filename}</span>
-                  <a href="javascript:void(0)" @click="previewDocument(kb.id, doc.id)" style="margin-left: 10px; color: #409eff;">预览</a>
-                  <span>${Math.round(doc.size/1024)}KB</span>
-                </div>
-                <small style="color: #909399">上传时间: ${doc.upload_time}</small>
-              </li>`).join('')}
-          </ul>` : 
-          '<p>暂无文件</p>'
-        }
-      </div>`,
-      '知识库详情',
-      {
-        dangerouslyUseHTMLString: true,
-        confirmButtonText: '确定',
-        customClass: 'kb-detail-dialog'
+    const response = await fetch(`/knowledge_base/knowledgebase/${kb.id}/`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`  // 添加认证 token
       }
-    )
+    });
+    
+    if (!response.ok) {
+      if (response.status === 401) {
+        ElMessage.error('认证失败，请重新登录');
+        return;
+      }
+      throw new Error('获取知识库详情失败');
+    }
+    
+    const data = await response.json();
+    
+    // 更新知识库详情和文件列表
+    currentKnowledgeBase.value = data.knowledgeBase;
+    knowledgeBaseFiles.value = data.files || [];
   } catch (error) {
-    console.error('获取知识库详情失败:', error)
-    ElMessage.error('获取知识库详情失败，请稍后重试')
+    console.error('获取知识库详情失败:', error);
+    ElMessage.error('获取知识库详情失败，请稍后重试');
+  } finally {
+    loadingDetail.value = false;
   }
-}
+};
+
+// 预览文件
+const previewFile = async (file: KnowledgeBaseFileType): Promise<void> => {
+  try {
+    previewLoading.value = true;
+    filePreviewVisible.value = true;
+    currentPreviewFile.value = file;
+    previewContent.value = '';
+    
+    // 获取认证 token
+    const token = localStorage.getItem('token');
+    if (!token) {
+      ElMessage.error('请先登录');
+      return;
+    }
+    
+    const response = await fetch(`/knowledge_base/knowledgebase/${currentKnowledgeBase.value.id}/file/${file.id}/content`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`  // 添加认证 token
+      }
+    });
+    
+    if (!response.ok) {
+      if (response.status === 401) {
+        ElMessage.error('认证失败，请重新登录');
+        return;
+      }
+      throw new Error('获取文件内容失败');
+    }
+    
+    const result = await response.json();
+    
+    if (result.code === 200) {
+      previewContent.value = result.data.content;
+    } else {
+      throw new Error(result.message || '获取文件内容失败');
+    }
+  } catch (error) {
+    console.error('预览文件失败:', error);
+    ElMessage.error('预览文件失败，请稍后重试');
+  } finally {
+    previewLoading.value = false;
+  }
+};
+
+// 删除文件
+const deleteFile = async (file: KnowledgeBaseFileType): Promise<void> => {
+  try {
+    await ElMessageBox.confirm(
+      `确定要删除文件"${file.filename}"吗？删除后将无法恢复。`,
+      '删除文件',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }
+    );
+    
+    // 获取认证 token
+    const token = localStorage.getItem('token');
+    if (!token) {
+      ElMessage.error('请先登录');
+      return;
+    }
+    
+    const response = await fetch(`/knowledge_base/knowledgebase/${currentKnowledgeBase.value.id}/file/${file.id}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`  // 添加认证 token
+      }
+    });
+    
+    if (!response.ok) {
+      if (response.status === 401) {
+        ElMessage.error('认证失败，请重新登录');
+        return;
+      }
+      throw new Error('删除文件失败');
+    }
+    
+    const result = await response.json();
+    
+    if (result.code === 200) {
+      ElMessage.success('文件删除成功');
+      
+      // 更新文件列表
+      knowledgeBaseFiles.value = knowledgeBaseFiles.value.filter(f => f.id !== file.id);
+      
+      // 如果删除后文件列表为空，刷新知识库列表
+      if (knowledgeBaseFiles.value.length === 0) {
+        fetchKnowledgeBases(true);
+      }
+    } else {
+      throw new Error(result.message || '删除文件失败');
+    }
+  } catch (error) {
+    if (error === 'cancel') return;
+    
+    console.error('删除文件失败:', error);
+    ElMessage.error('删除文件失败，请稍后重试');
+  }
+};
 
 // 处理知识库选择变化
-const handleKnowledgeBaseChange = (kbId: string) => {
-  const kb = knowledgeBases.value.find(item => item.id === kbId)
+const handleKnowledgeBaseChange = (kbId: string): void => {
+  const kb = knowledgeBases.value.find(item => item.id === kbId);
   if (kb) {
-    selectedKnowledgeBaseType.value = kb.type
+    selectedKnowledgeBaseType.value = kb.type;
     // 清空上传文件列表
-    uploadFiles.value = []
+    uploadFiles.value = [];
   }
-}
+};
 
 // 处理文本文件上传
-const handleTextFileChange = (file: any) => {
+const handleTextFileChange = (file: any): boolean => {
   // 文本类型验证
-  const allowedTypes = ['application/pdf', 'text/plain', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/markdown']
-  const allowedExtensions = ['.pdf', '.txt', '.docx', '.md']
+  const allowedTypes = ['application/pdf', 'text/plain', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/markdown'];
+  const allowedExtensions = ['.pdf', '.txt', '.docx', '.md'];
   
-  const fileExtension = file.name.substring(file.name.lastIndexOf('.')).toLowerCase()
+  const fileExtension = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
   const isAllowedType = allowedTypes.includes(file.raw.type) || 
-                         allowedExtensions.includes(fileExtension)
+                         allowedExtensions.includes(fileExtension);
                       
   // 文件大小验证 (10MB)
-  const isLessThan10M = file.raw.size / 1024 / 1024 < 10
+  const isLessThan10M = file.raw.size / 1024 / 1024 < 10;
   
   if (!isAllowedType) {
-    ElMessage.error('不支持的文件类型，请上传PDF、TXT、DOCX或MD文件')
-    return false
+    ElMessage.error('不支持的文件类型，请上传PDF、TXT、DOCX或MD文件');
+    return false;
   }
   
   if (!isLessThan10M) {
-    ElMessage.error('文件大小不能超过10MB')
-    return false
+    ElMessage.error('文件大小不能超过10MB');
+    return false;
   }
   
-  uploadFiles.value.push(file.raw)
-  return false // 阻止自动上传
-}
+  uploadFiles.value.push(file.raw);
+  return false; // 阻止自动上传
+};
 
 // 处理图片文件上传
-const handleImageFileChange = (file: any) => {
+const handleImageFileChange = (file: any): boolean => {
   // 图片类型验证
-  const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
+  const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
   
   // 文件大小验证 (5MB)
-  const isLessThan5M = file.raw.size / 1024 / 1024 < 5
+  const isLessThan5M = file.raw.size / 1024 / 1024 < 5;
   
   if (!allowedTypes.includes(file.raw.type)) {
-    ElMessage.error('不支持的图片格式，请上传JPG、PNG、GIF或WEBP图片')
-    return false
+    ElMessage.error('不支持的图片格式，请上传JPG、PNG、GIF或WEBP图片');
+    return false;
   }
   
   if (!isLessThan5M) {
-    ElMessage.error('图片大小不能超过5MB')
-    return false
+    ElMessage.error('图片大小不能超过5MB');
+    return false;
   }
   
-  uploadFiles.value.push(file.raw)
-  return false // 阻止自动上传
-}
+  uploadFiles.value.push(file.raw);
+  return false; // 阻止自动上传
+};
 
 // 上传文件到知识库
-const uploadKnowledgeFiles = async () => {
+const uploadKnowledgeFiles = async (): Promise<void> => {
   if (!selectedUploadKnowledgeBaseId.value) {
-    ElMessage.warning('请选择知识库')
-    return
+    ElMessage.warning('请选择知识库');
+    return;
   }
   
   if (uploadFiles.value.length === 0) {
-    ElMessage.warning('请选择要上传的文件')
-    return
+    ElMessage.warning('请选择要上传的文件');
+    return;
   }
   
   try {
-    const formData = new FormData()
+    // 获取认证 token
+    const token = localStorage.getItem('token');
+    if (!token) {
+      ElMessage.error('请先登录');
+      return;
+    }
+    
+    const formData = new FormData();
     
     // 添加所有文件
     uploadFiles.value.forEach(file => {
-      formData.append('files', file)
-    })
-    
-    // 添加知识库类型
-    formData.append('type', selectedKnowledgeBaseType.value)
-    
-    const response = await fetch(`/knowledgebase/${selectedUploadKnowledgeBaseId.value}/upload`, {
-      method: 'POST',
-      body: formData
-    })
-    
-    if (!response.ok) {
-      throw new Error('上传文件失败')
-    }
-    
-    const result = await response.json()
-    
-    // 重置表单
-    uploadFiles.value = []
-    selectedUploadKnowledgeBaseId.value = ''
-    selectedKnowledgeBaseType.value = ''
-    uploadKnowledgeDialogVisible.value = false
-    
-    // 刷新知识库列表
-    await fetchKnowledgeBases(true)
-    
-    ElMessage.success(`上传成功，共${result.uploaded_count}个文件`)
-  } catch (error) {
-    console.error('上传失败:', error)
-    ElMessage.error('上传失败，请稍后重试')
-  }
-}
-
-// 删除知识库
-const deleteKnowledgeBase = async (kb: any) => {
-  try {
-    const response = await fetch('/deleteKnowledgeBase', {
-      method: 'POST',
-      body: JSON.stringify({ id: kb.id })
+      formData.append('files', file);
     });
     
-    if (!response.ok || response.status !== 200) {
-      throw new Error('删除知识库失败')
-    }
-
-    const result = await response.json()
-
-    if (result.success) {
-      // 删除成功后更新知识库列表
-      knowledgeBases.value = knowledgeBases.value.filter(k => k.id !== kb.id)
-      removeKnowledgeBase(kb.id)
-      ElMessage.success('知识库删除成功')
-    } else {
-      ElMessage.error('删除知识库失败，请稍后重试')
-    }
-
-  } catch {
-    ElMessage.error('删除知识库失败，请稍后重试')
-  }
-}
-
-// 获取知识库列表
-const fetchKnowledgeBases = async (forceRefresh = false) => {
-  if (knowledgeBasesLoaded.value && !forceRefresh) return
-  
-  try {
+    // 添加知识库类型
+    formData.append('type', selectedKnowledgeBaseType.value);
     
-    const response = await fetch('/fetch_knowledgebases', {
-      method: 'GET',
+    const response = await fetch(`/knowledge_base/knowledgebase/${selectedUploadKnowledgeBaseId.value}/upload/`, {
+      method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
-      }
-    })
+        'Authorization': `Bearer ${token}`  // 添加认证 token
+        // 注意：这里不要设置 'Content-Type'，因为 FormData 会自动设置为 multipart/form-data
+      },
+      body: formData
+    });
     
     if (!response.ok) {
-      throw new Error('获取知识库列表失败')
+      if (response.status === 401) {
+        ElMessage.error('认证失败，请重新登录');
+        return;
+      }
+      throw new Error('上传文件失败');
     }
     
-    const data = await response.json()
-    knowledgeBases.value = data.knowledgeBases || []
-    knowledgeBasesLoaded.value = true
+    const result = await response.json();
+    
+    // 重置表单
+    uploadFiles.value = [];
+    selectedUploadKnowledgeBaseId.value = '';
+    selectedKnowledgeBaseType.value = '';
+    uploadKnowledgeDialogVisible.value = false;
+    
+    // 刷新知识库列表
+    await fetchKnowledgeBases(true);
+    
+    ElMessage.success(`上传成功，共${result.uploaded_count}个文件`);
   } catch (error) {
-    console.error('获取知识库列表失败:', error)
-    ElMessage.error('获取知识库列表失败，请稍后重试')
+    console.error('上传失败:', error);
+    ElMessage.error('上传失败，请稍后重试');
   }
-}
+};
+
+// 删除知识库
+const deleteKnowledgeBase = async (kb: KnowledgeBaseType): Promise<void> => {
+  try {
+    await ElMessageBox.confirm(
+      `确定要删除知识库"${kb.name}"吗？删除后将无法恢复，且将从所有使用该知识库的智能体中移除。`,
+      '删除知识库',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }
+    );
+    
+    // 获取认证 token
+    const token = localStorage.getItem('token');
+    if (!token) {
+      ElMessage.error('请先登录');
+      return;
+    }
+    
+    const response = await fetch(`/knowledge_base/delete_knowledgebase/${kb.id}/`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`  // 添加认证 token
+      }
+    });
+    
+    if (!response.ok) {
+      if (response.status === 401) {
+        ElMessage.error('认证失败，请重新登录');
+        return;
+      }
+      throw new Error('删除知识库失败');
+    }
+
+    const result = await response.json();
+
+    if (result.code === 200) {
+      // 删除成功后更新知识库列表
+      knowledgeBases.value = knowledgeBases.value.filter(k => k.id !== kb.id);
+      removeKnowledgeBase(kb.id);
+      ElMessage.success('知识库删除成功');
+    } else {
+      throw new Error(result.message || '删除知识库失败');
+    }
+
+  } catch (error) {
+    if (error === 'cancel') return;
+    
+    console.error('删除知识库失败:', error);
+    ElMessage.error('删除知识库失败，请稍后重试');
+  }
+};
+
+// 获取知识库列表
+const fetchKnowledgeBases = async (forceRefresh = false): Promise<void> => {
+  if (knowledgeBasesLoaded.value && !forceRefresh) return;
+  
+  try {
+    // 获取认证 token
+    const token = localStorage.getItem('token');
+    if (!token) {
+      ElMessage.error('请先登录');
+      return;
+    }
+    
+    const response = await fetch('/knowledge_base/fetch_knowledgebases/', {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`  // 添加认证 token
+      }
+    });
+    
+    if (!response.ok) {
+      if (response.status === 401) {
+        ElMessage.error('认证失败，请重新登录');
+        return;
+      }
+      throw new Error('获取知识库列表失败');
+    }
+    
+    const data = await response.json();
+    knowledgeBases.value = data.knowledgeBases || [];
+    knowledgeBasesLoaded.value = true;
+  } catch (error) {
+    console.error('获取知识库列表失败:', error);
+    ElMessage.error('获取知识库列表失败，请稍后重试');
+  }
+};
 
 // 监听知识库配置步骤激活
 watch(() => props.agentData, () => {
-  console.log('Agent数据变化')
-}, { deep: true })
+  console.log('Agent数据变化');
+}, { deep: true });
 
 // 监听active属性变化
 watch(() => props.active, (isActive) => {
   if (isActive && !knowledgeBasesLoaded.value) {
-    fetchKnowledgeBases()
+    fetchKnowledgeBases();
   }
-}, { immediate: true })
+}, { immediate: true });
 </script>
 
 <style scoped>
@@ -698,5 +955,51 @@ watch(() => props.active, (isActive) => {
 
 :deep(.el-upload--picture-card) {
   --el-upload-picture-card-size: 120px;
+}
+
+/* 知识库详情样式 */
+.kb-detail-container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.kb-files {
+  margin-top: 20px;
+}
+
+.kb-files h4 {
+  margin-top: 0;
+  margin-bottom: 16px;
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.empty-files {
+  background-color: #f8f8f8;
+  padding: 20px;
+  border-radius: 4px;
+  text-align: center;
+}
+
+/* 文件预览样式 */
+.file-preview {
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+.file-preview pre {
+  white-space: pre-wrap;
+  word-break: break-word;
+  padding: 16px;
+  background-color: #f8f8f8;
+  border-radius: 4px;
+  margin: 0;
+  font-family: monospace;
+}
+
+.empty-preview {
+  padding: 40px 0;
+  text-align: center;
 }
 </style>

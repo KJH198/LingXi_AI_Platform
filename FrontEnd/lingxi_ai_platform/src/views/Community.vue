@@ -187,22 +187,6 @@
             placeholder="请输入智能体简介"
           ></el-input>
         </el-form-item>
-        <el-form-item label="分类">
-          <el-select v-model="agentInitData.category" placeholder="请选择分类">
-            <el-option
-              v-for="category in categories"
-              :key="category.value"
-              :label="category.label"
-              :value="category.value"
-            ></el-option>
-          </el-select>
-        </el-form-item>
-        <el-form-item label="可见性">
-          <el-radio-group v-model="agentInitData.visibility">
-            <el-radio label="public">公开</el-radio>
-            <el-radio label="private">私有</el-radio>
-          </el-radio-group>
-        </el-form-item>
       </el-form>
       <template #footer>
         <span class="dialog-footer">
@@ -442,8 +426,12 @@ const handleCreateAgent = () => {
     return
   }
   
-  // 将基本信息存入本地缓存
-  localStorage.setItem('agentInitData', JSON.stringify(agentInitData))
+  // 将基本信息存入本地缓存，仅保留名称和描述
+  const simpleAgentData = {
+    name: agentInitData.name,
+    description: agentInitData.description
+  }
+  localStorage.setItem('agentInitData', JSON.stringify(simpleAgentData))
   
   // 关闭对话框并导航到智能体编辑页面
   createAgentDialogVisible.value = false
@@ -590,4 +578,4 @@ const handleCreateAgent = () => {
   justify-content: flex-end;
   gap: 10px;
 }
-</style> 
+</style>

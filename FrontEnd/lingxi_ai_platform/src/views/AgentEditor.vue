@@ -135,10 +135,10 @@
 
         <!-- 4. 工作流配置 -->
         <div v-show="activeStep === 3" class="step-content">
-          <workflow-config
-            :agent-data="agentData"
+          <workflow-list 
+            :workflow-id="agentData.workflowId"
             @update:workflowId="updateWorkflowId">
-          </workflow-config>
+          </workflow-list>
           <div class="step-actions">
             <el-button @click="prevStep">上一步</el-button>
             <el-button type="primary" @click="nextStep">下一步</el-button>
@@ -237,6 +237,84 @@
         </div>
       </div>
     </div>
+
+    <!-- 知识库详情对话框 -->
+    <el-dialog
+      v-model="knowledgeBaseDetailVisible"
+      :title="`知识库详情: ${currentKnowledgeBase.name || ''}`"
+      width="650px"
+    >
+      <el-skeleton :rows="6" animated v-if="loadingDetail" />
+      
+      <div v-else class="kb-detail-container">
+        <el-descriptions :column="1" border>
+          <el-descriptions-item label="类型">
+            {{ currentKnowledgeBase.type === 'text' ? '文本知识库' : '图片知识库' }}
+          </el-descriptions-item>
+          <el-descriptions-item label="描述">
+            {{ currentKnowledgeBase.description || '无描述' }}
+          </el-descriptions-item>
+          <el-descriptions-item label="创建时间">
+            {{ currentKnowledgeBase.createdAt }}
+          </el-descriptions-item>
+          <el-descriptions-item label="状态">
+            <el-tag :type="currentKnowledgeBase.status === 'ready' ? 'success' : 'warning'">
+              {{ currentKnowledgeBase.status === 'ready' ? '已就绪' : '处理中' }}
+            </el-tag>
+          </el-descriptions-item>
+        </el-descriptions>
+        
+        <div class="kb-files">
+          <h4>文件列表</h4>
+          <div v-if="knowledgeBaseFiles.length === 0" class="empty-files">
+            <el-empty description="暂无文件" />
+          </div>
+          <el-table v-else :data="knowledgeBaseFiles" style="width: 100%">
+            <el-table-column prop="filename" label="文件名" />
+            <el-table-column label="大小">
+              <template #default="scope">
+                {{ Math.round(scope.row.size / 1024) }} KB
+              </template>
+            </el-table-column>
+            <el-table-column prop="upload_time" label="上传时间" />
+            <el-table-column label="状态">
+              <template #default="scope">
+                <el-tag :type="scope.row.status === 'processed' ? 'success' : 'warning'">
+                  {{ scope.row.status === 'processed' ? '已处理' : '处理中' }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column label="操作" width="150">
+              <template #default="scope">
+                <el-button link type="primary" size="small" @click="previewFile(scope.row)">
+                  预览
+                </el-button>
+                <el-button link type="danger" size="small" @click="deleteFile(scope.row)">
+                  删除
+                </el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+        </div>
+      </div>
+    </el-dialog>
+
+    <!-- 文件预览对话框 -->
+    <el-dialog
+      v-model="filePreviewVisible"
+      :title="`文件预览: ${currentPreviewFile?.filename || ''}`"
+      width="700px"
+    >
+      <el-skeleton :rows="15" animated v-if="previewLoading" />
+      
+      <div v-else-if="previewContent" class="file-preview">
+        <pre>{{ previewContent }}</pre>
+      </div>
+      
+      <div v-else class="empty-preview">
+        <el-empty description="无法预览文件内容" />
+      </div>
+    </el-dialog>
   </div>
 </template>
 
@@ -247,7 +325,63 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { marked } from 'marked'
 import DOMPurify from 'dompurify'
 import KnowledgeBaseConfig from '@/views/KnowledgeBaseConfig.vue'
-import WorkflowConfig from '@/views/CreateAI.vue'
+import WorkflowList from '@/views/WorkflowList.vue'
+
+// 定义接口
+interface AgentData {
+  id: string;
+  name: string;
+  description: string;
+  modelId: string;
+  modelParams: {
+    temperature: number;
+    maxTokens: number;
+    topP: number;
+  };
+  knowledgeBases: string[];
+  workflowId: string;
+}
+
+interface ChatMessage {
+  role: string;
+  content: string;
+  time: string;
+}
+
+interface ModelLog {
+  time: string;
+  type: string;
+  message: string;
+}
+
+interface AvailableModel {
+  id: string;
+  name: string;
+  icon: string;
+  description: string;
+  features: string[];
+}
+
+interface KnowledgeBase {
+  id: string;
+  name: string;
+  type: string;
+  description: string;
+  createdAt: string;
+  status: string;
+  fileCount: number;
+  totalSize: number;
+  lastUpdated: string;
+  userId: string;
+}
+
+interface KnowledgeBaseFile {
+  id: string;
+  filename: string;
+  size: number;
+  upload_time: string;
+  status: string;
+}
 
 const router = useRouter()
 const route = useRoute()
@@ -256,20 +390,20 @@ const route = useRoute()
 const activeStep = ref(0)
 const isPublished = ref(false)
 const debugTab = ref('request')
-const chatMessagesRef = ref<HTMLElement>()
+const chatMessagesRef = ref<HTMLElement | null>(null)
 
 // 聊天预览相关
 const userInput = ref('')
 const isGenerating = ref(false)
 const userAvatar = 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png'
 const defaultAgentAvatar = 'https://cube.elemecdn.com/9/c2/f0ee8a3c7c9638a54940382568c9dpng.png'
-const chatMessages = ref<{ role: string; content: string; time: string }[]>([])
-const lastRequest = ref({})
-const lastResponse = ref({})
-const modelLogs = ref<{ time: string; type: string; message: string }[]>([])
+const chatMessages = ref<ChatMessage[]>([])
+const lastRequest = ref<Record<string, any>>({})
+const lastResponse = ref<Record<string, any>>({})
+const modelLogs = ref<ModelLog[]>([])
 
 // 智能体数据
-const agentData = reactive({
+const agentData = reactive<AgentData>({
   id: '',
   name: '',
   description: '',
@@ -279,12 +413,12 @@ const agentData = reactive({
     maxTokens: 1024,
     topP: 0.95
   },
-  knowledgeBases: [] as string[],
+  knowledgeBases: [],
   workflowId: ''
 })
 
 // 可选模型列表
-const availableModels = ref([
+const availableModels = ref<AvailableModel[]>([
   {
     id: 'gpt-4',
     name: 'GPT-4',
@@ -314,6 +448,33 @@ const availableModels = ref([
     features: ['中文优化', '文本处理', '知识丰富']
   }
 ])
+
+// 知识库详情相关
+const knowledgeBaseDetailVisible = ref(false)
+const currentKnowledgeBase = ref<KnowledgeBase>({
+  id: '',
+  name: '',
+  type: '',
+  description: '', 
+  createdAt: '',
+  status: '',
+  fileCount: 0,
+  totalSize: 0,
+  lastUpdated: '',
+  userId: ''
+})
+const knowledgeBaseFiles = ref<KnowledgeBaseFile[]>([])
+const loadingDetail = ref(false)
+
+// 文件预览相关状态
+const filePreviewVisible = ref(false)
+const currentPreviewFile = ref<KnowledgeBaseFile | null>(null)
+const previewContent = ref('')
+const previewLoading = ref(false)
+
+// 知识库列表相关
+const knowledgeBases = ref<KnowledgeBase[]>([])
+const selectedKnowledgeBases = ref<string[]>([])
 
 // 监听步骤变化，当切换到知识库配置步骤时获取最新数据
 watch(activeStep, (newStep) => {
@@ -346,7 +507,7 @@ const prevStep = () => {
 }
 
 // 通用模型选择
-const selectModel = (model: any) => {
+const selectModel = (model: AvailableModel) => {
   agentData.modelId = model.id
 }
 
@@ -365,7 +526,7 @@ const handleSendMessage = async () => {
   if (!userInput.value.trim() || isGenerating.value) return
   
   // 添加用户消息
-  const userMessage = {
+  const userMessage: ChatMessage = {
     role: 'user',
     content: userInput.value,
     time: new Date().toLocaleTimeString()
@@ -399,7 +560,7 @@ const handleSendMessage = async () => {
     const botReply = generateResponse(inputText)
     
     // 添加AI回复
-    const botMessage = {
+    const botMessage: ChatMessage = {
       role: 'assistant',
       content: botReply,
       time: new Date().toLocaleTimeString()
@@ -431,7 +592,7 @@ const handleSendMessage = async () => {
 }
 
 // 模拟生成响应
-const generateResponse = (input: string) => {
+const generateResponse = (input: string): string => {
   if (input.toLowerCase().includes('hello') || input.includes('你好')) {
     return `你好！我是${agentData.name || '智能助手'}，${agentData.description || '很高兴为您服务'}。
     
@@ -461,7 +622,7 @@ ${agentData.knowledgeBases.length > 0 ? '我已经查阅了相关知识库，' :
 }
 
 // 格式化消息（将markdown转为HTML）
-const formatMessage = (message: string) => {
+const formatMessage = (message: string): string => {
   if (!message) return '';
   
   const html = marked.parse(message, { async: false }) as string;
@@ -469,7 +630,7 @@ const formatMessage = (message: string) => {
 }
 
 // 添加日志
-const addLog = (type: string, message: string) => {
+const addLog = (type: string, message: string): void => {
   modelLogs.value.push({
     time: new Date().toLocaleTimeString(),
     type,
@@ -478,7 +639,7 @@ const addLog = (type: string, message: string) => {
 }
 
 // 重置聊天
-const resetChat = () => {
+const resetChat = (): void => {
   chatMessages.value = [
     {
       role: 'assistant',
@@ -492,13 +653,139 @@ const resetChat = () => {
   ElMessage.success('聊天记录已重置')
 }
 
+// 预览文件
+const previewFile = async (file: KnowledgeBaseFile): Promise<void> => {
+  try {
+    previewLoading.value = true
+    filePreviewVisible.value = true
+    currentPreviewFile.value = file
+    previewContent.value = ''
+    
+    const response = await fetch(`/api/knowledgebase/${currentKnowledgeBase.value.id}/file/${file.id}/content`)
+    
+    if (!response.ok) {
+      throw new Error('获取文件内容失败')
+    }
+    
+    const result = await response.json()
+    
+    if (result.code === 200) {
+      previewContent.value = result.data.content
+    } else {
+      throw new Error(result.message || '获取文件内容失败')
+    }
+  } catch (error) {
+    console.error('预览文件失败:', error)
+    ElMessage.error('预览文件失败，请稍后重试')
+  } finally {
+    previewLoading.value = false
+  }
+}
+
+// 删除知识库文件
+const deleteFile = async (file: KnowledgeBaseFile): Promise<void> => {
+  try {
+    await ElMessageBox.confirm(
+      `确定要删除文件"${file.filename}"吗？删除后将无法恢复。`,
+      '删除文件',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }
+    )
+    
+    const response = await fetch(`/api/knowledgebase/${currentKnowledgeBase.value.id}/file/${file.id}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    })
+    
+    if (!response.ok) {
+      throw new Error('删除文件失败')
+    }
+    
+    const result = await response.json()
+    
+    if (result.code === 200) {
+      ElMessage.success('文件删除成功')
+      
+      // 更新文件列表
+      knowledgeBaseFiles.value = knowledgeBaseFiles.value.filter(f => f.id !== file.id)
+      
+      // 如果删除后文件列表为空，刷新知识库列表
+      if (knowledgeBaseFiles.value.length === 0) {
+        // 这里应该调用fetchKnowledgeBases函数，但它没有在当前组件中定义
+        // 可能需要在KnowledgeBaseConfig组件中实现相应功能
+        console.log('文件列表为空，应刷新知识库列表')
+      }
+    } else {
+      throw new Error(result.message || '删除文件失败')
+    }
+  } catch (error) {
+    if (error === 'cancel') return
+    
+    console.error('删除文件失败:', error)
+    ElMessage.error('删除文件失败，请稍后重试')
+  }
+}
+
+// 删除知识库
+const deleteKnowledgeBase = async (kb: KnowledgeBase): Promise<void> => {
+  try {
+    await ElMessageBox.confirm(
+      `确定要删除知识库"${kb.name}"吗？删除后将无法恢复，且将从所有使用该知识库的智能体中移除。`,
+      '删除知识库',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }
+    )
+    
+    const response = await fetch(`/api/knowledgebase/${kb.id}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    })
+    
+    if (!response.ok) {
+      throw new Error('删除知识库失败')
+    }
+    
+    const result = await response.json()
+    
+    if (result.code === 200) {
+      ElMessage.success('知识库删除成功')
+      
+      // 更新知识库列表
+      knowledgeBases.value = knowledgeBases.value.filter(item => item.id !== kb.id)
+      
+      // 如果当前选择的知识库被删除，则从选择列表中移除
+      selectedKnowledgeBases.value = selectedKnowledgeBases.value.filter(id => id !== kb.id)
+      
+      // 通知父组件更新
+      updateKnowledgeBases(selectedKnowledgeBases.value)
+    } else {
+      throw new Error(result.message || '删除知识库失败')
+    }
+  } catch (error) {
+    if (error === 'cancel') return
+    
+    console.error('删除知识库失败:', error)
+    ElMessage.error('删除知识库失败，请稍后重试')
+  }
+}
+
 // 保存草稿
-const handleSaveDraft = () => {
+const handleSaveDraft = (): void => {
   ElMessage.success('智能体草稿已保存')
 }
 
 // 发布智能体
-const handlePublish = () => {
+const handlePublish = (): void => {
   if (!agentData.name) {
     ElMessage.warning('请填写智能体名称')
     activeStep.value = 0
@@ -517,15 +804,35 @@ const handlePublish = () => {
     { confirmButtonText: '确定', cancelButtonText: '取消', type: 'info' }
   )
     .then(() => {
+      // 这里应该有实际的API调用来保存智能体数据
+      console.log('发布智能体数据:', agentData)
+      
       ElMessage.success(`智能体"${agentData.name}"发布成功！`)
       isPublished.value = true
       router.push('/community')
     })
-    .catch(() => {})
+    .catch(() => {
+      // 用户取消发布
+    })
 }
 
 // 初始化
 onMounted(() => {
+  // 从本地存储加载初始数据
+  const storedAgentData = localStorage.getItem('agentInitData')
+  if (storedAgentData) {
+    try {
+      const parsedData = JSON.parse(storedAgentData)
+      if (parsedData.name) agentData.name = parsedData.name
+      if (parsedData.description) agentData.description = parsedData.description
+      
+      // 加载完成后清除本地存储中的临时数据
+      localStorage.removeItem('agentInitData')
+    } catch (e) {
+      console.error('解析存储的智能体数据失败:', e)
+    }
+  }
+
   // 添加初始消息
   chatMessages.value = [
     {
@@ -885,5 +1192,50 @@ chat-input {
 .log-type-error {
   background-color: #fef0f0;
   color: #f56c6c;
+}
+
+/* 知识库详情和文件预览样式 */
+.kb-detail-container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.kb-files {
+  margin-top: 10px;
+}
+
+.kb-files h4 {
+  margin-bottom: 12px;
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.empty-files {
+  padding: 20px;
+  text-align: center;
+  color: #909399;
+  background-color: #f8f9fa;
+  border-radius: 4px;
+}
+
+.file-preview {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.file-preview pre {
+  white-space: pre-wrap;
+  word-break: break-word;
+  padding: 16px;
+  background-color: #f8f8f8;
+  border-radius: 4px;
+  margin: 0;
+  font-family: monospace;
+}
+
+.empty-preview {
+  padding: 40px 0;
+  text-align: center;
 }
 </style>
