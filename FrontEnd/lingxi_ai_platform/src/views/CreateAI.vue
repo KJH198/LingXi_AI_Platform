@@ -46,7 +46,7 @@
         
         <template #node-input="nodeProps">
           <div 
-            class="input-node"
+            class="input-node node-common"
             :style="{
               backgroundColor: '#f0f9ff',
               borderColor: '#409EFF'
@@ -456,7 +456,7 @@
 
         <template #node-output="nodeProps">
           <div 
-            class="output-node"
+            class="output-node node-common"
             :style="{
               backgroundColor: '#f0f9ff',
               borderColor: '#409EFF'
@@ -1099,7 +1099,21 @@ const addNode = (type) => {
     }
 
     // 根据节点类型设置不同的样式和图标
-    if (type === 'llm') {
+    if (type === 'input') {
+      nodeData = {
+        ...nodeData,
+        icon: 'Upload',
+        color: '#409EFF',
+        bgColor: '#f0f9ff'
+      }
+    } else if (type === 'output') {
+      nodeData = {
+        ...nodeData,
+        icon: 'Download',
+        color: '#409EFF',
+        bgColor: '#f0f9ff'
+      }
+    } else if (type === 'llm') {
       nodeData = {
         ...nodeData,
         icon: 'ChatDotRound',
@@ -2151,49 +2165,38 @@ const removeIntentConfig = (index) => {
 }
 
 :deep(.vue-flow__node) {
-  padding: 10px;
-  border-radius: 4px;
-  font-size: 12px;
-  color: #fff;
-  text-align: center;
-  border-width: 1px;
-  border-style: solid;
-  touch-action: none;
-  -webkit-touch-callout: none;
-  -webkit-user-select: none;
-  user-select: none;
-  cursor: move;
+  border: none;
+  background: transparent;
+  padding: 0;
+}
+
+:deep(.vue-flow__node[data-type="input"]),
+:deep(.vue-flow__node[data-type="output"]) {
+  background: transparent;
+}
+
+:deep(.vue-flow__node[data-type="input"] .el-icon),
+:deep(.vue-flow__node[data-type="input"] .node-label),
+:deep(.vue-flow__node[data-type="output"] .el-icon),
+:deep(.vue-flow__node[data-type="output"] .node-label) {
+  color: #409EFF;
+}
+
+:deep(.vue-flow__node[data-type="input"] .vue-flow__handle),
+:deep(.vue-flow__node[data-type="output"] .vue-flow__handle) {
+  background: #409EFF;
+  border: 2px solid #fff;
+}
+
+:deep(.vue-flow__node[data-type="input"] .node-common),
+:deep(.vue-flow__node[data-type="output"] .node-common) {
+  border-color: #409EFF;
+  background-color: #f0f9ff;
 }
 
 .input-node,
-.process-node,
-.output-node,
-.llm-node,
-.workflow-node {
-  padding: 10px 15px;
-  border-radius: 8px;
-  border: 2px solid;
-  min-width: 120px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-  touch-action: none;
-  -webkit-touch-callout: none;
-  -webkit-user-select: none;
-  user-select: none;
-  cursor: move;
-}
-
-:deep(.vue-flow__node[data-type="input"]) {
-  background: #f0f9ff;
-  border-color: #409EFF;
-}
-
-:deep(.vue-flow__node[data-type="output"]) {
-  background: #f0f9ff;
-  border-color: #409EFF;
+.output-node {
+  composes: node-common;
 }
 
 :deep(.vue-flow__node[data-type="process"]) {
@@ -2287,56 +2290,6 @@ const removeIntentConfig = (index) => {
 :deep(.vue-flow__node[data-type="workflow"]) {
   background: #f0f0ff;
   border-color: #7B68EE;
-}
-
-:deep(.vue-flow__node[data-type="input"] .el-icon),
-:deep(.vue-flow__node[data-type="input"] .node-label) {
-  color: #409EFF;
-}
-
-:deep(.vue-flow__node[data-type="output"] .el-icon),
-:deep(.vue-flow__node[data-type="output"] .node-label) {
-  color: #409EFF;
-}
-
-:deep(.vue-flow__node[data-type="process"][data-process-type="code"] .el-icon),
-:deep(.vue-flow__node[data-type="process"][data-process-type="code"] .node-label) {
-  color: #E6A23C;
-}
-
-:deep(.vue-flow__node[data-type="process"][data-process-type="selector"] .el-icon),
-:deep(.vue-flow__node[data-type="process"][data-process-type="selector"] .node-label) {
-  color: #67C23A;
-}
-
-:deep(.vue-flow__node[data-type="process"][data-process-type="loop"] .el-icon),
-:deep(.vue-flow__node[data-type="process"][data-process-type="loop"] .node-label) {
-  color: #9B59B6;
-}
-
-:deep(.vue-flow__node[data-type="process"][data-process-type="intent"] .el-icon),
-:deep(.vue-flow__node[data-type="process"][data-process-type="intent"] .node-label) {
-  color: #FF6B6B;
-}
-
-:deep(.vue-flow__node[data-type="process"][data-process-type="batch"] .el-icon),
-:deep(.vue-flow__node[data-type="process"][data-process-type="batch"] .node-label) {
-  color: #909399;
-}
-
-:deep(.vue-flow__node[data-type="process"][data-process-type="aggregate"] .el-icon),
-:deep(.vue-flow__node[data-type="process"][data-process-type="aggregate"] .node-label) {
-  color: #7B68EE;
-}
-
-:deep(.vue-flow__node[data-type="llm"] .el-icon),
-:deep(.vue-flow__node[data-type="llm"] .node-label) {
-  color: #9B59B6;
-}
-
-:deep(.vue-flow__node[data-type="workflow"] .el-icon),
-:deep(.vue-flow__node[data-type="workflow"] .node-label) {
-  color: #7B68EE;
 }
 
 .process-type-container {
@@ -3143,5 +3096,213 @@ const removeIntentConfig = (index) => {
   flex-direction: column;
   align-items: center;
   gap: 4px;
+}
+
+:deep(.vue-flow__node[data-type="input"]) {
+  background: #f0f9ff;
+  border-color: #409EFF;
+}
+
+:deep(.vue-flow__node[data-type="output"]) {
+  background: #f0f9ff;
+  border-color: #409EFF;
+}
+
+:deep(.vue-flow__node[data-type="input"] .el-icon),
+:deep(.vue-flow__node[data-type="input"] .node-label),
+:deep(.vue-flow__node[data-type="output"] .el-icon),
+:deep(.vue-flow__node[data-type="output"] .node-label) {
+  color: #409EFF;
+}
+
+:deep(.vue-flow__node[data-type="input"] .vue-flow__handle),
+:deep(.vue-flow__node[data-type="output"] .vue-flow__handle) {
+  background: #409EFF;
+  border: 2px solid #fff;
+}
+
+:deep(.vue-flow__node[data-type="input"] .vue-flow__handle-top),
+:deep(.vue-flow__node[data-type="output"] .vue-flow__handle-top) {
+  top: -4px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+:deep(.vue-flow__node[data-type="input"] .vue-flow__handle-bottom),
+:deep(.vue-flow__node[data-type="output"] .vue-flow__handle-bottom) {
+  bottom: -4px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.node-common {
+  padding: 10px 15px;
+  border-radius: 8px;
+  border: 2px solid #409EFF;
+  min-width: 120px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  background-color: #f0f9ff;
+  touch-action: none;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  cursor: move;
+}
+
+.input-node,
+.output-node,
+.process-node,
+.llm-node,
+.workflow-node {
+  padding: 10px 15px;
+  border-radius: 8px;
+  border: 2px solid;
+  min-width: 120px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  touch-action: none;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  cursor: move;
+}
+
+:deep(.vue-flow__node[data-type="input"]) {
+  background: #f0f9ff;
+  border-color: #409EFF;
+}
+
+:deep(.vue-flow__node[data-type="output"]) {
+  background: #f0f9ff;
+  border-color: #409EFF;
+}
+
+:deep(.vue-flow__node[data-type="process"][data-process-type="code"]) {
+  background: #fdf6ec;
+  border-color: #E6A23C;
+}
+
+:deep(.vue-flow__node[data-type="process"][data-process-type="selector"]) {
+  background: #f0f9eb;
+  border-color: #67C23A;
+}
+
+:deep(.vue-flow__node[data-type="process"][data-process-type="loop"]) {
+  background: #f9f0ff;
+  border-color: #9B59B6;
+}
+
+:deep(.vue-flow__node[data-type="process"][data-process-type="intent"]) {
+  background: #fff0f0;
+  border-color: #FF6B6B;
+}
+
+:deep(.vue-flow__node[data-type="process"][data-process-type="batch"]) {
+  background: #f4f4f5;
+  border-color: #909399;
+}
+
+:deep(.vue-flow__node[data-type="process"][data-process-type="aggregate"]) {
+  background: #f0f0ff;
+  border-color: #7B68EE;
+}
+
+:deep(.vue-flow__node[data-type="llm"]) {
+  background: #f9f0ff;
+  border-color: #9B59B6;
+}
+
+:deep(.vue-flow__node[data-type="workflow"]) {
+  background: #f0f0ff;
+  border-color: #7B68EE;
+}
+
+:deep(.vue-flow__node[data-type="input"] .el-icon),
+:deep(.vue-flow__node[data-type="input"] .node-label) {
+  color: #409EFF;
+}
+
+:deep(.vue-flow__node[data-type="output"] .el-icon),
+:deep(.vue-flow__node[data-type="output"] .node-label) {
+  color: #409EFF;
+}
+
+:deep(.vue-flow__node[data-type="process"][data-process-type="code"] .el-icon),
+:deep(.vue-flow__node[data-type="process"][data-process-type="code"] .node-label) {
+  color: #E6A23C;
+}
+
+:deep(.vue-flow__node[data-type="process"][data-process-type="selector"] .el-icon),
+:deep(.vue-flow__node[data-type="process"][data-process-type="selector"] .node-label) {
+  color: #67C23A;
+}
+
+:deep(.vue-flow__node[data-type="process"][data-process-type="loop"] .el-icon),
+:deep(.vue-flow__node[data-type="process"][data-process-type="loop"] .node-label) {
+  color: #9B59B6;
+}
+
+:deep(.vue-flow__node[data-type="process"][data-process-type="intent"] .el-icon),
+:deep(.vue-flow__node[data-type="process"][data-process-type="intent"] .node-label) {
+  color: #FF6B6B;
+}
+
+:deep(.vue-flow__node[data-type="process"][data-process-type="batch"] .el-icon),
+:deep(.vue-flow__node[data-type="process"][data-process-type="batch"] .node-label) {
+  color: #909399;
+}
+
+:deep(.vue-flow__node[data-type="process"][data-process-type="aggregate"] .el-icon),
+:deep(.vue-flow__node[data-type="process"][data-process-type="aggregate"] .node-label) {
+  color: #7B68EE;
+}
+
+:deep(.vue-flow__node[data-type="llm"] .el-icon),
+:deep(.vue-flow__node[data-type="llm"] .node-label) {
+  color: #9B59B6;
+}
+
+:deep(.vue-flow__node[data-type="workflow"] .el-icon),
+:deep(.vue-flow__node[data-type="workflow"] .node-label) {
+  color: #7B68EE;
+}
+
+:deep(.vue-flow__handle) {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 2px solid #fff;
+}
+
+:deep(.vue-flow__handle-top) {
+  top: -4px;
+}
+
+:deep(.vue-flow__handle-bottom) {
+  bottom: -4px;
+}
+
+:deep(.vue-flow__node[data-type="input"] .vue-flow__handle),
+:deep(.vue-flow__node[data-type="output"] .vue-flow__handle) {
+  background: #409EFF;
+}
+
+:deep(.vue-flow__node[data-type="process"] .vue-flow__handle) {
+  background: currentColor;
+}
+
+:deep(.vue-flow__node[data-type="llm"] .vue-flow__handle) {
+  background: #9B59B6;
+}
+
+:deep(.vue-flow__node[data-type="workflow"] .vue-flow__handle) {
+  background: #7B68EE;
 }
 </style>
