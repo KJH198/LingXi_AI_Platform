@@ -32,6 +32,7 @@ INSTALLED_APPS = [
     'drf_yasg',
     'user',
     'agent',
+    'knowledge_base'
 ]
 
 MIDDLEWARE = [
