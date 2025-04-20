@@ -30,14 +30,14 @@
               size="small" 
               @click="selectWorkflow(scope.row)"
             >
-              选择
+              使用
             </el-button>
             <el-button 
               type="success" 
               size="small" 
               @click="restoreWorkflow(scope.row)"
             >
-              恢复
+              编辑
             </el-button>
             <el-button 
               type="danger" 
