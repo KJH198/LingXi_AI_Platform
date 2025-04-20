@@ -961,7 +961,7 @@
 
 <script setup>
 import { ref, computed, nextTick, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { VueFlow, useVueFlow, Handle } from '@vue-flow/core'
 import { Background } from '@vue-flow/background'
 import { Controls } from '@vue-flow/controls'
@@ -1003,6 +1003,7 @@ const workflowName = ref('')
 
 // 获取路由实例
 const route = useRoute()
+const router = useRouter()
 
 // 节点表单
 const nodeForm = ref({
@@ -1779,56 +1780,7 @@ const saveWorkflow = async () => {
         el.type === 'input' || 
         el.type === 'process' || 
         el.type === 'output'
-      ).map(node => ({
-        id: node.id,
-        type: node.type,
-        position: node.position,
-        data: {
-          // 基本信息
-          name: node.data.name || '',
-          type: node.data.type,
-          label: node.data.label,
-          description: node.data.description || '',
-          // 输入节点配置
-          inputType: node.data.inputType,
-          defaultValue: node.data.defaultValue,
-          fileType: node.data.fileType,
-          apiUrl: node.data.apiUrl,
-          apiMethod: node.data.apiMethod,
-          // 处理节点配置
-          processType: node.data.processType,
-          codeType: node.data.codeType,
-          codeContent: node.data.codeContent,
-          conditionType: node.data.conditionType,
-          conditionValue: node.data.conditionValue,
-          loopType: node.data.loopType,
-          loopCount: node.data.loopCount,
-          loopCondition: node.data.loopCondition,
-          intentType: node.data.intentType,
-          intentModel: node.data.intentModel,
-          batchSize: node.data.batchSize,
-          parallel: node.data.parallel,
-          aggregateType: node.data.aggregateType,
-          aggregateField: node.data.aggregateField,
-          // 输出节点配置
-          outputType: node.data.outputType,
-          fileFormat: node.data.fileFormat,
-          filePath: node.data.filePath,
-          // 选择器配置
-          ifCondition: node.data.ifCondition || '',
-          elseIfConditions: node.data.elseIfConditions || [],
-          elseCondition: node.data.elseCondition || '',
-          // 动态生成的样式配置
-          icon: node.data.icon,
-          color: node.data.color,
-          bgColor: node.data.bgColor,
-          // 意图识别配置
-          intentConfigs: node.data.intentConfigs,
-          // 大模型配置
-          llmModel: node.data.llmModel || 'LLaMA-3',
-          llmPrompt: node.data.llmPrompt || '',
-        }
-      })),
+      ),
       edges: elements.value.filter(el => el.type === 'smoothstep').map(edge => ({
         id: edge.id,
         source: edge.source,
@@ -1859,6 +1811,7 @@ const saveWorkflow = async () => {
     const result = await response.json()
     if (result.code === 200) {
       ElMessage.success('工作流保存成功')
+      router.push('/agent-editor')
     } else {
       throw new Error(result.message || '保存工作流失败')
     }
@@ -1987,9 +1940,9 @@ const loadWorkflow = async (workflowId) => {
             elseIfConditions: node.data.elseIfConditions || [],
             elseCondition: node.data.elseCondition || '',
             // 动态生成的样式配置
-            icon: node.data.icon || icon,
-            color: node.data.color || color,
-            bgColor: node.data.bgColor || bgColor,
+            icon: node.data.icon,
+            color: node.data.color,
+            bgColor: node.data.bgColor,
             // 意图识别配置
             intentConfigs: node.data.intentConfigs,
             // 大模型配置
@@ -2239,7 +2192,21 @@ const removeIntentConfig = (index) => {
 
 .input-node,
 .output-node {
-  composes: node-common;
+  padding: 10px 15px;
+  border-radius: 8px;
+  border: 2px solid #409EFF;
+  min-width: 120px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  background-color: #f0f9ff;
+  touch-action: none;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  cursor: move;
 }
 
 :deep(.vue-flow__node[data-type="process"]) {
