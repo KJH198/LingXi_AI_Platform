@@ -9,7 +9,7 @@
             <el-menu-item index="1">首页</el-menu-item>
             <el-menu-item index="2">热门</el-menu-item>
             <el-menu-item index="3">最新</el-menu-item>
-            <el-menu-item index="3">公告</el-menu-item>
+            <el-menu-item index="3" @click="showAnnouncementList">公告</el-menu-item>
           </el-menu>
         </div>
         <div class="header-right">
@@ -168,9 +168,47 @@
         <el-button type="primary" @click="handleCommentSubmit">发表评论</el-button>
       </div>
     </el-dialog>
-  </div>
 
-  <el-dialog
+    <!-- 公告列表弹窗 -->
+    <el-dialog
+      v-model="announcementListDialogVisible"
+      title="公告列表"
+      width="50%"
+    >
+      <el-table :data="announcements" style="width: 100%" border>
+        <el-table-column prop="title" label="标题" width="200" />
+        <el-table-column prop="content" label="内容预览">
+          <template #default="scope">
+            <span>{{ scope.row.content.slice(0, 50) }}...</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="100">
+          <template #default="scope">
+            <el-button type="primary" size="small" @click="showAnnouncement(scope.row)">查看</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+      <template #footer>
+        <el-button @click="announcementListDialogVisible = false">关闭</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 公告详情弹窗 -->
+    <el-dialog
+      v-model="announcementDialogVisible"
+      title="公告详情"
+      width="50%"
+    >
+      <div>
+        <h3>{{ selectedAnnouncement.title }}</h3>
+        <p>{{ selectedAnnouncement.content }}</p>
+      </div>
+      <template #footer>
+        <el-button @click="announcementDialogVisible = false">关闭</el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog
       v-model="createAgentDialogVisible"
       title="创建智能体"
       width="50%"
@@ -195,6 +233,7 @@
         </span>
       </template>
     </el-dialog>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -339,6 +378,44 @@ const posts = ref<Post[]>([
     ]
   }
 ])
+
+// 公告数据
+const announcements = ref([
+  { id: 1, title: '系统维护通知', content: '系统将于本周六凌晨2:00-4:00进行维护升级。' },
+  { id: 2, title: '新功能上线', content: '我们上线了新的智能体编辑功能，快来体验吧！' },
+])
+
+const announcementListDialogVisible = ref(false)
+const announcementDialogVisible = ref(false)
+const selectedAnnouncement = reactive({ title: '', content: '' })
+
+const showAnnouncementList = () => {
+  announcementListDialogVisible.value = true
+}
+
+const showAnnouncement = (announcement) => {
+  selectedAnnouncement.title = announcement.title
+  selectedAnnouncement.content = announcement.content
+  announcementDialogVisible.value = true
+}
+
+const checkNewAnnouncements = () => {
+  if (announcements.value.length > 0) {
+    ElMessage({
+      message: '有新的公告，点击查看！',
+      type: 'info',
+      duration: 5000,
+      onClose: () => {
+        showAnnouncement(announcements.value[0])
+      },
+    })
+  }
+}
+
+onMounted(() => {
+  fetchUserInfo()
+  checkNewAnnouncements()
+})
 
 // 发帖表单
 const postForm = reactive({
