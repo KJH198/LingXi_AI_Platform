@@ -4,6 +4,9 @@ from . import views
 urlpatterns = [
     path('fetch_knowledgebases/', views.KnowledgeBaseListView.as_view(), name='knowledge-base-list'),
     path('create_knowledgebase/', views.KnowledgeBaseCreateView.as_view(), name='knowledge-base-create'),
+    path('knowledgebase/<str:knowledgeBaseId>/', views.KnowledgeBaseDetailView.as_view(), name='knowledge-base-detail'),
     path('knowledgebase/<str:knowledgeBaseId>/upload/', views.KnowledgeBaseUploadView.as_view(), name='knowledge-base-upload'),
-    path('knowledgebase/<str:kb_id>/delete/', views.KnowledgeBaseDeleteView.as_view(), name='knowledge-base-delete'),
+    path('knowledgebase/<str:knowledgeBaseId>/file/<int:fileId>/content/', views.FileContentView.as_view(), name='file-content'),
+    path('delete_knowledgebase/<str:knowledgeBaseId>/', views.KnowledgeBaseDeleteView.as_view(), name='knowledge-base-delete'),
+    path('knowledgebase/<str:knowledgeBaseId>/delete_file/<int:fileId>/', views.FileDeleteView.as_view(), name='file-delete'),
 ] 
