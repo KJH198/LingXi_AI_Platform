@@ -12,7 +12,11 @@ from .views import (
     UserFollowingView,
     UserInfoView,
     UpdateUserInfoView,
-    UploadAvatarView
+    UploadAvatarView,
+    AgentManagementView,
+    UserActionLogView,
+    SimpleBanView,
+    UserSearchView
 )
 
 urlpatterns = [
@@ -34,4 +38,6 @@ urlpatterns = [
     path('admin/agent_rating/', AgentRatingView.as_view(), name='agent_rating'),
     path('admin/knowledge_base/', KnowledgeBaseView.as_view(), name='knowledge_base'),
     path('admin/knowledge_base/<int:kb_id>/', KnowledgeBaseView.as_view(), name='knowledge_base_detail'),
+    path('admin/ban/<int:user_id>/', SimpleBanView.as_view(), name='simple_ban'),
+    path('search/', UserSearchView.as_view(), name='user_search'),
 ]
