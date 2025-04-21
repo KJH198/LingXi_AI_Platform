@@ -1969,7 +1969,7 @@ const loadWorkflow = async (workflowId) => {
         })
       })
       
-      ElMessage.success('工作流加载成功')
+      ElMessage.success('工作流 '+ workflowData.name +' 加载成功')
     } else {
       throw new Error(result.message || '加载工作流失败')
     }

@@ -157,7 +157,7 @@ const restoreWorkflow = (workflow) => {
   emit('update:workflowId', workflowId)
   
   // 显示成功消息
-  ElMessage.success(`已恢复工作流：${workflow.name}`)
+  // ElMessage.success(`正在加载工作流：${workflow.name}`)
   
   // 跳转到工作流设计器，携带工作流ID
   router.push({
