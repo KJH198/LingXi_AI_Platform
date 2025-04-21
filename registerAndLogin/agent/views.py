@@ -106,9 +106,9 @@ class WorkflowSaveView(APIView):
 
 class WorkflowRetrieveView(APIView):
 
-    def get(self, request):
+    def get(self, request, *args, **kwargs):
         print(request)
-        workflow_id = request.data.get('workflow_id')
+        workflow_id = self.kwargs.get('workflowId')
 
         try:
             workflow = get_object_or_404(Workflow, id=workflow_id)

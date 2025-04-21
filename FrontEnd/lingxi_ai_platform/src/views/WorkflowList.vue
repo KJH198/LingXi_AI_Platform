@@ -161,7 +161,7 @@ const restoreWorkflow = (workflow) => {
   
   // 跳转到工作流设计器，携带工作流ID
   router.push({
-    path: '/workflow-editor',
+    path: '/create-ai',
     query: { id: workflowId }
   })
 }

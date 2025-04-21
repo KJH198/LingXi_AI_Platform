@@ -1838,7 +1838,7 @@ const loadWorkflow = async (workflowId) => {
       return
     }
 
-    const response = await fetch(`/agent/workflowLoad/${workflowId}`, {
+    const response = await fetch(`/agent/workflowLoad/${workflowId}/`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`
