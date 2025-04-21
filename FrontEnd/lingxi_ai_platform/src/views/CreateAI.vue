@@ -1838,7 +1838,7 @@ const loadWorkflow = async (workflowId) => {
       return
     }
 
-    const response = await fetch(`/agent/workflowLoad/${workflowId}`, {
+    const response = await fetch(`/agent/workflowLoad/${workflowId}/`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`
@@ -1850,9 +1850,11 @@ const loadWorkflow = async (workflowId) => {
     }
 
     const result = await response.json()
-    if (result.code === 200) {
-      const workflowData = result.data
+    console.log('加载工作流:', result)
+    if (response.status === 200) {
+      const workflowData = result.workflow
       
+      console.log('result.object:', result.object)
       // 设置工作流名称
       workflowName.value = workflowData.name
       
