@@ -1779,7 +1779,9 @@ const saveWorkflow = async () => {
       nodes: elements.value.filter(el => 
         el.type === 'input' || 
         el.type === 'process' || 
-        el.type === 'output'
+        el.type === 'output' ||
+        el.type === 'llm' ||
+        el.type === 'workflow'
       ),
       edges: elements.value.filter(el => el.type === 'smoothstep').map(edge => ({
         id: edge.id,
