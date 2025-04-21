@@ -5,7 +5,7 @@ registerAndLogin/user/__pycache__/
 registerAndLogin/create_db.py
 registerAndLogin/media/
 registerAndLogin/manage.py
-# registerAndLogin/agent/__pycache__/
+registerAndLogin/agent/__pycache__/
 nohup.out
 .history
 .idea
