@@ -1338,94 +1338,105 @@ const updateNode = async () => {
   const node = elements.value.find(el => el.id === selectedNode.value)
   if (!node || !node.data) return
   
-  const processTypeLabels = {
-    'code': '代码处理',
-    'selector': '选择器',
-    'loop': '循环',
-    'intent': '意图识别',
-    'batch': '批处理',
-    'aggregate': '变量聚合'
-  }
-
-  const processTypeIcons = {
-    'code': 'Edit',
-    'selector': 'Select',
-    'loop': 'Refresh',
-    'intent': 'Connection',
-    'batch': 'DataLine',
-    'aggregate': 'Collection'
-  }
-
-  const processTypeColors = {
-    'code': { color: '#409EFF', bgColor: '#ecf5ff' },
-    'selector': { color: '#67C23A', bgColor: '#f0f9eb' },
-    'loop': { color: '#E6A23C', bgColor: '#fdf6ec' },
-    'intent': { color: '#F56C6C', bgColor: '#fef0f0' },
-    'batch': { color: '#909399', bgColor: '#f4f4f5' },
-    'aggregate': { color: '#9B59B6', bgColor: '#f9f0ff' }
-  }
+  // 保存原始的颜色和背景色
+  const originalColor = node.data.color
+  const originalBgColor = node.data.bgColor
   
   // 根据节点类型决定如何更新标签
   let newLabel = nodeForm.value.name || node.data.label
-  if (node.data.type === 'process' && nodeForm.value.processType) {
-    newLabel = processTypeLabels[nodeForm.value.processType]
-    // 更新图标和样式
-    const newIcon = processTypeIcons[nodeForm.value.processType]
-    const newColor = processTypeColors[nodeForm.value.processType].color
-    const newBgColor = processTypeColors[nodeForm.value.processType].bgColor
-    
-    // 创建一个新的节点数据对象，包含所有配置
-    const newNodeData = {
-      ...node.data,
-      ...nodeForm.value,
-      label: newLabel,
-      icon: newIcon,
-      color: newColor,
-      bgColor: newBgColor,
-      // 确保所有配置字段都被保存
-      name: nodeForm.value.name,
-      type: nodeForm.value.type,
-      description: nodeForm.value.description,
-      // 输入节点配置
-      inputType: nodeForm.value.inputType,
-      defaultValue: nodeForm.value.defaultValue,
-      fileType: nodeForm.value.fileType,
-      apiUrl: nodeForm.value.apiUrl,
-      apiMethod: nodeForm.value.apiMethod,
-      // 处理节点配置
-      processType: nodeForm.value.processType,
-      codeType: nodeForm.value.codeType,
-      codeContent: nodeForm.value.codeContent,
-      conditionType: nodeForm.value.conditionType,
-      conditionValue: nodeForm.value.conditionValue,
-      loopType: nodeForm.value.loopType,
-      loopCount: nodeForm.value.loopCount,
-      loopCondition: nodeForm.value.loopCondition,
-      intentType: nodeForm.value.intentType,
-      intentModel: nodeForm.value.intentModel,
-      batchSize: nodeForm.value.batchSize,
-      parallel: nodeForm.value.parallel,
-      aggregateType: nodeForm.value.aggregateType,
-      aggregateField: nodeForm.value.aggregateField,
-      // 输出节点配置
-      outputType: nodeForm.value.outputType,
-      fileFormat: nodeForm.value.fileFormat,
-      filePath: nodeForm.value.filePath,
-      // 选择器配置
-      ifCondition: nodeForm.value.ifCondition,
-      elseIfConditions: nodeForm.value.elseIfConditions,
-      elseCondition: nodeForm.value.elseCondition,
-      // 意图识别配置
-      intentConfigs: nodeForm.value.intentConfigs,
-      // 大模型配置
-      llmModel: nodeForm.value.llmModel,
-      llmPrompt: nodeForm.value.llmPrompt,
+  if (node.data.type === 'process') {
+    // 如果是代码处理节点，保持原始颜色
+    if (node.data.processType === 'code') {
+      const newNodeData = {
+        ...node.data,
+        ...nodeForm.value,
+        label: newLabel,
+        color: originalColor,
+        bgColor: originalBgColor
+      }
+      
+      vueFlowUpdateNode(node.id, {
+        data: newNodeData
+      })
+    } else {
+      // 其他处理节点类型的原有逻辑
+      const processTypeLabels = {
+        'selector': '选择器',
+        'loop': '循环',
+        'intent': '意图识别',
+        'batch': '批处理',
+        'aggregate': '变量聚合'
+      }
+
+      const processTypeIcons = {
+        'selector': 'Select',
+        'loop': 'Refresh',
+        'intent': 'Connection',
+        'batch': 'DataLine',
+        'aggregate': 'Collection'
+      }
+
+      const processTypeColors = {
+        'selector': { color: '#67C23A', bgColor: '#f0f9eb' },
+        'loop': { color: '#9B59B6', bgColor: '#f9f0ff' },
+        'intent': { color: '#FF6B6B', bgColor: '#fff0f0' },
+        'batch': { color: '#909399', bgColor: '#f4f4f5' },
+        'aggregate': { color: '#7B68EE', bgColor: '#f0f0ff' }
+      }
+      
+      // 创建一个新的节点数据对象，包含所有配置
+      const newNodeData = {
+        ...node.data,
+        ...nodeForm.value,
+        label: newLabel,
+        icon: processTypeIcons[nodeForm.value.processType],
+        color: processTypeColors[nodeForm.value.processType].color,
+        bgColor: processTypeColors[nodeForm.value.processType].bgColor,
+        // 确保所有配置字段都被保存
+        name: nodeForm.value.name,
+        type: nodeForm.value.type,
+        description: nodeForm.value.description,
+        // 输入节点配置
+        inputType: nodeForm.value.inputType,
+        defaultValue: nodeForm.value.defaultValue,
+        fileType: nodeForm.value.fileType,
+        apiUrl: nodeForm.value.apiUrl,
+        apiMethod: nodeForm.value.apiMethod,
+        // 处理节点配置
+        processType: nodeForm.value.processType,
+        codeType: nodeForm.value.codeType,
+        codeContent: nodeForm.value.codeContent,
+        conditionType: nodeForm.value.conditionType,
+        conditionValue: nodeForm.value.conditionValue,
+        loopType: nodeForm.value.loopType,
+        loopCount: nodeForm.value.loopCount,
+        loopCondition: nodeForm.value.loopCondition,
+        intentType: nodeForm.value.intentType,
+        intentModel: nodeForm.value.intentModel,
+        batchSize: nodeForm.value.batchSize,
+        parallel: nodeForm.value.parallel,
+        aggregateType: nodeForm.value.aggregateType,
+        aggregateField: nodeForm.value.aggregateField,
+        // 输出节点配置
+        outputType: nodeForm.value.outputType,
+        fileFormat: nodeForm.value.fileFormat,
+        filePath: nodeForm.value.filePath,
+        // 选择器配置
+        ifCondition: nodeForm.value.ifCondition,
+        elseIfConditions: nodeForm.value.elseIfConditions,
+        elseCondition: nodeForm.value.elseCondition,
+        // 意图识别配置
+        intentConfigs: nodeForm.value.intentConfigs,
+        // 大模型配置
+        llmModel: nodeForm.value.llmModel,
+        llmPrompt: nodeForm.value.llmPrompt,
+      }
+      
+      // 使用 Vue Flow 的 updateNode 方法更新节点
+      vueFlowUpdateNode(node.id, {
+        data: newNodeData
+      })
     }
-    
-    // 使用 Vue Flow 的 updateNode 方法更新节点
-    vueFlowUpdateNode(node.id, {
-      data: newNodeData
-    })
   } else {
     // 对于非处理节点，同样需要保存所有配置
     const newNodeData = {
@@ -1645,6 +1656,24 @@ const handleConnect = (params) => {
   // 检查源节点是否是选择器节点、循环节点或批处理节点
   const sourceNode = elements.value.find(el => el.id === params.source);
   if (sourceNode) {
+    if (sourceNode.data.processType === 'loop') {
+      // 如果是循环节点，需要检查连接点的ID
+      const handleId = params.sourceHandle;
+      if (!handleId || (handleId !== 'loop-entry' && handleId !== 'loop-exit' && handleId !== 'default')) {
+        ElMessage.warning('请选择有效的循环连接点');
+        return;
+      }
+      
+      // 检查目标节点
+      const targetNode = elements.value.find(el => el.id === params.target);
+      if (targetNode) {
+        // 如果源连接点是循环出口，不允许连接到循环入口
+        if (handleId === 'loop-exit' && params.targetHandle === 'loop-entry') {
+          ElMessage.warning('循环出口不能直接连接到循环入口');
+          return;
+        }
+      }
+    }
     if (sourceNode.data.processType === 'selector') {
       // 如果是选择器节点，需要检查连接点的ID
       const handleId = params.sourceHandle;
