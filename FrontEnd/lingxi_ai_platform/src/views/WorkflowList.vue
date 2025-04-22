@@ -16,21 +16,31 @@
         border
         stripe
         highlight-current-row
+        :row-class-name="tableRowClassName"
       >
-        <el-table-column prop="name" label="工作流名称" min-width="200">
-          <template #default="scope">
+      <el-table-column prop="name" label="工作流名称" min-width="200">
+        <template #default="scope">
+          <div class="workflow-name-container">
             <span class="workflow-name">{{ scope.row.name }}</span>
-          </template>
-        </el-table-column>
+            <el-tag 
+              size="small" 
+              type="success" 
+              v-if="scope.row.id === currentSelectedWorkflowId"
+            >
+              当前使用
+            </el-tag>
+          </div>
+        </template>
+      </el-table-column>
 
         <el-table-column label="操作" width="250" fixed="right">
           <template #default="scope">
             <el-button 
-              type="primary" 
+              :type="scope.row.id === currentSelectedWorkflowId ? 'success' : 'primary'" 
               size="small" 
               @click="selectWorkflow(scope.row)"
             >
-              使用
+              {{ scope.row.id === currentSelectedWorkflowId ? '已选择' : '使用' }}
             </el-button>
             <el-button 
               type="success" 
@@ -74,6 +84,14 @@ const workflows = ref([])
 const loading = ref(false)
 const total = ref(0)
 
+const currentSelectedWorkflowId = ref(localStorage.getItem('selectedWorkflowId') || null)
+
+const tableRowClassName = ({ row }) => {
+  if (row.id === currentSelectedWorkflowId.value) {
+    return 'selected-workflow-row'
+  }
+  return ''
+}
 // 获取工作流列表
 const fetchWorkflows = async () => {
   loading.value = true
@@ -132,6 +150,9 @@ const selectWorkflow = (workflow) => {
   localStorage.setItem('selectedWorkflowId', workflowId)
   localStorage.setItem('selectedWorkflowName', workflow.name)
   
+  // 更新当前选中的工作流ID
+  currentSelectedWorkflowId.value = workflowId
+
   // 触发父组件的更新事件
   emit('update:workflowId', workflowId)
   
@@ -251,6 +272,8 @@ watch(() => props.active, (newVal) => {
   console.log('WorkflowList active 属性变化:', newVal)
   if (newVal) {
     fetchWorkflows()
+    // 从localStorage获取选中的工作流ID
+    currentSelectedWorkflowId.value = localStorage.getItem('selectedWorkflowId') || null
   }
 }, { immediate: true }) // 立即执行一次，如果初始值为 true 则加载数据
 </script>
@@ -289,5 +312,27 @@ watch(() => props.active, (newVal) => {
 
 :deep(.el-empty) {
   padding: 40px 0;
+}
+
+/* 添加选中行的样式 */
+:deep(.selected-workflow-row) {
+  background-color: #ecf5ff !important;
+  font-weight: bold;
+}
+
+/* 当鼠标悬停在选中行上时保持高亮样式 */
+:deep(.selected-workflow-row:hover > td) {
+  background-color: #d9ecff !important;
+}
+
+.workflow-name-container {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.workflow-name {
+  font-weight: 500;
+  color: #303133;
 }
 </style>
