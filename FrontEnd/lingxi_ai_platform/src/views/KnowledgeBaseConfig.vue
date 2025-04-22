@@ -71,7 +71,7 @@
           </template>
         </el-table-column>
         <el-table-column prop="createdAt" label="创建时间" />
-        <el-table-column fixed="right" label="操作" width="150">
+        <el-table-column fixed="right" label="操作" width="200">
           <template #default="scope">
             <el-button
               link
@@ -89,7 +89,12 @@
             >
               {{ isKnowledgeBaseSelected(scope.row.id) ? '取消选择' : '选择' }}
             </el-button>
-            <el-button v-if="scope.row.isOwner" link type="warning" size="small" @click="deleteKnowledgeBase(scope.row)">
+            <el-button 
+              link 
+              type="danger" 
+              size="small" 
+              @click="deleteKnowledgeBase(scope.row)"
+            >
               删除
             </el-button>
           </template>
@@ -564,7 +569,7 @@ const previewFile = async (file: KnowledgeBaseFileType): Promise<void> => {
       return;
     }
     
-    const response = await fetch(`/knowledge_base/knowledgebase/${currentKnowledgeBase.value.id}/file/${file.id}/content`, {
+    const response = await fetch(`/knowledge_base/knowledgebase/${currentKnowledgeBase.value.id}/file/${file.id}/content/`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`  // 添加认证 token
@@ -807,7 +812,7 @@ const deleteKnowledgeBase = async (kb: KnowledgeBaseType): Promise<void> => {
       }
     });
     
-    if (!response.ok) {
+    if (!response.ok || response.status !== 200) {
       if (response.status === 401) {
         ElMessage.error('认证失败，请重新登录');
         return;
