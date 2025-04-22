@@ -555,11 +555,79 @@
           </div>
         </template>
 
+        <template #node-dynamic-input="nodeProps">
+          <div 
+            class="dynamic-input-node node-common"
+            :style="{
+              backgroundColor: '#f0f9ff',
+              borderColor: '#409EFF'
+            }"
+          >
+            <el-tooltip
+              content="动态输入"
+              placement="top"
+              :show-after="500"
+              :hide-after="0"
+              :effect="'light'"
+              popper-class="flow-handle-tooltip"
+            >
+              <Handle type="source" position="bottom" :style="{ background: '#409EFF' }" />
+            </el-tooltip>
+            <el-icon :size="20" color="#409EFF">
+              <Connection />
+            </el-icon>
+            <div class="node-label" style="color: #409EFF">
+              {{ nodeProps.data.label }}
+            </div>
+          </div>
+        </template>
+
+        <template #node-monitor="nodeProps">
+          <div 
+            class="monitor-node node-common"
+            :style="{
+              backgroundColor: '#fff0f0',
+              borderColor: '#F56C6C'
+            }"
+          >
+            <el-tooltip
+              content="监听输入"
+              placement="top"
+              :show-after="500"
+              :hide-after="0"
+              :effect="'light'"
+              popper-class="flow-handle-tooltip"
+            >
+              <Handle type="target" position="top" :style="{ background: '#F56C6C' }" />
+            </el-tooltip>
+            <el-icon :size="20" color="#F56C6C">
+              <View />
+            </el-icon>
+            <div class="node-label" style="color: #F56C6C">
+              {{ nodeProps.data.label }}
+            </div>
+            <el-tooltip
+              content="监听输出"
+              placement="bottom"
+              :show-after="500"
+              :hide-after="0"
+              :effect="'light'"
+              popper-class="flow-handle-tooltip"
+            >
+              <Handle type="source" position="bottom" :style="{ background: '#F56C6C' }" />
+            </el-tooltip>
+          </div>
+        </template>
+
         <Panel position="top-right" class="node-panel">
           <el-button-group>
             <el-button @click="addNode('input')" type="primary">
               <el-icon><Upload /></el-icon>
               输入节点
+            </el-button>
+            <el-button @click="addNode('dynamic-input')" type="primary">
+              <el-icon><Connection /></el-icon>
+              动态输入
             </el-button>
             <el-button @click="addNode('process')" type="success">
               <el-icon><Operation /></el-icon>
@@ -572,6 +640,10 @@
             <el-button @click="addNode('workflow')" type="warning">
               <el-icon><Share /></el-icon>
               工作流
+            </el-button>
+            <el-button @click="addNode('monitor')" type="danger">
+              <el-icon><View /></el-icon>
+              监听节点
             </el-button>
             <el-button @click="addNode('output')" type="danger">
               <el-icon><Download /></el-icon>
@@ -901,6 +973,24 @@
               </el-card>
             </template>
 
+            <!-- 监听节点配置 -->
+            <template v-if="nodeForm.type === 'monitor'">
+              <el-card shadow="never" class="form-card">
+                <template #header>
+                  <div class="card-header">
+                    <span>监听配置</span>
+                  </div>
+                </template>
+                <el-form-item label="监听要素" label-width="100px">
+                  <el-select v-model="nodeForm.monitorType">
+                    <el-option label="所有信息" value="all" />
+                    <el-option label="内容" value="content" />
+                    <el-option label="意图" value="intent" />
+                  </el-select>
+                </el-form-item>
+              </el-card>
+            </template>
+
             <div class="form-actions">
               <el-button type="success" @click="updateNode">
                 <el-icon><Check /></el-icon>
@@ -983,7 +1073,8 @@ import {
   Delete,
   Plus,
   ChatDotRound,
-  Share
+  Share,
+  View
 } from '@element-plus/icons-vue'
 
 // 引入 Vue Flow 样式
@@ -1044,6 +1135,8 @@ const nodeForm = ref({
   // 大模型配置
   llmModel: 'LLaMA-3',
   llmPrompt: '',
+  // 监听节点配置
+  monitorType: 'all',
 })
 
 // 添加表单引用
@@ -1125,7 +1218,10 @@ const addNode = (type) => {
     const position = findAvailablePosition()
     
     let nodeData = {
-      label: type === 'llm' ? '大模型' : type === 'workflow' ? '工作流' : type,
+      label: type === 'llm' ? '大模型' : 
+             type === 'workflow' ? '工作流' : 
+             type === 'monitor' ? '监听节点' :
+             type === 'dynamic-input' ? '动态输入' : type,
       type,
       description: '',
     }
@@ -1135,6 +1231,13 @@ const addNode = (type) => {
       nodeData = {
         ...nodeData,
         icon: 'Upload',
+        color: '#409EFF',
+        bgColor: '#f0f9ff'
+      }
+    } else if (type === 'dynamic-input') {
+      nodeData = {
+        ...nodeData,
+        icon: 'Connection',
         color: '#409EFF',
         bgColor: '#f0f9ff'
       }
@@ -1158,6 +1261,13 @@ const addNode = (type) => {
         icon: 'Share',
         color: '#7B68EE',
         bgColor: '#f0f0ff'
+      }
+    } else if (type === 'monitor') {
+      nodeData = {
+        ...nodeData,
+        icon: 'View',
+        color: '#F56C6C',
+        bgColor: '#fff0f0'
       }
     }
     
@@ -1323,6 +1433,8 @@ const handleNodeClick = (event) => {
     // 大模型配置
     llmModel: node.data?.llmModel || 'LLaMA-3',
     llmPrompt: node.data?.llmPrompt || '',
+    // 监听节点配置
+    monitorType: node.data?.monitorType || 'all',
   }
   
   // 保存原始数据
@@ -1430,6 +1542,8 @@ const updateNode = async () => {
         // 大模型配置
         llmModel: nodeForm.value.llmModel,
         llmPrompt: nodeForm.value.llmPrompt,
+        // 监听节点配置
+        monitorType: nodeForm.value.monitorType,
       }
       
       // 使用 Vue Flow 的 updateNode 方法更新节点
@@ -1981,6 +2095,8 @@ const loadWorkflow = async (workflowId) => {
             // 大模型配置
             llmModel: node.data.llmModel || 'LLaMA-3',
             llmPrompt: node.data.llmPrompt || '',
+            // 监听节点配置
+            monitorType: node.data.monitorType || 'all',
           }
         })
       })
@@ -3347,5 +3463,51 @@ const removeIntentConfig = (index) => {
 
 :deep(.vue-flow__node[data-type="workflow"] .vue-flow__handle) {
   background: #7B68EE;
+}
+
+.dynamic-input-node,
+.monitor-node {
+  padding: 10px 15px;
+  border-radius: 8px;
+  border: 2px solid;
+  min-width: 120px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  touch-action: none;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  cursor: move;
+}
+
+:deep(.vue-flow__node[data-type="dynamic-input"]) {
+  background: #f0f9ff;
+  border-color: #409EFF;
+}
+
+:deep(.vue-flow__node[data-type="monitor"]) {
+  background: #fff0f0;
+  border-color: #F56C6C;
+}
+
+:deep(.vue-flow__node[data-type="dynamic-input"] .el-icon),
+:deep(.vue-flow__node[data-type="dynamic-input"] .node-label) {
+  color: #409EFF;
+}
+
+:deep(.vue-flow__node[data-type="monitor"] .el-icon),
+:deep(.vue-flow__node[data-type="monitor"] .node-label) {
+  color: #F56C6C;
+}
+
+:deep(.vue-flow__node[data-type="dynamic-input"] .vue-flow__handle) {
+  background: #409EFF;
+}
+
+:deep(.vue-flow__node[data-type="monitor"] .vue-flow__handle) {
+  background: #F56C6C;
 }
 </style>
