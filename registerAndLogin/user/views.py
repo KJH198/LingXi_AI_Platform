@@ -1,4 +1,5 @@
 from django.http import JsonResponse
+from agent.models import UserActionLog
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth import authenticate, login
 import json
@@ -897,92 +898,54 @@ class AgentManagementView(APIView):
 
 
 class UserActionLogView(APIView):
-
     """用户行为日志视图"""
-
     def get(self, request):
-
-        # 验证管理员权限
-
         if not request.user.is_staff:
-
             return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
-
         
-
-        from .models import UserActionLog
-
-        from django.db.models import Q
-
-        
-
-        # 获取查询参数
-
+        # 获取分页和查询参数
+        page = int(request.query_params.get('page', 1))
+        page_size = int(request.query_params.get('page_size', 20))
         user_id = request.query_params.get('user_id')
-
-        action = request.query_params.get('action')
-
+        action_type = request.query_params.get('action_type')
         start_date = request.query_params.get('start_date')
-
         end_date = request.query_params.get('end_date')
-
         
-
         # 构建查询条件
-
         query = Q()
-
         if user_id:
-
             query &= Q(user_id=user_id)
-
-        if action:
-
-            query &= Q(action=action)
-
+        if action_type:
+            query &= Q(action_type=action_type)
         if start_date:
-
             query &= Q(created_at__gte=start_date)
-
         if end_date:
-
             query &= Q(created_at__lte=end_date)
-
         
-
-        # 获取日志记录
-
-        logs = UserActionLog.objects.filter(query).order_by('-created_at')
-
+        # 分页查询
+        start = (page - 1) * page_size
+        end = start + page_size
+        logs = UserActionLog.objects.filter(query).order_by('-created_at')[start:end]
+        total = UserActionLog.objects.filter(query).count()
         
-
-        # 返回日志数据
-
+        # 序列化数据
         data = [{
-
             'id': log.id,
-
-            'user': log.user.username,
-
-            'action': log.get_action_display(),
-
-            'target_id': log.target_id,
-
-            'target_type': log.target_type,
-
+            'user_id': log.user_id,
+            'action_type': log.get_action_type_display(),
+            'action_detail': log.action_detail,
             'ip_address': log.ip_address,
-
-            'created_at': log.created_at
-
+            'user_agent': log.user_agent,
+            'created_at': log.created_at.strftime('%Y-%m-%d %H:%M:%S')
         } for log in logs]
-
         
-
         return Response({
-
-            'logs': data,
-
-            'total': logs.count()
+            'success': True,
+            'data': data,
+            'total': total,
+            'page': page,
+            'page_size': page_size,
+            'message': '获取用户行为日志成功'
 
         })
 
