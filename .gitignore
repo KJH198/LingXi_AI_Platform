@@ -13,3 +13,4 @@ registerAndLogin/agent/migrations/
 nohup.out
 .history
 .idea
+.env

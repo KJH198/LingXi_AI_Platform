@@ -1,5 +1,5 @@
 from .models import Node
-from agent.llm import chat_with_condition, chat_with_aggregate
+from agent.llm import chat_with_condition, chat_with_aggregate, call_llm
 
 
 class BaseNode:
@@ -18,7 +18,7 @@ class InputNode(BaseNode):
     def __init__(self, node: Node):
         super().__init__(node)
         self.input_type = "文本"  # 暂未传入，先这么设吧
-        self.default_value = "我养了鸭子和狗"
+        self.default_value = ""
 
     def run(self, inputs, node_dict, results, handle):
         return self.default_value
@@ -144,9 +144,11 @@ class AggregateNode(BaseNode):
 class LLMNode(BaseNode):
     def __init__(self, node: Node):
         super().__init__(node)
+        self.llm_model = node.node_data.get('llmModel', '')
+        self.llm_prompt = node.node_data.get('llmPrompt', '')
 
     def run(self, inputs, node_dict, results, handle):
-        return inputs
+        return call_llm(self.llm_model, self.llm_prompt, inputs)
 
 
 class WorkflowNode(BaseNode):
@@ -166,7 +168,8 @@ node_type_map = {
     "intent": IntentNode,
     "batch": BatchNode,
     "aggregate": AggregateNode,
-    # 待补充工作流和大模型
+    "llm": LLMNode,
+    "workflow": WorkflowNode,
 }
 
 def build_node_instance(node_model_instance):
