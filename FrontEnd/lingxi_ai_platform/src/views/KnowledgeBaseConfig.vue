@@ -531,7 +531,15 @@ const viewKnowledgeBase = async (kb: KnowledgeBaseType): Promise<void> => {
     const data = await response.json();
     
     // 更新知识库详情和文件列表
-    currentKnowledgeBase.value = data.knowledgeBase;
+    console.log('知识库详情:', data);
+    currentKnowledgeBase.value = {
+      id: data.id,
+      name: data.name,
+      description: data.description,
+      type: data.type,
+      status: data.status,
+      createdAt: data.createdAt
+    };
     knowledgeBaseFiles.value = data.files || [];
   } catch (error) {
     console.error('获取知识库详情失败:', error);
@@ -606,7 +614,7 @@ const deleteFile = async (file: KnowledgeBaseFileType): Promise<void> => {
       return;
     }
     
-    const response = await fetch(`/knowledge_base/knowledgebase/${currentKnowledgeBase.value.id}/delete_file/${file.id}`, {
+    const response = await fetch(`/knowledge_base/knowledgebase/${currentKnowledgeBase.value.id}/delete_file/${file.id}/`, {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json',
