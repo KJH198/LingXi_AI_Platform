@@ -618,6 +618,13 @@
                   <template #default="scope">
                     <div class="action-buttons">
                       <el-button 
+                        type="primary" 
+                        size="small" 
+                        @click="viewAgentDetail(scope.row)"
+                      >
+                        查看详情
+                      </el-button>
+                      <el-button 
                         type="success" 
                         size="small" 
                         @click="handleReviewAgent(scope.row, 'approve')"
@@ -1316,61 +1323,36 @@ const handleViewAbnormalDetail = (record) => {
   )
 }
 
-// 模拟操作记录数据
-const mockOperationRecords = [
-  {
-    userId: '12345',
-    username: 'test_user1',
-    operationTime: '2024-03-27 10:00:00',
-    operationType: 'create',
-    operationContent: '创建新项目'
-  },
-  {
-    userId: '12346',
-    username: 'test_user2',
-    operationTime: '2024-03-27 09:30:00',
-    operationType: 'update',
-    operationContent: '更新用户信息'
-  }
-]
-
-// 模拟异常记录数据
-const mockAbnormalRecords = [
-  {
-    userId: '12347',
-    username: 'test_user3',
-    abnormalTime: '2024-03-27 08:45:00',
-    abnormalType: 'frequent_login',
-    description: '1小时内登录次数超过10次'
-  },
-  {
-    userId: '12348',
-    username: 'test_user4',
-    abnormalTime: '2024-03-27 08:30:00',
-    abnormalType: 'suspicious_ip',
-    description: '使用境外IP地址登录'
-  }
-]
-
 // 修改行为搜索函数
 const handleBehaviorSearch = async () => {
-  loading.value = true;
   try {
-    // 构建params对象，仅包含已定义的值
     const params = {};
     if (behaviorSearchQuery.value) params.user_id = behaviorSearchQuery.value;
     if (selectedAction.value) params.action = selectedAction.value;
     if (startDate.value) params.start_date = startDate.value;
     if (endDate.value) params.end_date = endDate.value;
 
-    const data = await behaviorApi.getBehaviorLogs(params);
+    const queryString = new URLSearchParams(params).toString();
+    const response = await fetch(`/user/admin/behavior_logs/?${queryString}`, {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+      }
+    });
+
+    if (!response.ok) throw new Error('Failed to fetch behavior logs');
+    const data = await response.json();
     behaviorLogs.value = data.logs;
-    totalLogs.value = data.total;
+
+    // 弹出用户详情界面
+    if (behaviorLogs.value.length > 0) {
+      selectedUser.value = behaviorLogs.value[0]; // 假设第一个记录为用户详情
+      userInfoDialogVisible.value = true;
+    } else {
+      ElMessage.warning('未找到相关用户行为记录');
+    }
   } catch (error) {
-    console.error('获取用户行为日志失败:', error);
-    ElMessage.error('获取用户行为日志失败');
-  } finally {
-    loading.value = false;
+    console.error('Error fetching behavior logs:', error);
+    ElMessage.error('获取用户行为记录失败');
   }
 };
 
@@ -1741,6 +1723,82 @@ const getBehaviorTypeText = (type) => {
   }
   return texts[type] || type
 }
+
+// 添加查看智能体详情的函数
+const viewAgentDetail = (agent) => {
+  // 使用mock数据展示
+  const mockAgentData = {
+    id: agent.id,
+    name: agent.agentName,
+    description: '这是一个智能体的详细描述',
+    modelId: 'gpt-4',
+    modelParams: {
+      temperature: 0.7,
+      maxTokens: 1024,
+      topP: 0.95
+    },
+    knowledgeBases: ['kb1', 'kb2'],
+    workflowId: 'wf1'
+  };
+  localStorage.setItem('agentData', JSON.stringify(mockAgentData));
+  router.push('/agent-editor');
+
+  // TODO: 实际API调用
+  // fetch(`/agent/${agent.id}`)
+  //   .then(response => response.json())
+  //   .then(data => {
+  //     localStorage.setItem('agentData', JSON.stringify(data));
+  //     router.push('/agent-editor');
+  //   })
+  //   .catch(error => {
+  //     console.error('获取智能体详情失败:', error);
+  //     ElMessage.error('获取智能体详情失败');
+  //   });
+};
+
+// 添加获取操作记录的函数
+const fetchOperationRecords = async () => {
+  try {
+    const response = await fetch('/user/admin/operation_records', {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+      }
+    });
+    if (!response.ok) throw new Error('Failed to fetch operation records');
+    const data = await response.json();
+    operationRecords.value = data.records;
+  } catch (error) {
+    console.error('Error fetching operation records:', error);
+    ElMessage.error('获取操作记录失败');
+  }
+};
+
+// 添加获取异常行为的函数
+const fetchAbnormalBehaviors = async () => {
+  try {
+    const response = await fetch('/user/admin/abnormal_behaviors', {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+      }
+    });
+    if (!response.ok) throw new Error('Failed to fetch abnormal behaviors');
+    const data = await response.json();
+    abnormalRecords.value = data.records;
+  } catch (error) {
+    console.error('Error fetching abnormal behaviors:', error);
+    ElMessage.error('获取异常行为失败');
+  }
+};
+
+// 在mounted钩子中调用这些函数以获取数据
+onMounted(() => {
+  handleUserSearch();
+  if (activeMenu.value === '2') {
+    fetchLoginRecords();
+  }
+  fetchOperationRecords();
+  fetchAbnormalBehaviors();
+});
 </script>
 
 <style scoped>
