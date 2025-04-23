@@ -527,7 +527,7 @@
             }"
           >
             <el-tooltip
-              content="工作流输入"
+              content="智能体输入"
               placement="top"
               :show-after="500"
               :hide-after="0"
@@ -540,10 +540,10 @@
               <Share />
             </el-icon>
             <div class="node-label" style="color: #7B68EE">
-              {{ nodeProps.data.label }}
+              智能体
             </div>
             <el-tooltip
-              content="工作流输出"
+              content="智能体输出"
               placement="bottom"
               :show-after="500"
               :hide-after="0"
@@ -639,7 +639,7 @@
             </el-button>
             <el-button @click="addNode('workflow')" type="warning">
               <el-icon><Share /></el-icon>
-              工作流
+              智能体节点
             </el-button>
             <el-button @click="addNode('monitor')" type="danger">
               <el-icon><View /></el-icon>
@@ -976,16 +976,80 @@
             <!-- 监听节点配置 -->
             <template v-if="nodeForm.type === 'monitor'">
               <el-card shadow="never" class="form-card">
+              </el-card>
+            </template>
+
+            <!-- 智能体节点配置 -->
+            <template v-if="nodeForm.type === 'workflow'">
+              <el-card shadow="never" class="form-card">
                 <template #header>
                   <div class="card-header">
-                    <span>监听配置</span>
+                    <span>智能体配置</span>
                   </div>
                 </template>
-                <el-form-item label="监听要素" label-width="100px">
-                  <el-select v-model="nodeForm.monitorType">
-                    <el-option label="所有信息" value="all" />
-                    <el-option label="内容" value="content" />
-                    <el-option label="意图" value="intent" />
+                <el-form-item label="我的" label-width="100px">
+                  <el-select 
+                    v-model="nodeForm.myAgents" 
+                    placeholder="请选择我的智能体"
+                    @change="handleAgentSelect('myAgents')"
+                  >
+                    <el-option
+                      v-for="agent in myAgentsList"
+                      :key="agent.id"
+                      :label="agent.name"
+                      :value="agent.id"
+                    />
+                  </el-select>
+                </el-form-item>
+                <el-form-item label="我关注的" label-width="100px">
+                  <el-select 
+                    v-model="nodeForm.followedAgents" 
+                    placeholder="请选择我关注的智能体"
+                    @change="handleAgentSelect('followedAgents')"
+                  >
+                    <el-option
+                      v-for="agent in followedAgentsList"
+                      :key="agent.id"
+                      :label="agent.name"
+                      :value="agent.id"
+                    />
+                  </el-select>
+                </el-form-item>
+              </el-card>
+            </template>
+
+            <!-- 动态输入节点配置 -->
+            <template v-if="nodeForm.type === 'dynamic-input'">
+              <el-card shadow="never" class="form-card">
+                <template #header>
+                  <div class="card-header">
+                    <span>动态输入配置</span>
+                  </div>
+                </template>
+                <el-form-item label="输入类型" label-width="100px">
+                  <el-select v-model="nodeForm.inputType">
+                    <el-option label="文本" value="text" />
+                    <el-option label="文件" value="file" />
+                    <el-option label="API" value="api" />
+                  </el-select>
+                </el-form-item>
+                <el-form-item v-if="nodeForm.inputType === 'text'" label="默认值" label-width="100px">
+                  <el-input v-model="nodeForm.defaultValue" placeholder="请输入默认值" />
+                </el-form-item>
+                <el-form-item v-if="nodeForm.inputType === 'file'" label="文件类型" label-width="100px">
+                  <el-select v-model="nodeForm.fileType">
+                    <el-option label="文本文件" value="text" />
+                    <el-option label="CSV文件" value="csv" />
+                    <el-option label="JSON文件" value="json" />
+                  </el-select>
+                </el-form-item>
+                <el-form-item v-if="nodeForm.inputType === 'api'" label="API地址" label-width="100px">
+                  <el-input v-model="nodeForm.apiUrl" placeholder="请输入API地址" />
+                </el-form-item>
+                <el-form-item v-if="nodeForm.inputType === 'api'" label="请求方法" label-width="100px">
+                  <el-select v-model="nodeForm.apiMethod">
+                    <el-option label="GET" value="get" />
+                    <el-option label="POST" value="post" />
                   </el-select>
                 </el-form-item>
               </el-card>
@@ -1137,6 +1201,9 @@ const nodeForm = ref({
   llmPrompt: '',
   // 监听节点配置
   monitorType: 'all',
+  // 智能体配置
+  myAgents: [],
+  followedAgents: [],
 })
 
 // 添加表单引用
@@ -1205,6 +1272,19 @@ const processTypes = [
 
 // 添加 useVueFlow hook
 const { onPaneClick, updateNode: vueFlowUpdateNode, viewport } = useVueFlow()
+
+// 智能体列表数据
+const myAgentsList = ref([
+  { id: 1, name: '智能体1' },
+  { id: 2, name: '智能体2' },
+  { id: 3, name: '智能体3' }
+])
+
+const followedAgentsList = ref([
+  { id: 4, name: '关注智能体1' },
+  { id: 5, name: '关注智能体2' },
+  { id: 6, name: '关注智能体3' }
+])
 
 // 添加节点
 const addNode = (type) => {
@@ -1435,6 +1515,9 @@ const handleNodeClick = (event) => {
     llmPrompt: node.data?.llmPrompt || '',
     // 监听节点配置
     monitorType: node.data?.monitorType || 'all',
+    // 智能体配置
+    myAgents: node.data?.myAgents || [],
+    followedAgents: node.data?.followedAgents || [],
   }
   
   // 保存原始数据
@@ -1544,6 +1627,9 @@ const updateNode = async () => {
         llmPrompt: nodeForm.value.llmPrompt,
         // 监听节点配置
         monitorType: nodeForm.value.monitorType,
+        // 智能体配置
+        myAgents: nodeForm.value.myAgents,
+        followedAgents: nodeForm.value.followedAgents,
       }
       
       // 使用 Vue Flow 的 updateNode 方法更新节点
@@ -1919,13 +2005,76 @@ const saveWorkflow = async () => {
         panOnDragMode: 'free',
         touchAction: 'none'
       },
+      // 保存所有节点，包括完整的数据
       nodes: elements.value.filter(el => 
         el.type === 'input' || 
         el.type === 'process' || 
         el.type === 'output' ||
         el.type === 'llm' ||
-        el.type === 'workflow'
-      ),
+        el.type === 'workflow' ||
+        el.type === 'monitor' ||
+        el.type === 'dynamic-input'
+      ).map(node => ({
+        id: node.id,
+        type: node.type,
+        position: node.position,
+        data: {
+          // 基本信息
+          name: node.data.name,
+          type: node.data.type,
+          label: node.data.label,
+          description: node.data.description,
+          // 输入节点配置
+          inputType: node.data.inputType,
+          defaultValue: node.data.defaultValue,
+          fileType: node.data.fileType,
+          apiUrl: node.data.apiUrl,
+          apiMethod: node.data.apiMethod,
+          // 处理节点配置
+          processType: node.data.processType,
+          codeType: node.data.codeType,
+          codeContent: node.data.codeContent,
+          conditionType: node.data.conditionType,
+          conditionValue: node.data.conditionValue,
+          loopType: node.data.loopType,
+          loopCount: node.data.loopCount,
+          loopCondition: node.data.loopCondition,
+          intentType: node.data.intentType,
+          intentModel: node.data.intentModel,
+          batchSize: node.data.batchSize,
+          parallel: node.data.parallel,
+          aggregateType: node.data.aggregateType,
+          aggregateField: node.data.aggregateField,
+          // 输出节点配置
+          outputType: node.data.outputType,
+          fileFormat: node.data.fileFormat,
+          filePath: node.data.filePath,
+          // 选择器配置
+          ifCondition: node.data.ifCondition,
+          elseIfConditions: node.data.elseIfConditions,
+          elseCondition: node.data.elseCondition,
+          // 意图识别配置
+          intentConfigs: node.data.intentConfigs,
+          // 大模型配置
+          llmModel: node.data.llmModel,
+          llmPrompt: node.data.llmPrompt,
+          // 监听节点配置
+          monitorType: node.data.monitorType,
+          // 智能体配置
+          myAgents: node.data.myAgents,
+          followedAgents: node.data.followedAgents,
+          // 动态输入配置
+          dynamicInputType: node.data.inputType,
+          dynamicDefaultValue: node.data.defaultValue,
+          dynamicFileType: node.data.fileType,
+          dynamicApiUrl: node.data.apiUrl,
+          dynamicApiMethod: node.data.apiMethod,
+          // 样式配置
+          icon: node.data.icon,
+          color: node.data.color,
+          bgColor: node.data.bgColor
+        }
+      })),
       edges: elements.value.filter(el => el.type === 'smoothstep').map(edge => ({
         id: edge.id,
         source: edge.source,
@@ -2097,6 +2246,9 @@ const loadWorkflow = async (workflowId) => {
             llmPrompt: node.data.llmPrompt || '',
             // 监听节点配置
             monitorType: node.data.monitorType || 'all',
+            // 智能体配置
+            myAgents: node.data.myAgents || [],
+            followedAgents: node.data.followedAgents || [],
           }
         })
       })
@@ -2211,6 +2363,15 @@ const addIntentConfig = () => {
 
 const removeIntentConfig = (index) => {
   nodeForm.value.intentConfigs.splice(index, 1)
+}
+
+// 添加智能体选择处理方法
+const handleAgentSelect = (type) => {
+  if (type === 'myAgents' && nodeForm.value.myAgents) {
+    nodeForm.value.followedAgents = null
+  } else if (type === 'followedAgents' && nodeForm.value.followedAgents) {
+    nodeForm.value.myAgents = null
+  }
 }
 </script>
 
