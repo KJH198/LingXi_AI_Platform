@@ -9,3 +9,4 @@ registerAndLogin/agent/__pycache__/
 nohup.out
 .history
 .idea
+*.pyc

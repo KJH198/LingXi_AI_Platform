@@ -342,6 +342,43 @@ class AgentRatingView(APIView):
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+    def get(self, request):
+        """获取智能体列表"""
+        try:
+            # 验证管理员权限
+            if not request.user.is_staff:
+                return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
+
+            from .models import AIAgent
+
+            # 获取查询参数
+            status_filter = request.query_params.get('status', 'pending')
+
+            # 查询智能体列表
+            agents = AIAgent.objects.filter(status=status_filter)
+
+            # 构造返回数据
+            data = [
+                {
+                    'id': agent.id,
+                    'name': agent.name,
+                    'creator': agent.creator.username,
+                    'status': agent.status,
+                    'created_at': agent.created_at.strftime('%Y-%m-%d %H:%M:%S')
+                }
+                for agent in agents
+            ]
+
+            return Response({
+                'agents': data,
+                'total': agents.count(),
+                'pending_count': AIAgent.objects.filter(status='pending').count(),
+                'approved_count': AIAgent.objects.filter(status='approved').count(),
+                'rejected_count': AIAgent.objects.filter(status='rejected').count()
+            })
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 class KnowledgeBaseView(APIView):
     """知识库管理"""
     def post(self, request):
@@ -901,90 +938,55 @@ class UserActionLogView(APIView):
     """用户行为日志视图"""
 
     def get(self, request):
+        """用户行为日志视图"""
+        try:
+            # 验证管理员权限
+            if not request.user.is_staff:
+                return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
 
-        # 验证管理员权限
+            from .models import UserActionLog
+            from django.db.models import Q
 
-        if not request.user.is_staff:
+            # 获取查询参数
+            user_id = request.query_params.get('user_id')
+            action = request.query_params.get('action')
+            start_date = request.query_params.get('start_date')
+            end_date = request.query_params.get('end_date')
 
-            return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
+            # 构建查询条件
+            query = Q()
+            if user_id and user_id != 'undefined':
+                query &= Q(user_id=user_id)
+            if action and action != 'undefined':
+                query &= Q(action=action)
+            if start_date and start_date != 'undefined':
+                query &= Q(created_at__gte=start_date)
+            if end_date and end_date != 'undefined':
+                query &= Q(created_at__lte=end_date)
 
-        
+            # 获取日志记录
+            logs = UserActionLog.objects.filter(query).order_by('-created_at')
 
-        from .models import UserActionLog
+            # 返回日志数据
+            data = [
+                {
+                    'id': log.id,
+                    'user': log.user.username if log.user else '未知用户',
+                    'action': log.get_action_display() if hasattr(log, 'get_action_display') else log.action,
+                    'target_id': log.target_id,
+                    'target_type': log.target_type,
+                    'ip_address': log.ip_address,
+                    'created_at': log.created_at.strftime('%Y-%m-%d %H:%M:%S')
+                }
+                for log in logs
+            ]
 
-        from django.db.models import Q
-
-        
-
-        # 获取查询参数
-
-        user_id = request.query_params.get('user_id')
-
-        action = request.query_params.get('action')
-
-        start_date = request.query_params.get('start_date')
-
-        end_date = request.query_params.get('end_date')
-
-        
-
-        # 构建查询条件
-
-        query = Q()
-
-        if user_id:
-
-            query &= Q(user_id=user_id)
-
-        if action:
-
-            query &= Q(action=action)
-
-        if start_date:
-
-            query &= Q(created_at__gte=start_date)
-
-        if end_date:
-
-            query &= Q(created_at__lte=end_date)
-
-        
-
-        # 获取日志记录
-
-        logs = UserActionLog.objects.filter(query).order_by('-created_at')
-
-        
-
-        # 返回日志数据
-
-        data = [{
-
-            'id': log.id,
-
-            'user': log.user.username,
-
-            'action': log.get_action_display(),
-
-            'target_id': log.target_id,
-
-            'target_type': log.target_type,
-
-            'ip_address': log.ip_address,
-
-            'created_at': log.created_at
-
-        } for log in logs]
-
-        
-
-        return Response({
-
-            'logs': data,
-
-            'total': logs.count()
-
-        })
+            return Response({
+                'logs': data,
+                'total': logs.count()
+            })
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 
@@ -1063,3 +1065,38 @@ class UserSearchView(APIView):
             'data': serializer.data
 
         })
+
+class UserLoginRecordView(APIView):
+    """用户登录记录视图"""
+
+    def get(self, request):
+        try:
+            # 验证管理员权限
+            if not request.user.is_staff:
+                return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
+
+            from .models import User
+
+            # 查询所有用户信息
+            users = User.objects.all()
+
+            # 构造返回数据
+            data = [
+                {
+                    'id': user.id,
+                    'username': user.username,
+                    'last_login': user.last_login.strftime('%Y-%m-%d %H:%M:%S') if user.last_login else None,
+                    'is_active': user.is_active,
+                    'email': user.email,
+                    'phone_number': user.phone_number,
+                    'created_at': user.created_at.strftime('%Y-%m-%d %H:%M:%S') if user.created_at else None
+                }
+                for user in users
+            ]
+
+            return Response({
+                'records': data,
+                'total': users.count()
+            })
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

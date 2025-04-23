@@ -374,46 +374,23 @@
             <!-- 行为监控标签页 -->
             <el-tabs v-model="activeBehaviorTab" class="behavior-tabs">
               <!-- 登录记录标签页 -->
-              <el-tab-pane label="登录记录" name="login">
+              <el-tab-pane label="登录记录" name="login" @click="fetchLoginRecords">
                 <div class="login-records">
                   <el-table :data="loginRecords" style="width: 100%" border>
-                    <el-table-column prop="userId" label="用户ID" width="120" />
+                    <el-table-column prop="id" label="用户ID" width="120" />
                     <el-table-column prop="username" label="用户名" width="150" />
-                    <el-table-column prop="loginTime" label="登录时间" width="180" />
-                    <el-table-column prop="ipAddress" label="IP地址" width="150" />
-                    <el-table-column prop="device" label="设备信息" width="200" />
-                    <el-table-column prop="status" label="状态" width="100">
+                    <el-table-column prop="last_login" label="登录时间" width="180" />
+                    <el-table-column prop="is_active" label="活跃状态" width="100">
                       <template #default="scope">
-                        <el-tag :type="scope.row.status === 'success' ? 'success' : 'danger'">
-                          {{ scope.row.status === 'success' ? '正常' : '异常' }}
+                        <el-tag :type="scope.row.is_active ? 'success' : 'danger'">
+                          {{ scope.row.is_active ? '活跃' : '未活跃' }}
                         </el-tag>
                       </template>
                     </el-table-column>
-                    <el-table-column label="操作" width="120">
-                      <template #default="scope">
-                        <el-button 
-                          type="primary" 
-                          size="small" 
-                          @click="handleViewLoginDetail(scope.row)"
-                        >
-                          详情
-                        </el-button>
-                      </template>
-                    </el-table-column>
+                    <el-table-column prop="email" label="邮箱" width="200" />
+                    <el-table-column prop="phone_number" label="手机号" width="150" />
+                    <el-table-column prop="created_at" label="注册时间" width="180" />
                   </el-table>
-
-                  <!-- 分页 -->
-                  <div class="pagination">
-                    <el-pagination
-                      :model-value="currentPage"
-                      @update:model-value="handleCurrentChange"
-                      :page-size="pageSize"
-                      @update:page-size="handleSizeChange"
-                      :page-sizes="[10, 20, 30, 50]"
-                      layout="total, sizes, prev, pager, next"
-                      :total="totalRecords"
-                    />
-                  </div>
                 </div>
               </el-tab-pane>
 
@@ -641,25 +618,16 @@
                   <template #default="scope">
                     <div class="action-buttons">
                       <el-button 
-                        type="primary" 
-                        size="small" 
-                        @click="handleViewDetail(scope.row)"
-                      >
-                        详情
-                      </el-button>
-                      <el-button 
                         type="success" 
                         size="small" 
-                        @click="handleApprove(scope.row)"
-                        v-if="scope.row.status === 'pending'"
+                        @click="handleReviewAgent(scope.row, 'approve')"
                       >
                         通过
                       </el-button>
                       <el-button 
                         type="danger" 
                         size="small" 
-                        @click="handleReject(scope.row)"
-                        v-if="scope.row.status === 'pending'"
+                        @click="handleReviewAgent(scope.row, 'reject')"
                       >
                         拒绝
                       </el-button>
@@ -861,14 +829,18 @@ const operationRecords = ref([])
 const abnormalRecords = ref([])
 const totalOperationRecords = ref(0)
 const totalAbnormalRecords = ref(0)
+const behaviorLogs = ref([])
+const totalLogs = ref(0)
+const selectedAction = ref('')
+const startDate = ref('')
+const endDate = ref('')
 
-// 添加智能体审核相关变量
-const agentSearchQuery = ref('')
-const pendingReviews = ref(0)
-const approvedAgents = ref(0)
-const rejectedAgents = ref(0)
-const agentReviews = ref([])
-const totalReviews = ref(0)
+// 修改智能体审核相关变量
+const agentReviews = ref([]);
+const totalReviews = ref(0);
+const pendingReviews = ref(0);
+const approvedAgents = ref(0);
+const rejectedAgents = ref(0);
 
 // 添加公告管理相关变量
 const announcements = ref([])
@@ -1002,58 +974,63 @@ const selectedUser = ref(null)
 
 // API 请求函数
 const behaviorApi = {
-  // 获取登录记录
-  async getLoginRecords(params) {
+  async getBehaviorLogs(params) {
     try {
-      const queryString = new URLSearchParams(params).toString()
-      const response = await fetch(`/user/adminGetLoginRecords?${queryString}`)
-      if (!response.ok) throw new Error('获取登录记录失败')
-      return await response.json()
+      const queryString = new URLSearchParams(params).toString();
+      const response = await fetch(`/user/admin/behavior_logs/?${queryString}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+        }
+      });
+      if (!response.ok) throw new Error('获取用户行为日志失败');
+      return await response.json();
     } catch (error) {
-      ElMessage.error('获取登录记录失败')
-      throw error
-    }
-  },
-
-  // 获取登录统计信息
-  async getLoginStats() {
-    try {
-      const response = await fetch('/user/adminGetLoginStats')
-      if (!response.ok) throw new Error('获取登录统计信息失败')
-      return await response.json()
-    } catch (error) {
-      ElMessage.error('获取登录统计信息失败')
-      throw error
-    }
-  },
-
-  // 搜索行为记录
-  async searchBehavior(query) {
-    try {
-      const response = await fetch(`/user/adminSearchBehavior?query=${query}`)
-      if (!response.ok) throw new Error('搜索行为记录失败')
-      return await response.json()
-    } catch (error) {
-      ElMessage.error('搜索行为记录失败')
-      throw error
-    }
-  },
-
-  // 获取行为列表
-  async getBehaviorList(params) {
-    try {
-      const queryString = new URLSearchParams(params).toString()
-      const response = await fetch(`/user/adminGetBehaviorList?${queryString}`)
-      if (!response.ok) throw new Error('获取行为列表失败')
-      return await response.json()
-    } catch (error) {
-      ElMessage.error('获取行为列表失败')
-      throw error
+      ElMessage.error('获取用户行为日志失败');
+      throw error;
     }
   }
-}
+};
 
+// 添加智能体审核API
+const agentApi = {
+  async getAgentList(params) {
+    try {
+      const queryString = new URLSearchParams(params).toString();
+      const response = await fetch(`/user/admin/agent_rating/?${queryString}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+        }
+      });
+      if (!response.ok) throw new Error('获取智能体列表失败');
+      return await response.json();
+    } catch (error) {
+      ElMessage.error('获取智能体列表失败');
+      throw error;
+    }
+  },
 
+  async reviewAgent(agentId, decision, notes) {
+    try {
+      const response = await fetch(`/user/admin/agent_rating/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+        },
+        body: JSON.stringify({
+          agent_id: agentId,
+          decision,
+          notes
+        })
+      });
+      if (!response.ok) throw new Error('审核智能体失败');
+      return await response.json();
+    } catch (error) {
+      ElMessage.error('审核智能体失败');
+      throw error;
+    }
+  }
+};
 
 // 修改用户列表搜索函数
 const handleUserSearch = async () => {
@@ -1181,10 +1158,34 @@ const handleCurrentChange = (val) => {
   handleUserSearch()
 }
 
-// 初始化加载用户列表
+// 修改行为管理页面的逻辑，点击登录记录时发送请求
+const fetchLoginRecords = async () => {
+  loading.value = true;
+  try {
+    const response = await fetch('/user/admin/login_records/', {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+      }
+    });
+    if (!response.ok) throw new Error('获取登录记录失败');
+    const data = await response.json();
+    loginRecords.value = data.records;
+    totalRecords.value = data.total;
+  } catch (error) {
+    console.error('获取登录记录失败:', error);
+    ElMessage.error('获取登录记录失败');
+  } finally {
+    loading.value = false;
+  }
+};
+
+// 在用户管理界面加载时调用fetchLoginRecords
 onMounted(() => {
-  handleUserSearch()
-})
+  handleUserSearch();
+  if (activeMenu.value === '2') {
+    fetchLoginRecords();
+  }
+});
 
 const handleLogout = () => {
   localStorage.removeItem('adminToken')
@@ -1352,71 +1353,40 @@ const mockAbnormalRecords = [
 
 // 修改行为搜索函数
 const handleBehaviorSearch = async () => {
-  loading.value = true
+  loading.value = true;
   try {
-    if (behaviorSearchQuery.value) {
-      // 搜索单个行为记录
-      const data = await behaviorApi.searchBehavior(behaviorSearchQuery.value)
-      if (data.behavior) {
-        // 将行为数据转换为弹窗显示格式
-        selectedBehavior.value = {
-          userId: data.behavior.userId,
-          username: data.behavior.username,
-          behaviorTime: data.behavior.behaviorTime || '-',
-          behaviorType: data.behavior.behaviorType || '-',
-          status: data.behavior.status || 'normal',
-          ipAddress: data.behavior.ipAddress || '-',
-          device: data.behavior.device || '-',
-          description: data.behavior.description || '-'
-        }
-        // 显示搜索结果弹窗
-        behaviorSearchResultDialogVisible.value = true
-        // 清空搜索框
-        behaviorSearchQuery.value = ''
-      } else {
-        ElMessage.warning('未找到该行为记录')
-      }
-    } else {
-      // 获取所有行为记录
-      const data = await behaviorApi.getBehaviorList({})
-      if (activeBehaviorTab.value === 'login') {
-        loginRecords.value = data.loginRecords
-        totalRecords.value = data.total
-      } else if (activeBehaviorTab.value === 'operation') {
-        operationRecords.value = data.operationRecords
-        totalOperationRecords.value = data.total
-      } else if (activeBehaviorTab.value === 'abnormal') {
-        abnormalRecords.value = data.abnormalRecords
-        totalAbnormalRecords.value = data.total
-      }
-      
-      // 更新统计数据
-      todayLogins.value = data.todayLogins
-      avgLoginDuration.value = data.avgLoginDuration
-      abnormalLogins.value = data.abnormalLogins
-    }
+    // 构建params对象，仅包含已定义的值
+    const params = {};
+    if (behaviorSearchQuery.value) params.user_id = behaviorSearchQuery.value;
+    if (selectedAction.value) params.action = selectedAction.value;
+    if (startDate.value) params.start_date = startDate.value;
+    if (endDate.value) params.end_date = endDate.value;
+
+    const data = await behaviorApi.getBehaviorLogs(params);
+    behaviorLogs.value = data.logs;
+    totalLogs.value = data.total;
   } catch (error) {
-    console.error('获取行为记录失败:', error)
-    ElMessage.error('搜索行为记录失败')
+    console.error('获取用户行为日志失败:', error);
+    ElMessage.error('获取用户行为日志失败');
   } finally {
-    loading.value = false
+    loading.value = false;
   }
-}
+};
 
 // 添加菜单选择处理函数
 const handleMenuSelect = (index) => {
-  activeMenu.value = index
+  activeMenu.value = index;
   // 根据选择的菜单加载相应的数据
   if (index === '1') {
-    handleUserSearch()
+    handleUserSearch();
   } else if (index === '2') {
-    handleBehaviorSearch()
+    fetchLoginRecords(); // 点击行为管理时加载登录记录
   } else if (index === '3') {
-    handleAgentSearch()
+    handleAgentSearch();
   } else if (index === '4') {
-    handleAnnouncementSearch()
+    handleAnnouncementSearch();
   }
-}
+};
 
 // 获取操作类型标签样式
 const getFunctionTypeTag = (type) => {
@@ -1710,48 +1680,47 @@ const handleAnnouncementSearch = async () => {
 
 // 修改智能体审核搜索函数
 const handleAgentSearch = async () => {
-  loading.value = true
+  loading.value = true;
   try {
-    if (agentSearchQuery.value) {
-      // 搜索单个智能体
-      const data = await agentApi.searchAgent(agentSearchQuery.value)
-      if (data.agent) {
-        // 将智能体数据转换为弹窗显示格式
-        selectedAgent.value = {
-          agentId: data.agent.agentId,
-          agentName: data.agent.agentName,
-          submitTime: data.agent.submitTime || '-',
-          functionType: data.agent.functionType || '-',
-          status: data.agent.status || 'pending',
-          contentType: data.agent.contentType || '-',
-          content: data.agent.content || '-',
-          reviewTime: data.agent.reviewTime || '-',
-          reviewer: data.agent.reviewer || '-',
-          reviewComment: data.agent.reviewComment || '-'
-        }
-        // 显示搜索结果弹窗
-        agentSearchResultDialogVisible.value = true
-        // 清空搜索框
-        agentSearchQuery.value = ''
-      } else {
-        ElMessage.warning('未找到该智能体')
-      }
-    } else {
-      // 获取所有智能体列表
-      const data = await agentApi.getAgentList({})
-      agentReviews.value = data.agents
-      totalReviews.value = data.total
-      pendingReviews.value = data.pending
-      approvedAgents.value = data.approved
-      rejectedAgents.value = data.rejected
-    }
+    const data = await agentApi.getAgentList({ status: 'pending' });
+    agentReviews.value = data.agents;
+    totalReviews.value = data.total;
+    pendingReviews.value = data.pending_count;
+    approvedAgents.value = data.approved_count;
+    rejectedAgents.value = data.rejected_count;
   } catch (error) {
-    console.error('获取智能体列表失败:', error)
-    ElMessage.error('搜索智能体失败')
+    console.error('获取智能体列表失败:', error);
+    ElMessage.error('获取智能体列表失败');
   } finally {
-    loading.value = false
+    loading.value = false;
   }
-}
+};
+
+// 添加审核操作函数
+const handleReviewAgent = async (agent, decision) => {
+  try {
+    const notes = await ElMessageBox.prompt(
+      `请输入审核意见：`,
+      '审核操作',
+      {
+        confirmButtonText: '提交',
+        cancelButtonText: '取消',
+        inputType: 'textarea'
+      }
+    );
+
+    loading.value = true;
+    const result = await agentApi.reviewAgent(agent.id, decision, notes.value);
+    ElMessage.success(result.message || '审核成功');
+    handleAgentSearch();
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('审核智能体失败:', error);
+    }
+  } finally {
+    loading.value = false;
+  }
+};
 
 // 添加行为类型相关辅助函数
 const getBehaviorTypeTag = (type) => {
@@ -2140,4 +2109,4 @@ const getBehaviorTypeText = (type) => {
 .announcement-list {
   margin-top: 20px;
 }
-</style> 
+</style>
