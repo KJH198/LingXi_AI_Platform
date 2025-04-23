@@ -913,9 +913,10 @@ const api = {
         },
         body: JSON.stringify({
           user_id: userId,
-          reason: banForm.reason
+          reason: banForm.reason,
+          type: banForm.type
         })
-      })
+      });
       if (!response.ok) throw new Error('封禁用户失败')
       const data = await response.json()
       if (data.success) {

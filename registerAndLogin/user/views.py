@@ -237,15 +237,17 @@ class UserManagementView(APIView):
             }
             # 根据封禁原因设置违规类型
             if not user.is_active and user.ban_reason:
-                # 从封禁原因中提取违规类型
-                if 'light违规' in user.ban_reason:
-                    user_dict['violationType'] = 'light'
-                elif 'medium违规' in user.ban_reason:
-                    user_dict['violationType'] = 'medium'
-                elif 'severe违规' in user.ban_reason:
-                    user_dict['violationType'] = 'severe'
-                elif 'permanent违规' in user.ban_reason:
-                    user_dict['violationType'] = 'permanent'
+                # 从封禁类型中提取违规类型
+                ban_type_mapping = {
+                    'light': 'light',
+                    'medium': 'medium',
+                    'severe': 'severe',
+                    'permanent': 'permanent'
+                }
+                for ban_type, violation_type in ban_type_mapping.items():
+                    if ban_type in user.ban_reason:
+                        user_dict['violationType'] = violation_type
+                        break
                 else:
                     user_dict['violationType'] = 'severe'  # 默认设置为严重违规
             user_data.append(user_dict)
