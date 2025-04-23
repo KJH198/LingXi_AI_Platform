@@ -527,7 +527,7 @@
             }"
           >
             <el-tooltip
-              content="工作流输入"
+              content="智能体输入"
               placement="top"
               :show-after="500"
               :hide-after="0"
@@ -540,10 +540,10 @@
               <Share />
             </el-icon>
             <div class="node-label" style="color: #7B68EE">
-              {{ nodeProps.data.label }}
+              智能体
             </div>
             <el-tooltip
-              content="工作流输出"
+              content="智能体输出"
               placement="bottom"
               :show-after="500"
               :hide-after="0"
@@ -555,11 +555,79 @@
           </div>
         </template>
 
+        <template #node-dynamic-input="nodeProps">
+          <div 
+            class="dynamic-input-node node-common"
+            :style="{
+              backgroundColor: '#f0f9ff',
+              borderColor: '#409EFF'
+            }"
+          >
+            <el-tooltip
+              content="动态输入"
+              placement="top"
+              :show-after="500"
+              :hide-after="0"
+              :effect="'light'"
+              popper-class="flow-handle-tooltip"
+            >
+              <Handle type="source" position="bottom" :style="{ background: '#409EFF' }" />
+            </el-tooltip>
+            <el-icon :size="20" color="#409EFF">
+              <Connection />
+            </el-icon>
+            <div class="node-label" style="color: #409EFF">
+              {{ nodeProps.data.label }}
+            </div>
+          </div>
+        </template>
+
+        <template #node-monitor="nodeProps">
+          <div 
+            class="monitor-node node-common"
+            :style="{
+              backgroundColor: '#fff0f0',
+              borderColor: '#F56C6C'
+            }"
+          >
+            <el-tooltip
+              content="监听输入"
+              placement="top"
+              :show-after="500"
+              :hide-after="0"
+              :effect="'light'"
+              popper-class="flow-handle-tooltip"
+            >
+              <Handle type="target" position="top" :style="{ background: '#F56C6C' }" />
+            </el-tooltip>
+            <el-icon :size="20" color="#F56C6C">
+              <View />
+            </el-icon>
+            <div class="node-label" style="color: #F56C6C">
+              {{ nodeProps.data.label }}
+            </div>
+            <el-tooltip
+              content="监听输出"
+              placement="bottom"
+              :show-after="500"
+              :hide-after="0"
+              :effect="'light'"
+              popper-class="flow-handle-tooltip"
+            >
+              <Handle type="source" position="bottom" :style="{ background: '#F56C6C' }" />
+            </el-tooltip>
+          </div>
+        </template>
+
         <Panel position="top-right" class="node-panel">
           <el-button-group>
             <el-button @click="addNode('input')" type="primary">
               <el-icon><Upload /></el-icon>
               输入节点
+            </el-button>
+            <el-button @click="addNode('dynamic-input')" type="primary">
+              <el-icon><Connection /></el-icon>
+              动态输入
             </el-button>
             <el-button @click="addNode('process')" type="success">
               <el-icon><Operation /></el-icon>
@@ -571,7 +639,11 @@
             </el-button>
             <el-button @click="addNode('workflow')" type="warning">
               <el-icon><Share /></el-icon>
-              工作流
+              智能体节点
+            </el-button>
+            <el-button @click="addNode('monitor')" type="danger">
+              <el-icon><View /></el-icon>
+              监听节点
             </el-button>
             <el-button @click="addNode('output')" type="danger">
               <el-icon><Download /></el-icon>
@@ -901,6 +973,88 @@
               </el-card>
             </template>
 
+            <!-- 监听节点配置 -->
+            <template v-if="nodeForm.type === 'monitor'">
+              <el-card shadow="never" class="form-card">
+              </el-card>
+            </template>
+
+            <!-- 智能体节点配置 -->
+            <template v-if="nodeForm.type === 'workflow'">
+              <el-card shadow="never" class="form-card">
+                <template #header>
+                  <div class="card-header">
+                    <span>智能体配置</span>
+                  </div>
+                </template>
+                <el-form-item label="我的" label-width="100px">
+                  <el-select 
+                    v-model="nodeForm.myAgents" 
+                    placeholder="请选择我的智能体"
+                    @change="handleAgentSelect('myAgents')"
+                  >
+                    <el-option
+                      v-for="agent in myAgentsList"
+                      :key="agent.id"
+                      :label="agent.name"
+                      :value="agent.id"
+                    />
+                  </el-select>
+                </el-form-item>
+                <el-form-item label="我关注的" label-width="100px">
+                  <el-select 
+                    v-model="nodeForm.followedAgents" 
+                    placeholder="请选择我关注的智能体"
+                    @change="handleAgentSelect('followedAgents')"
+                  >
+                    <el-option
+                      v-for="agent in followedAgentsList"
+                      :key="agent.id"
+                      :label="agent.name"
+                      :value="agent.id"
+                    />
+                  </el-select>
+                </el-form-item>
+              </el-card>
+            </template>
+
+            <!-- 动态输入节点配置 -->
+            <template v-if="nodeForm.type === 'dynamic-input'">
+              <el-card shadow="never" class="form-card">
+                <template #header>
+                  <div class="card-header">
+                    <span>动态输入配置</span>
+                  </div>
+                </template>
+                <el-form-item label="输入类型" label-width="100px">
+                  <el-select v-model="nodeForm.inputType">
+                    <el-option label="文本" value="text" />
+                    <el-option label="文件" value="file" />
+                    <el-option label="API" value="api" />
+                  </el-select>
+                </el-form-item>
+                <el-form-item v-if="nodeForm.inputType === 'text'" label="默认值" label-width="100px">
+                  <el-input v-model="nodeForm.defaultValue" placeholder="请输入默认值" />
+                </el-form-item>
+                <el-form-item v-if="nodeForm.inputType === 'file'" label="文件类型" label-width="100px">
+                  <el-select v-model="nodeForm.fileType">
+                    <el-option label="文本文件" value="text" />
+                    <el-option label="CSV文件" value="csv" />
+                    <el-option label="JSON文件" value="json" />
+                  </el-select>
+                </el-form-item>
+                <el-form-item v-if="nodeForm.inputType === 'api'" label="API地址" label-width="100px">
+                  <el-input v-model="nodeForm.apiUrl" placeholder="请输入API地址" />
+                </el-form-item>
+                <el-form-item v-if="nodeForm.inputType === 'api'" label="请求方法" label-width="100px">
+                  <el-select v-model="nodeForm.apiMethod">
+                    <el-option label="GET" value="get" />
+                    <el-option label="POST" value="post" />
+                  </el-select>
+                </el-form-item>
+              </el-card>
+            </template>
+
             <div class="form-actions">
               <el-button type="success" @click="updateNode">
                 <el-icon><Check /></el-icon>
@@ -983,7 +1137,8 @@ import {
   Delete,
   Plus,
   ChatDotRound,
-  Share
+  Share,
+  View
 } from '@element-plus/icons-vue'
 
 // 引入 Vue Flow 样式
@@ -1044,6 +1199,11 @@ const nodeForm = ref({
   // 大模型配置
   llmModel: 'LLaMA-3',
   llmPrompt: '',
+  // 监听节点配置
+  monitorType: 'all',
+  // 智能体配置
+  myAgents: [],
+  followedAgents: [],
 })
 
 // 添加表单引用
@@ -1113,6 +1273,19 @@ const processTypes = [
 // 添加 useVueFlow hook
 const { onPaneClick, updateNode: vueFlowUpdateNode, viewport } = useVueFlow()
 
+// 智能体列表数据
+const myAgentsList = ref([
+  { id: 1, name: '智能体1' },
+  { id: 2, name: '智能体2' },
+  { id: 3, name: '智能体3' }
+])
+
+const followedAgentsList = ref([
+  { id: 4, name: '关注智能体1' },
+  { id: 5, name: '关注智能体2' },
+  { id: 6, name: '关注智能体3' }
+])
+
 // 添加节点
 const addNode = (type) => {
   if (type === 'process') {
@@ -1125,7 +1298,10 @@ const addNode = (type) => {
     const position = findAvailablePosition()
     
     let nodeData = {
-      label: type === 'llm' ? '大模型' : type === 'workflow' ? '工作流' : type,
+      label: type === 'llm' ? '大模型' : 
+             type === 'workflow' ? '工作流' : 
+             type === 'monitor' ? '监听节点' :
+             type === 'dynamic-input' ? '动态输入' : type,
       type,
       description: '',
     }
@@ -1135,6 +1311,13 @@ const addNode = (type) => {
       nodeData = {
         ...nodeData,
         icon: 'Upload',
+        color: '#409EFF',
+        bgColor: '#f0f9ff'
+      }
+    } else if (type === 'dynamic-input') {
+      nodeData = {
+        ...nodeData,
+        icon: 'Connection',
         color: '#409EFF',
         bgColor: '#f0f9ff'
       }
@@ -1158,6 +1341,13 @@ const addNode = (type) => {
         icon: 'Share',
         color: '#7B68EE',
         bgColor: '#f0f0ff'
+      }
+    } else if (type === 'monitor') {
+      nodeData = {
+        ...nodeData,
+        icon: 'View',
+        color: '#F56C6C',
+        bgColor: '#fff0f0'
       }
     }
     
@@ -1323,6 +1513,11 @@ const handleNodeClick = (event) => {
     // 大模型配置
     llmModel: node.data?.llmModel || 'LLaMA-3',
     llmPrompt: node.data?.llmPrompt || '',
+    // 监听节点配置
+    monitorType: node.data?.monitorType || 'all',
+    // 智能体配置
+    myAgents: node.data?.myAgents || [],
+    followedAgents: node.data?.followedAgents || [],
   }
   
   // 保存原始数据
@@ -1338,94 +1533,110 @@ const updateNode = async () => {
   const node = elements.value.find(el => el.id === selectedNode.value)
   if (!node || !node.data) return
   
-  const processTypeLabels = {
-    'code': '代码处理',
-    'selector': '选择器',
-    'loop': '循环',
-    'intent': '意图识别',
-    'batch': '批处理',
-    'aggregate': '变量聚合'
-  }
-
-  const processTypeIcons = {
-    'code': 'Edit',
-    'selector': 'Select',
-    'loop': 'Refresh',
-    'intent': 'Connection',
-    'batch': 'DataLine',
-    'aggregate': 'Collection'
-  }
-
-  const processTypeColors = {
-    'code': { color: '#409EFF', bgColor: '#ecf5ff' },
-    'selector': { color: '#67C23A', bgColor: '#f0f9eb' },
-    'loop': { color: '#E6A23C', bgColor: '#fdf6ec' },
-    'intent': { color: '#F56C6C', bgColor: '#fef0f0' },
-    'batch': { color: '#909399', bgColor: '#f4f4f5' },
-    'aggregate': { color: '#9B59B6', bgColor: '#f9f0ff' }
-  }
+  // 保存原始的颜色和背景色
+  const originalColor = node.data.color
+  const originalBgColor = node.data.bgColor
   
   // 根据节点类型决定如何更新标签
   let newLabel = nodeForm.value.name || node.data.label
-  if (node.data.type === 'process' && nodeForm.value.processType) {
-    newLabel = processTypeLabels[nodeForm.value.processType]
-    // 更新图标和样式
-    const newIcon = processTypeIcons[nodeForm.value.processType]
-    const newColor = processTypeColors[nodeForm.value.processType].color
-    const newBgColor = processTypeColors[nodeForm.value.processType].bgColor
-    
-    // 创建一个新的节点数据对象，包含所有配置
-    const newNodeData = {
-      ...node.data,
-      ...nodeForm.value,
-      label: newLabel,
-      icon: newIcon,
-      color: newColor,
-      bgColor: newBgColor,
-      // 确保所有配置字段都被保存
-      name: nodeForm.value.name,
-      type: nodeForm.value.type,
-      description: nodeForm.value.description,
-      // 输入节点配置
-      inputType: nodeForm.value.inputType,
-      defaultValue: nodeForm.value.defaultValue,
-      fileType: nodeForm.value.fileType,
-      apiUrl: nodeForm.value.apiUrl,
-      apiMethod: nodeForm.value.apiMethod,
-      // 处理节点配置
-      processType: nodeForm.value.processType,
-      codeType: nodeForm.value.codeType,
-      codeContent: nodeForm.value.codeContent,
-      conditionType: nodeForm.value.conditionType,
-      conditionValue: nodeForm.value.conditionValue,
-      loopType: nodeForm.value.loopType,
-      loopCount: nodeForm.value.loopCount,
-      loopCondition: nodeForm.value.loopCondition,
-      intentType: nodeForm.value.intentType,
-      intentModel: nodeForm.value.intentModel,
-      batchSize: nodeForm.value.batchSize,
-      parallel: nodeForm.value.parallel,
-      aggregateType: nodeForm.value.aggregateType,
-      aggregateField: nodeForm.value.aggregateField,
-      // 输出节点配置
-      outputType: nodeForm.value.outputType,
-      fileFormat: nodeForm.value.fileFormat,
-      filePath: nodeForm.value.filePath,
-      // 选择器配置
-      ifCondition: nodeForm.value.ifCondition,
-      elseIfConditions: nodeForm.value.elseIfConditions,
-      elseCondition: nodeForm.value.elseCondition,
-      // 意图识别配置
-      intentConfigs: nodeForm.value.intentConfigs,
-      // 大模型配置
-      llmModel: nodeForm.value.llmModel,
-      llmPrompt: nodeForm.value.llmPrompt,
+  if (node.data.type === 'process') {
+    // 如果是代码处理节点，保持原始颜色
+    if (node.data.processType === 'code') {
+      const newNodeData = {
+        ...node.data,
+        ...nodeForm.value,
+        label: newLabel,
+        color: originalColor,
+        bgColor: originalBgColor
+      }
+      
+      vueFlowUpdateNode(node.id, {
+        data: newNodeData
+      })
+    } else {
+      // 其他处理节点类型的原有逻辑
+      const processTypeLabels = {
+        'selector': '选择器',
+        'loop': '循环',
+        'intent': '意图识别',
+        'batch': '批处理',
+        'aggregate': '变量聚合'
+      }
+
+      const processTypeIcons = {
+        'selector': 'Select',
+        'loop': 'Refresh',
+        'intent': 'Connection',
+        'batch': 'DataLine',
+        'aggregate': 'Collection'
+      }
+
+      const processTypeColors = {
+        'selector': { color: '#67C23A', bgColor: '#f0f9eb' },
+        'loop': { color: '#9B59B6', bgColor: '#f9f0ff' },
+        'intent': { color: '#FF6B6B', bgColor: '#fff0f0' },
+        'batch': { color: '#909399', bgColor: '#f4f4f5' },
+        'aggregate': { color: '#7B68EE', bgColor: '#f0f0ff' }
+      }
+      
+      // 创建一个新的节点数据对象，包含所有配置
+      const newNodeData = {
+        ...node.data,
+        ...nodeForm.value,
+        label: newLabel,
+        icon: processTypeIcons[nodeForm.value.processType],
+        color: processTypeColors[nodeForm.value.processType].color,
+        bgColor: processTypeColors[nodeForm.value.processType].bgColor,
+        // 确保所有配置字段都被保存
+        name: nodeForm.value.name,
+        type: nodeForm.value.type,
+        description: nodeForm.value.description,
+        // 输入节点配置
+        inputType: nodeForm.value.inputType,
+        defaultValue: nodeForm.value.defaultValue,
+        fileType: nodeForm.value.fileType,
+        apiUrl: nodeForm.value.apiUrl,
+        apiMethod: nodeForm.value.apiMethod,
+        // 处理节点配置
+        processType: nodeForm.value.processType,
+        codeType: nodeForm.value.codeType,
+        codeContent: nodeForm.value.codeContent,
+        conditionType: nodeForm.value.conditionType,
+        conditionValue: nodeForm.value.conditionValue,
+        loopType: nodeForm.value.loopType,
+        loopCount: nodeForm.value.loopCount,
+        loopCondition: nodeForm.value.loopCondition,
+        intentType: nodeForm.value.intentType,
+        intentModel: nodeForm.value.intentModel,
+        batchSize: nodeForm.value.batchSize,
+        parallel: nodeForm.value.parallel,
+        aggregateType: nodeForm.value.aggregateType,
+        aggregateField: nodeForm.value.aggregateField,
+        // 输出节点配置
+        outputType: nodeForm.value.outputType,
+        fileFormat: nodeForm.value.fileFormat,
+        filePath: nodeForm.value.filePath,
+        // 选择器配置
+        ifCondition: nodeForm.value.ifCondition,
+        elseIfConditions: nodeForm.value.elseIfConditions,
+        elseCondition: nodeForm.value.elseCondition,
+        // 意图识别配置
+        intentConfigs: nodeForm.value.intentConfigs,
+        // 大模型配置
+        llmModel: nodeForm.value.llmModel,
+        llmPrompt: nodeForm.value.llmPrompt,
+        // 监听节点配置
+        monitorType: nodeForm.value.monitorType,
+        // 智能体配置
+        myAgents: nodeForm.value.myAgents,
+        followedAgents: nodeForm.value.followedAgents,
+      }
+      
+      // 使用 Vue Flow 的 updateNode 方法更新节点
+      vueFlowUpdateNode(node.id, {
+        data: newNodeData
+      })
     }
-    
-    // 使用 Vue Flow 的 updateNode 方法更新节点
-    vueFlowUpdateNode(node.id, {
-      data: newNodeData
-    })
   } else {
     // 对于非处理节点，同样需要保存所有配置
     const newNodeData = {
@@ -1645,6 +1856,24 @@ const handleConnect = (params) => {
   // 检查源节点是否是选择器节点、循环节点或批处理节点
   const sourceNode = elements.value.find(el => el.id === params.source);
   if (sourceNode) {
+    if (sourceNode.data.processType === 'loop') {
+      // 如果是循环节点，需要检查连接点的ID
+      const handleId = params.sourceHandle;
+      if (!handleId || (handleId !== 'loop-entry' && handleId !== 'loop-exit' && handleId !== 'default')) {
+        ElMessage.warning('请选择有效的循环连接点');
+        return;
+      }
+      
+      // 检查目标节点
+      const targetNode = elements.value.find(el => el.id === params.target);
+      if (targetNode) {
+        // 如果源连接点是循环出口，不允许连接到循环入口
+        if (handleId === 'loop-exit' && params.targetHandle === 'loop-entry') {
+          ElMessage.warning('循环出口不能直接连接到循环入口');
+          return;
+        }
+      }
+    }
     if (sourceNode.data.processType === 'selector') {
       // 如果是选择器节点，需要检查连接点的ID
       const handleId = params.sourceHandle;
@@ -1776,13 +2005,76 @@ const saveWorkflow = async () => {
         panOnDragMode: 'free',
         touchAction: 'none'
       },
+      // 保存所有节点，包括完整的数据
       nodes: elements.value.filter(el => 
         el.type === 'input' || 
         el.type === 'process' || 
         el.type === 'output' ||
         el.type === 'llm' ||
-        el.type === 'workflow'
-      ),
+        el.type === 'workflow' ||
+        el.type === 'monitor' ||
+        el.type === 'dynamic-input'
+      ).map(node => ({
+        id: node.id,
+        type: node.type,
+        position: node.position,
+        data: {
+          // 基本信息
+          name: node.data.name,
+          type: node.data.type,
+          label: node.data.label,
+          description: node.data.description,
+          // 输入节点配置
+          inputType: node.data.inputType,
+          defaultValue: node.data.defaultValue,
+          fileType: node.data.fileType,
+          apiUrl: node.data.apiUrl,
+          apiMethod: node.data.apiMethod,
+          // 处理节点配置
+          processType: node.data.processType,
+          codeType: node.data.codeType,
+          codeContent: node.data.codeContent,
+          conditionType: node.data.conditionType,
+          conditionValue: node.data.conditionValue,
+          loopType: node.data.loopType,
+          loopCount: node.data.loopCount,
+          loopCondition: node.data.loopCondition,
+          intentType: node.data.intentType,
+          intentModel: node.data.intentModel,
+          batchSize: node.data.batchSize,
+          parallel: node.data.parallel,
+          aggregateType: node.data.aggregateType,
+          aggregateField: node.data.aggregateField,
+          // 输出节点配置
+          outputType: node.data.outputType,
+          fileFormat: node.data.fileFormat,
+          filePath: node.data.filePath,
+          // 选择器配置
+          ifCondition: node.data.ifCondition,
+          elseIfConditions: node.data.elseIfConditions,
+          elseCondition: node.data.elseCondition,
+          // 意图识别配置
+          intentConfigs: node.data.intentConfigs,
+          // 大模型配置
+          llmModel: node.data.llmModel,
+          llmPrompt: node.data.llmPrompt,
+          // 监听节点配置
+          monitorType: node.data.monitorType,
+          // 智能体配置
+          myAgents: node.data.myAgents,
+          followedAgents: node.data.followedAgents,
+          // 动态输入配置
+          dynamicInputType: node.data.inputType,
+          dynamicDefaultValue: node.data.defaultValue,
+          dynamicFileType: node.data.fileType,
+          dynamicApiUrl: node.data.apiUrl,
+          dynamicApiMethod: node.data.apiMethod,
+          // 样式配置
+          icon: node.data.icon,
+          color: node.data.color,
+          bgColor: node.data.bgColor
+        }
+      })),
       edges: elements.value.filter(el => el.type === 'smoothstep').map(edge => ({
         id: edge.id,
         source: edge.source,
@@ -1952,6 +2244,11 @@ const loadWorkflow = async (workflowId) => {
             // 大模型配置
             llmModel: node.data.llmModel || 'LLaMA-3',
             llmPrompt: node.data.llmPrompt || '',
+            // 监听节点配置
+            monitorType: node.data.monitorType || 'all',
+            // 智能体配置
+            myAgents: node.data.myAgents || [],
+            followedAgents: node.data.followedAgents || [],
           }
         })
       })
@@ -2066,6 +2363,15 @@ const addIntentConfig = () => {
 
 const removeIntentConfig = (index) => {
   nodeForm.value.intentConfigs.splice(index, 1)
+}
+
+// 添加智能体选择处理方法
+const handleAgentSelect = (type) => {
+  if (type === 'myAgents' && nodeForm.value.myAgents) {
+    nodeForm.value.followedAgents = null
+  } else if (type === 'followedAgents' && nodeForm.value.followedAgents) {
+    nodeForm.value.myAgents = null
+  }
 }
 </script>
 
@@ -3318,5 +3624,51 @@ const removeIntentConfig = (index) => {
 
 :deep(.vue-flow__node[data-type="workflow"] .vue-flow__handle) {
   background: #7B68EE;
+}
+
+.dynamic-input-node,
+.monitor-node {
+  padding: 10px 15px;
+  border-radius: 8px;
+  border: 2px solid;
+  min-width: 120px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  touch-action: none;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  cursor: move;
+}
+
+:deep(.vue-flow__node[data-type="dynamic-input"]) {
+  background: #f0f9ff;
+  border-color: #409EFF;
+}
+
+:deep(.vue-flow__node[data-type="monitor"]) {
+  background: #fff0f0;
+  border-color: #F56C6C;
+}
+
+:deep(.vue-flow__node[data-type="dynamic-input"] .el-icon),
+:deep(.vue-flow__node[data-type="dynamic-input"] .node-label) {
+  color: #409EFF;
+}
+
+:deep(.vue-flow__node[data-type="monitor"] .el-icon),
+:deep(.vue-flow__node[data-type="monitor"] .node-label) {
+  color: #F56C6C;
+}
+
+:deep(.vue-flow__node[data-type="dynamic-input"] .vue-flow__handle) {
+  background: #409EFF;
+}
+
+:deep(.vue-flow__node[data-type="monitor"] .vue-flow__handle) {
+  background: #F56C6C;
 }
 </style>

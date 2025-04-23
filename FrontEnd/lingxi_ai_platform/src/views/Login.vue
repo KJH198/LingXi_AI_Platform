@@ -112,6 +112,11 @@ const handleLogin = async () => {
       localStorage.setItem('token', data.token)  // 保存 token 到本地存储
       localStorage.setItem('userId', data.id) // 保存用户ID到本地存储
       
+      localStorage.removeItem('agentData')
+      localStorage.removeItem('selectedKnowledgeBases')
+      localStorage.removeItem('selectedWorkflowId')
+      localStorage.removeItem('selectedWorkflowName')
+      localStorage.removeItem('agentInitData')
       // 立即获取用户信息并存储
       try {
         const userInfoResponse = await fetch('/user/user_info/', {
