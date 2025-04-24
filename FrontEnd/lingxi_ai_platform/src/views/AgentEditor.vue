@@ -497,6 +497,7 @@ const restoreFromLocalStorage = (): void => {
   
   // 恢复agentData
   const storedAgentData = localStorage.getItem('agentData')
+  
   if (storedAgentData) {
     try {
       const parsedData = JSON.parse(storedAgentData)
@@ -533,6 +534,11 @@ const restoreFromLocalStorage = (): void => {
       }
 
       console.log('从localStorage恢复的数据:', parsedData)
+      const selectedWorkflowId = localStorage.getItem('selectedWorkflowId');
+      if (selectedWorkflowId && (!agentData.workflowId || agentData.workflowId === '')) {
+        agentData.workflowId = selectedWorkflowId;
+        console.log('从独立localStorage项恢复工作流ID:', selectedWorkflowId);
+      }
     } catch (e) {
       console.error('解析存储的智能体数据失败:', e)
     }
@@ -944,6 +950,12 @@ const handlePublish = async (): Promise<void> => {
       activeStep.value = 1
       return
     }
+
+    if (!agentData.workflowId) {
+      ElMessage.warning('请选择工作流')
+      activeStep.value = 2
+      return
+    }
     
     // 确认发布
     await ElMessageBox.confirm(
@@ -960,45 +972,33 @@ const handlePublish = async (): Promise<void> => {
       ElMessage.error('请先登录')
       return
     }
+
+    const publishData = {
+      name: agentData.name,
+      description: agentData.description,
+      modelId: agentData.modelId,
+      knowledgeBases: agentData.knowledgeBases,
+      workflowId: agentData.workflowId
+    }
     
     // 这里实现真正的发布逻辑
-    // const response = await fetch('/api/agent/publish', {
-    //   method: 'POST',
-    //   headers: {
-    //     'Content-Type': 'application/json',
-    //     'Authorization': `Bearer ${token}`
-    //   },
-    //   body: JSON.stringify(agentData)
-    // })
+    const response = await fetch('user/agent/publish/', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(publishData)
+    })
     
-    // if (!response.ok) {
-    //   throw new Error('发布智能体失败')
-    // }
-    
-    // const result = await response.json()
-    
-    // if (result.code === 200) {
-    //   ElMessage.success(`智能体"${agentData.name}"发布成功！`)
-    //   isPublished.value = true
-      
-    //   // 发布成功后，清除本地存储中的临时数据
-    //   clearLocalStorage()
-      
-    //   // 跳转到社区页面
-    //   router.push('/community')
-    // } else {
-    //   throw new Error(result.message || '发布智能体失败')
-    // }
-    
-    // 仅用于演示
+    if (!response.ok || response.status !== 200) {
+      throw new Error('发布智能体失败')
+    }
+
     ElMessage.success(`智能体"${agentData.name}"发布成功！`)
-    isPublished.value = true
-    
-    // 发布成功后，清除本地存储中的临时数据
-    clearLocalStorage()
-    
-    // 跳转到社区页面
+    clearLocalStorage() // 发布成功后清除本地存储中的临时数据
     router.push('/community')
+
   } catch (error) {
     if (error === 'cancel') return
     
