@@ -17,7 +17,8 @@ from .views import (
     UserActionLogView,
     SimpleBanView,
     UserSearchView,
-    UserLoginRecordView
+    UserLoginRecordView,
+    AgentPublishView
 )
 
 urlpatterns = [
@@ -43,4 +44,5 @@ urlpatterns = [
     path('admin/behavior_logs/', UserActionLogView.as_view(), name='behavior_logs'),
     path('search/', UserSearchView.as_view(), name='user_search'),
     path('admin/login_records/', UserLoginRecordView.as_view(), name='login_records'),
+    path('agent/publish/', AgentPublishView.as_view(), name='agent-publish'),
 ]

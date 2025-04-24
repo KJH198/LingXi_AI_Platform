@@ -124,15 +124,15 @@ class AIAgent(models.Model):
      created_at = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')
      updated_at = models.DateTimeField(auto_now=True, verbose_name='更新时间')
      is_active = models.BooleanField(default=True, verbose_name='是否激活')
- 
+
      class Meta:
          verbose_name = '智能体'
          verbose_name_plural = '智能体'
          ordering = ['-created_at']
- 
+
      def __str__(self):
          return f'{self.name} (by {self.creator.username})'
- 
+
 class AgentReview(models.Model):
     """智能体审核记录"""
     agent = models.ForeignKey(AIAgent, on_delete=models.CASCADE, related_name='reviews', verbose_name='智能体')
@@ -176,3 +176,50 @@ class UserActionLog(models.Model):
 
     def __str__(self):
         return f'{self.user.username} {self.get_action_display()} at {self.created_at}'
+
+class PublishedAgent(models.Model):
+    """已发布的智能体模型"""
+    STATUS_CHOICES = [
+        ('pending', '待审核'),
+        ('approved', '已通过'),
+        ('rejected', '已拒绝'),
+    ]
+    
+    name = models.CharField(max_length=100, verbose_name='智能体名称')
+    description = models.TextField(verbose_name='描述')
+    creator = models.ForeignKey(User, on_delete=models.CASCADE, related_name='published_agents', verbose_name='创建者')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending', verbose_name='审核状态')
+    review_notes = models.TextField(blank=True, null=True, verbose_name='审核意见')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='更新时间')
+    is_active = models.BooleanField(default=True, verbose_name='是否激活')
+    model_id = models.CharField(max_length=100, verbose_name='模型ID')
+    workflow_id = models.CharField(max_length=100, blank=True, null=True, verbose_name='工作流ID')
+    knowledge_bases = models.ManyToManyField('knowledge_base.KnowledgeBase', blank=True, verbose_name='知识库')
+    views = models.IntegerField(default=0, verbose_name='浏览量')
+    likes = models.IntegerField(default=0, verbose_name='点赞数')
+    comments = models.IntegerField(default=0, verbose_name='评论数')
+
+    class Meta:
+        verbose_name = '已发布智能体'
+        verbose_name_plural = '已发布智能体'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'{self.name} (by {self.creator.username})'
+
+class PublishedAgentReview(models.Model):
+    """已发布智能体审核记录"""
+    agent = models.ForeignKey(PublishedAgent, on_delete=models.CASCADE, related_name='reviews', verbose_name='智能体')
+    reviewer = models.ForeignKey(User, on_delete=models.CASCADE, related_name='published_agent_reviews', verbose_name='审核员')
+    decision = models.CharField(max_length=20, choices=[('approve', '通过'), ('reject', '拒绝')], verbose_name='审核决定')
+    notes = models.TextField(blank=True, null=True, verbose_name='审核意见')
+    reviewed_at = models.DateTimeField(auto_now_add=True, verbose_name='审核时间')
+
+    class Meta:
+        verbose_name = '已发布智能体审核记录'
+        verbose_name_plural = '已发布智能体审核记录'
+        ordering = ['-reviewed_at']
+
+    def __str__(self):
+        return f'{self.agent.name} review by {self.reviewer.username}'
