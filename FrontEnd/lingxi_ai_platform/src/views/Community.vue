@@ -7,8 +7,8 @@
           <h2>灵犀AI社区</h2>
           <el-menu mode="horizontal" :default-active="activeMenu">
             <el-menu-item index="1">首页</el-menu-item>
-            <el-menu-item index="2">热门</el-menu-item>
-            <el-menu-item index="3">最新</el-menu-item>
+            <el-menu-item index="2">热门智能体</el-menu-item>
+            <el-menu-item index="3">热门知识库</el-menu-item>
             <el-menu-item index="3" @click="showAnnouncementList">公告</el-menu-item>
           </el-menu>
         </div>
@@ -22,6 +22,7 @@
                 <el-dropdown-item @click="router.push('/profile')">个人中心</el-dropdown-item>
                 <el-dropdown-item @click="router.push('/my-posts')">我的帖子</el-dropdown-item>
                 <el-dropdown-item @click="router.push('/my-agents')">我的智能体</el-dropdown-item>
+                <el-dropdown-item @click="router.push('/my-agents')">我的知识库</el-dropdown-item>
                 <el-dropdown-item divided @click="handleLogout">退出登录</el-dropdown-item>
               </el-dropdown-menu>
             </template>
