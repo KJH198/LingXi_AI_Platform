@@ -182,6 +182,13 @@
             <span>{{ scope.row.content.slice(0, 50) }}...</span>
           </template>
         </el-table-column>
+        <el-table-column label="是否已读" width="100">
+          <template #default="scope">
+            <el-tag :type="scope.row.viewed ? 'success' : 'info'">
+              {{ scope.row.viewed ? '已读' : '未读' }}
+            </el-tag>
+          </template>
+        </el-table-column>
         <el-table-column label="操作" width="100">
           <template #default="scope">
             <el-button type="primary" size="small" @click="showAnnouncement(scope.row)">查看</el-button>
@@ -381,13 +388,17 @@ const posts = ref<Post[]>([
 
 // 公告数据
 const announcements = ref([
-  { id: 1, title: '系统维护通知', content: '系统将于本周六凌晨2:00-4:00进行维护升级。' },
-  { id: 2, title: '新功能上线', content: '我们上线了新的智能体编辑功能，快来体验吧！' },
+  { id: 1, title: '系统维护通知', content: '系统将于本周六凌晨2:00-4:00进行维护升级。', viewed: false },
+  { id: 2, title: '新功能上线', content: '我们上线了新的智能体编辑功能，快来体验吧！', viewed: false },
 ])
 
 const announcementListDialogVisible = ref(false)
 const announcementDialogVisible = ref(false)
 const selectedAnnouncement = reactive({ title: '', content: '' })
+
+const markAnnouncementAsViewed = (announcement) => {
+  announcement.viewed = true;
+};
 
 const showAnnouncementList = () => {
   announcementListDialogVisible.value = true
@@ -397,25 +408,22 @@ const showAnnouncement = (announcement) => {
   selectedAnnouncement.title = announcement.title
   selectedAnnouncement.content = announcement.content
   announcementDialogVisible.value = true
+  markAnnouncementAsViewed(announcement);
 }
 
 const checkNewAnnouncements = () => {
-  if (announcements.value.length > 0) {
+  const newAnnouncement = announcements.value.find((announcement) => !announcement.viewed);
+  if (newAnnouncement) {
     ElMessage({
       message: '有新的公告，点击查看！',
       type: 'info',
       duration: 5000,
       onClose: () => {
-        showAnnouncement(announcements.value[0])
+        showAnnouncement(newAnnouncement);
       },
-    })
+    });
   }
 }
-
-onMounted(() => {
-  fetchUserInfo()
-  checkNewAnnouncements()
-})
 
 // 发帖表单
 const postForm = reactive({

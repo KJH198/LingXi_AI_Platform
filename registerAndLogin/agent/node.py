@@ -2,6 +2,14 @@ from .models import Node
 from agent.llm import chat_with_condition, chat_with_aggregate, call_llm
 import types
 
+import requests
+import json
+import time
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+
+static_inputs = {} #全局变量，保存所有静态输入
+pending_inputs = {}  # 全局变量，存等待中的动态输入
 
 class BaseNode:
     def __init__(self, node: Node):
@@ -20,28 +28,110 @@ class InputNode(BaseNode):
         super().__init__(node)
         self.input_type = "文本"  # 暂未传入，先这么设吧
         self.default_value = "家里有两只猫和三只狗"
+        self.name = node.node_data.get('name', 'input')
 
     def run(self, inputs, node_dict, results, handle):
-        return self.default_value
+        print(f"读取静态输入: {self.name}")
+
+        # 从全局 static_inputs 字典取出对应输入
+        if self.name in static_inputs:
+            static_input = static_inputs[self.name]
+            print(f"静态输入 {self.name}: {static_input}")
+            return static_input
+        else:
+            print(f"未找到静态输入 {self.name}，返回默认空字符串")
+            return ''
+
+
+@csrf_exempt
+def submit_static_inputs(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            static_inputs.update(data)  # 更新到内存中
+            return JsonResponse({'status': 'ok'})
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=400)
+    else:
+        return JsonResponse({'error': 'Invalid request method'}, status=400)
 
 
 class DynamicInputNode(BaseNode):
     def __init__(self, node: Node):
         super().__init__(node)
+        self.name = node.node_data.get('name', 'dynamic-input')
 
     def run(self, inputs, node_dict, results, handle):
-        # 向前端请求输入
-        return # 来自前端的输入
+        print(f"等待前端输入: {self.name}")
+
+        # 第一步：主动通知前端，需要输入了
+        requests.post('', json={
+            'input_name': self.name
+        })
+
+        # 第二步：后端在这里等待前端发送输入
+        pending_inputs[self.name] = None  # 标记这个输入在等待中
+
+        while pending_inputs[self.name] is None:
+            time.sleep(0.5)  # 简单轮询等待
+
+        # 第三步：前端提交了，后端收到，继续执行
+        dynamic_input = pending_inputs.pop(self.name)
+        print(f"收到前端输入: {dynamic_input}")
+        return dynamic_input
+
+
+@csrf_exempt
+def submit_dynamic_input(request):
+    if request.method == 'POST':
+        data = json.loads(request.body)
+        input_name = data.get('input_name')
+        input_value = data.get('input_value')
+
+        if input_name in pending_inputs:
+            pending_inputs[input_name] = input_value
+            return JsonResponse({'status': 'ok'})
+        else:
+            return JsonResponse({'error': 'Input not pending'}, status=400)
+    else:
+        return JsonResponse({'error': 'Invalid request method'}, status=400)
 
 
 class OutputNode(BaseNode):
     def __init__(self, node: Node):
         super().__init__(node)
+        self.name = node.node_data.get('name', 'output')
 
     def run(self, inputs, node_dict, results, handle):
-        #print("输出")
-        #print(inputs)
+        send_output_to_frontend(self.name, inputs)
         return inputs
+
+
+class MonitorNode(BaseNode):
+    def __init__(self, node: Node):
+        super().__init__(node)
+        self.name = node.node_data.get('name', 'monitor')
+
+    def run(self, inputs, node_dict, results, handle):
+        send_output_to_frontend(self.name, inputs)
+        return inputs
+
+
+def send_output_to_frontend(node_name: str, output: any):
+    url = ""  # 替换成你们前端提供的接口地址
+    payload = {
+        "node_name": node_name,
+        "output": output
+    }
+    headers = {
+        "Content-Type": "application/json"
+    }
+    try:
+        response = requests.post(url, data=json.dumps(payload), headers=headers)
+        response.raise_for_status()
+        print(f"成功发送输出到前端: {node_name}")
+    except requests.RequestException as e:
+        print(f"发送输出到前端失败: {e}")
 
 
 class CodeNode(BaseNode):
@@ -191,13 +281,6 @@ class WorkflowNode(BaseNode):
     def run(self, inputs, node_dict, results, handle):
         return inputs
 
-
-class MonitorNode(BaseNode):
-    def __init__(self, node: Node):
-        super().__init__(node)
-
-    def run(self, inputs, node_dict, results, handle):
-        return inputs
 
 node_type_map = {
     "input": InputNode,

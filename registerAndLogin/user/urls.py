@@ -16,7 +16,9 @@ from .views import (
     AgentManagementView,
     UserActionLogView,
     SimpleBanView,
-    UserSearchView
+    UserSearchView,
+    UserLoginRecordView,
+    AgentPublishView
 )
 
 urlpatterns = [
@@ -39,5 +41,8 @@ urlpatterns = [
     path('admin/knowledge_base/', KnowledgeBaseView.as_view(), name='knowledge_base'),
     path('admin/knowledge_base/<int:kb_id>/', KnowledgeBaseView.as_view(), name='knowledge_base_detail'),
     path('admin/ban/<int:user_id>/', SimpleBanView.as_view(), name='simple_ban'),
+    path('admin/behavior_logs/', UserActionLogView.as_view(), name='behavior_logs'),
     path('search/', UserSearchView.as_view(), name='user_search'),
+    path('admin/login_records/', UserLoginRecordView.as_view(), name='login_records'),
+    path('agent/publish/', AgentPublishView.as_view(), name='agent-publish'),
 ]

@@ -15,6 +15,7 @@ from rest_framework.parsers import MultiPartParser, FormParser
 import os
 from django.conf import settings
 import time
+from .models import PublishedAgent
 
 @csrf_exempt
 def register(request):
@@ -338,6 +339,43 @@ class AgentRatingView(APIView):
             return Response({
                 'message': '评价成功',
                 'rating_id': rating_obj.id
+            })
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def get(self, request):
+        """获取智能体列表"""
+        try:
+            # 验证管理员权限
+            if not request.user.is_staff:
+                return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
+
+            from .models import AIAgent
+
+            # 获取查询参数
+            status_filter = request.query_params.get('status', 'pending')
+
+            # 查询智能体列表
+            agents = AIAgent.objects.filter(status=status_filter)
+
+            # 构造返回数据
+            data = [
+                {
+                    'id': agent.id,
+                    'name': agent.name,
+                    'creator': agent.creator.username,
+                    'status': agent.status,
+                    'created_at': agent.created_at.strftime('%Y-%m-%d %H:%M:%S')
+                }
+                for agent in agents
+            ]
+
+            return Response({
+                'agents': data,
+                'total': agents.count(),
+                'pending_count': AIAgent.objects.filter(status='pending').count(),
+                'approved_count': AIAgent.objects.filter(status='approved').count(),
+                'rejected_count': AIAgent.objects.filter(status='rejected').count()
             })
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -901,90 +939,55 @@ class UserActionLogView(APIView):
     """用户行为日志视图"""
 
     def get(self, request):
+        """用户行为日志视图"""
+        try:
+            # 验证管理员权限
+            if not request.user.is_staff:
+                return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
 
-        # 验证管理员权限
+            from .models import UserActionLog
+            from django.db.models import Q
 
-        if not request.user.is_staff:
+            # 获取查询参数
+            user_id = request.query_params.get('user_id')
+            action = request.query_params.get('action')
+            start_date = request.query_params.get('start_date')
+            end_date = request.query_params.get('end_date')
 
-            return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
+            # 构建查询条件
+            query = Q()
+            if user_id and user_id != 'undefined':
+                query &= Q(user_id=user_id)
+            if action and action != 'undefined':
+                query &= Q(action=action)
+            if start_date and start_date != 'undefined':
+                query &= Q(created_at__gte=start_date)
+            if end_date and end_date != 'undefined':
+                query &= Q(created_at__lte=end_date)
 
-        
+            # 获取日志记录
+            logs = UserActionLog.objects.filter(query).order_by('-created_at')
 
-        from .models import UserActionLog
+            # 返回日志数据
+            data = [
+                {
+                    'id': log.id,
+                    'user': log.user.username if log.user else '未知用户',
+                    'action': log.get_action_display() if hasattr(log, 'get_action_display') else log.action,
+                    'target_id': log.target_id,
+                    'target_type': log.target_type,
+                    'ip_address': log.ip_address,
+                    'created_at': log.created_at.strftime('%Y-%m-%d %H:%M:%S')
+                }
+                for log in logs
+            ]
 
-        from django.db.models import Q
-
-        
-
-        # 获取查询参数
-
-        user_id = request.query_params.get('user_id')
-
-        action = request.query_params.get('action')
-
-        start_date = request.query_params.get('start_date')
-
-        end_date = request.query_params.get('end_date')
-
-        
-
-        # 构建查询条件
-
-        query = Q()
-
-        if user_id:
-
-            query &= Q(user_id=user_id)
-
-        if action:
-
-            query &= Q(action=action)
-
-        if start_date:
-
-            query &= Q(created_at__gte=start_date)
-
-        if end_date:
-
-            query &= Q(created_at__lte=end_date)
-
-        
-
-        # 获取日志记录
-
-        logs = UserActionLog.objects.filter(query).order_by('-created_at')
-
-        
-
-        # 返回日志数据
-
-        data = [{
-
-            'id': log.id,
-
-            'user': log.user.username,
-
-            'action': log.get_action_display(),
-
-            'target_id': log.target_id,
-
-            'target_type': log.target_type,
-
-            'ip_address': log.ip_address,
-
-            'created_at': log.created_at
-
-        } for log in logs]
-
-        
-
-        return Response({
-
-            'logs': data,
-
-            'total': logs.count()
-
-        })
+            return Response({
+                'logs': data,
+                'total': logs.count()
+            })
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 
@@ -1063,3 +1066,110 @@ class UserSearchView(APIView):
             'data': serializer.data
 
         })
+
+class UserLoginRecordView(APIView):
+    """用户登录记录视图"""
+
+    def get(self, request):
+        try:
+            # 验证管理员权限
+            if not request.user.is_staff:
+                return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
+
+            from .models import User
+
+            # 查询所有用户信息
+            users = User.objects.all()
+
+            # 构造返回数据
+            data = [
+                {
+                    'id': user.id,
+                    'username': user.username,
+                    'last_login': user.last_login.strftime('%Y-%m-%d %H:%M:%S') if user.last_login else None,
+                    'is_active': user.is_active,
+                    'email': user.email,
+                    'phone_number': user.phone_number,
+                    'created_at': user.created_at.strftime('%Y-%m-%d %H:%M:%S') if user.created_at else None
+                }
+                for user in users
+            ]
+
+            return Response({
+                'records': data,
+                'total': users.count()
+            })
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class AgentPublishView(APIView):
+    """智能体发布视图"""
+    
+    def post(self, request):
+        """发布智能体"""
+        try:
+            print("收到发布智能体请求")
+            print("请求数据:", request.data)
+            
+            # 获取请求数据
+            data = request.data
+            name = data.get('name')
+            description = data.get('description')
+            model_id = data.get('modelId')
+            knowledge_bases = data.get('knowledgeBases', [])
+            workflow_id = data.get('workflowId')
+            
+            print("解析的数据:")
+            print(f"名称: {name}")
+            print(f"描述: {description}")
+            print(f"模型ID: {model_id}")
+            print(f"知识库: {knowledge_bases}")
+            print(f"工作流ID: {workflow_id}")
+            
+            # 验证必填字段
+            if not all([name, model_id]):
+                print("缺少必要字段")
+                return Response({
+                    'code': 400,
+                    'message': '缺少必要字段',
+                    'data': None
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # 创建智能体
+            print("开始创建智能体")
+            agent = PublishedAgent.objects.create(
+                name=name,
+                description=description,
+                creator=request.user,
+                status='pending',  # 默认为待审核状态
+                model_id=model_id,
+                workflow_id=workflow_id
+            )
+            print(f"智能体创建成功，ID: {agent.id}")
+            
+            # 添加知识库关联
+            if knowledge_bases:
+                print("添加知识库关联")
+                agent.knowledge_bases.set(knowledge_bases)
+            
+            # 返回成功响应
+            response_data = {
+                'code': 200,
+                'message': '智能体发布成功，等待审核',
+                'data': {
+                    'id': agent.id,
+                    'name': agent.name,
+                    'status': agent.status,
+                    'created_at': agent.created_at
+                }
+            }
+            print("返回响应:", response_data)
+            return Response(response_data)
+            
+        except Exception as e:
+            print("发布失败，错误:", str(e))
+            return Response({
+                'code': 500,
+                'message': f'发布失败：{str(e)}',
+                'data': None
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
