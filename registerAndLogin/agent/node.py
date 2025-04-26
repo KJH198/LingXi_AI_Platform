@@ -1,5 +1,6 @@
 from .models import Node
 from agent.llm import chat_with_condition, chat_with_aggregate, call_llm
+import types
 
 
 class BaseNode:
@@ -18,10 +19,19 @@ class InputNode(BaseNode):
     def __init__(self, node: Node):
         super().__init__(node)
         self.input_type = "文本"  # 暂未传入，先这么设吧
-        self.default_value = ""
+        self.default_value = "家里有两只猫和三只狗"
 
     def run(self, inputs, node_dict, results, handle):
         return self.default_value
+
+
+class DynamicInputNode(BaseNode):
+    def __init__(self, node: Node):
+        super().__init__(node)
+
+    def run(self, inputs, node_dict, results, handle):
+        # 向前端请求输入
+        return # 来自前端的输入
 
 
 class OutputNode(BaseNode):
@@ -29,19 +39,42 @@ class OutputNode(BaseNode):
         super().__init__(node)
 
     def run(self, inputs, node_dict, results, handle):
-        print("输出")
-        print(inputs)
+        #print("输出")
+        #print(inputs)
         return inputs
 
 
 class CodeNode(BaseNode):
     def __init__(self, node: Node):
         super().__init__(node)
+        self.code_content = node.node_data.get('codeContent', '')
 
     def run(self, inputs, node_dict, results, handle):
-        code = self.data.get("code", "")
-        print(f"[CodeNode] 执行代码块:\n{code}")
-        # ⚠️ 后期可加 exec 安全沙箱执行逻辑
+        print(inputs)
+        try:
+            # 准备执行环境
+            local_env = {}
+            # 执行用户代码
+            exec(self.code_content, {}, local_env)
+
+            # 找出用户写的函数（第一个是 function 的变量）
+            user_func = None
+            for val in local_env.values():
+                if isinstance(val, types.FunctionType):
+                    user_func = val
+                    break
+
+            if user_func is None:
+                raise ValueError("未检测到用户定义的函数")
+
+            # 执行用户函数
+            result = user_func(inputs)
+
+            return result
+
+        except Exception as e:
+            return f"执行代码节点时出错：{e}"
+
 
 
 class SelectorNode(BaseNode):
@@ -121,8 +154,8 @@ class BatchNode(BaseNode):
 
     def run(self, inputs, node_dict, results, handle):
         self.inputs = inputs
-        print("批处理")
-        print(inputs)
+        # print("批处理")
+        # print(inputs)
         return inputs
         # ⚠️ 可用于并发/批量处理
 
@@ -159,8 +192,16 @@ class WorkflowNode(BaseNode):
         return inputs
 
 
+class MonitorNode(BaseNode):
+    def __init__(self, node: Node):
+        super().__init__(node)
+
+    def run(self, inputs, node_dict, results, handle):
+        return inputs
+
 node_type_map = {
     "input": InputNode,
+    "dynamic-input": DynamicInputNode,
     "output": OutputNode,
     "code": CodeNode,
     "selector": SelectorNode,
@@ -170,6 +211,7 @@ node_type_map = {
     "aggregate": AggregateNode,
     "llm": LLMNode,
     "workflow": WorkflowNode,
+    "monitor": MonitorNode,
 }
 
 def build_node_instance(node_model_instance):
@@ -215,7 +257,7 @@ def execute_node(node_id, node_dict, results, source_handle=None):
 
     output = node_instance.run(inputs, node_dict, results, source_handle)
 
-    if loop_pred:
+    if loop_pred and node_instance.type == 'loop':
         if node_instance.loop_type == 'fixed':
             for i in range(node_instance.loop_count):
                 output = execute_loop(loop_pred['source'], node_dict, results, output)
@@ -225,21 +267,56 @@ def execute_node(node_id, node_dict, results, source_handle=None):
                 output = execute_loop(loop_pred['source'], node_dict, results, output)
                 loop_counter += 1
 
+    if loop_pred and node_instance.type == 'batch':
+        output = execute_batch(loop_pred['source'], node_dict, results, output)
 
     results[cache_key] = output
     return output
 
+def execute_batch(current_id, node_dict, results, inputs):
+    current_node = node_dict[current_id]
+
+    for pred in current_node.predecessors:
+        pred_id = pred['source']
+        pred_handle = pred['sourceHandle']
+        if pred_handle == 'batch-entry':
+            # 找到批处理入口，使用 inputs 执行该入口节点
+            # print(f"[Entry] 执行 {current_node.type} {current_id}")
+            outputs = []
+            for single_input in inputs:
+                # print("这是一条输入")
+                # print(single_input)
+                output = current_node.run(single_input, node_dict, results, pred_handle)
+                outputs.append(output)
+            cache_key = (current_id, pred_handle)
+            results[cache_key] = outputs
+            return outputs
+
+        else:
+            # 先递归执行上一个节点（一路向上）
+            prev_output = execute_batch(pred_id, node_dict, results, inputs)
+            # 再用上一个节点的输出执行当前节点
+            # print(f"[Loop Step] 执行 {current_node.type} {current_id}")
+            outputs = []
+            for single_prev_input in prev_output:
+                # print("这是一条输入")
+                # print(single_prev_input)
+                output = current_node.run(single_prev_input, node_dict, results, pred_handle)
+                outputs.append(output)
+            cache_key = (current_id, pred_handle)
+            results[cache_key] = outputs
+            return outputs
+
+    return None
+
 def execute_loop(current_id, node_dict, results, inputs):
-    """
-    沿着 batch 的循环路径向上执行所有节点，直到遇到 batch-entry。
-    """
     current_node = node_dict[current_id]
 
     for pred in current_node.predecessors:
         pred_id = pred['source']
         pred_handle = pred['sourceHandle']
 
-        if pred_handle == 'batch-entry' or pred_handle == 'loop-entry':
+        if pred_handle == pred_handle == 'loop-entry':
             # 找到批处理入口，使用 inputs 执行该入口节点
             print(f"[Entry] 执行 {current_node.type} {current_id}")
             output = current_node.run(inputs, node_dict, results, pred_handle)

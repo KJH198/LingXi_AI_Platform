@@ -10,6 +10,7 @@ registerAndLogin/media/
 registerAndLogin/manage.py
 registerAndLogin/agent/__pycache__/
 registerAndLogin/agent/migrations/
+FrontEnd/lingxi_ai_platform/dist/
 nohup.out
 .history
 .idea
