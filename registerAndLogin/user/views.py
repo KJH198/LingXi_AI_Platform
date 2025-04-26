@@ -381,6 +381,194 @@ class AgentRatingView(APIView):
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+class UserListAPIView(APIView):
+    """获取用户列表接口"""
+    def get(self, request):
+        # 验证管理员权限
+        if not request.user.is_staff:
+            return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
+        
+        users = User.objects.all()
+        user_data = []
+        for user in users:
+            user_dict = {
+                'id': str(user.id),
+                'username': user.username,
+                'register_time': user.created_at.strftime('%Y-%m-%dT%H:%M:%SZ'),
+                'violation_type': user.ban_reason.split(':')[0] if user.ban_reason else None,
+                'status': 'banned' if not user.is_active else 'normal',
+                'ip_address': user.last_login_ip if hasattr(user, 'last_login_ip') else None,
+                'device': user.last_login_device if hasattr(user, 'last_login_device') else None
+            }
+            user_data.append(user_dict)
+        
+        return Response({'users': user_data})
+
+class UserDetailAPIView(APIView):
+    """获取用户详情接口"""
+    def get(self, request, user_id):
+        # 验证管理员权限
+        if not request.user.is_staff:
+            return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
+        
+        try:
+            user = User.objects.get(id=user_id)
+            return Response({
+                'id': str(user.id),
+                'username': user.username,
+                'register_time': user.created_at.strftime('%Y-%m-%dT%H:%M:%SZ'),
+                'last_login_time': user.last_login.strftime('%Y-%m-%dT%H:%M:%SZ') if user.last_login else None,
+                'violation_type': user.ban_reason.split(':')[0] if user.ban_reason else None,
+                'status': 'banned' if not user.is_active else 'normal',
+                'ip_address': user.last_login_ip if hasattr(user, 'last_login_ip') else None,
+                'device': user.last_login_device if hasattr(user, 'last_login_device') else None
+            })
+        except User.DoesNotExist:
+            return Response({'error': '用户不存在'}, status=status.HTTP_404_NOT_FOUND)
+
+class UserOperationRecordsView(APIView):
+    """获取用户操作记录接口"""
+    def get(self, request):
+        # 验证管理员权限
+        if not request.user.is_staff:
+            return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
+        
+        from django.core.paginator import Paginator
+        from .models import UserActionLog
+        
+        # 获取查询参数
+        user_id = request.query_params.get('user_id')
+        page = request.query_params.get('page', 1)
+        page_size = request.query_params.get('page_size', 20)
+        
+        # 构建查询条件
+        queryset = UserActionLog.objects.all().order_by('-created_at')
+        if user_id:
+            queryset = queryset.filter(user_id=user_id)
+        
+        # 分页处理
+        paginator = Paginator(queryset, page_size)
+        try:
+            records_page = paginator.page(page)
+        except:
+            records_page = paginator.page(1)
+        
+        # 构造返回数据
+        records = []
+        for log in records_page:
+            records.append({
+                'id': log.id,
+                'user_id': log.user.id,
+                'username': log.user.username,
+                'operation_time': log.created_at.strftime('%Y-%m-%dT%H:%M:%SZ'),
+                'operation_type': log.get_action_display(),
+                'operation_content': f"{log.user.username} {log.get_action_display()}",
+                'ip_address': log.ip_address,
+                'target_id': log.target_id,
+                'target_type': log.target_type
+            })
+        
+        return Response({
+            'records': records,
+            'total': paginator.count,
+            'page': records_page.number,
+            'page_size': int(page_size),
+            'page_count': paginator.num_pages
+        })
+
+class UserAbnormalBehaviorsView(APIView):
+    """获取用户异常行为接口"""
+    def get(self, request):
+        # 验证管理员权限
+        if not request.user.is_staff:
+            return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
+        
+        from django.core.paginator import Paginator
+        from .models import AbnormalBehavior
+        
+        # 获取查询参数
+        user_id = request.query_params.get('user_id')
+        abnormal_type = request.query_params.get('type')
+        page = request.query_params.get('page', 1)
+        page_size = request.query_params.get('page_size', 20)
+        handled = request.query_params.get('handled')
+        
+        # 构建查询条件
+        queryset = AbnormalBehavior.objects.all().order_by('-abnormal_time')
+        if user_id:
+            queryset = queryset.filter(user_id=user_id)
+        if abnormal_type:
+            queryset = queryset.filter(abnormal_type=abnormal_type)
+        if handled:
+            queryset = queryset.filter(is_handled=handled.lower() == 'true')
+        
+        # 分页处理
+        paginator = Paginator(queryset, page_size)
+        try:
+            records_page = paginator.page(page)
+        except:
+            records_page = paginator.page(1)
+        
+        # 构造返回数据
+        records = []
+        for behavior in records_page:
+            records.append({
+                'user_id': str(behavior.user.id),
+                'username': behavior.user.username,
+                'abnormal_time': behavior.abnormal_time.strftime('%Y-%m-%dT%H:%M:%SZ'),
+                'abnormal_type': behavior.abnormal_type,
+                'abnormal_type_display': behavior.get_abnormal_type_display(),
+                'description': behavior.description,
+                'ip_address': behavior.ip_address,
+                'is_handled': behavior.is_handled,
+                'handled_by': behavior.handled_by.username if behavior.handled_by else None,
+                'handled_at': behavior.handled_at.strftime('%Y-%m-%dT%H:%M:%SZ') if behavior.handled_at else None
+            })
+        
+        return Response({
+            'records': records,
+            'total': paginator.count,
+            'page': records_page.number,
+            'page_size': int(page_size),
+            'page_count': paginator.num_pages
+        })
+
+class UserBehaviorStatsView(APIView):
+    """获取用户行为统计数据接口"""
+    def get(self, request):
+        # 验证管理员权限
+        if not request.user.is_staff:
+            return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
+        
+        # 模拟统计数据
+        return Response({
+            'today_logins': 15,
+            'avg_login_duration': 12.5,
+            'abnormal_logins': 3
+        })
+
+class UserBehaviorLogsView(APIView):
+    """获取用户行为日志接口"""
+    def get(self, request, user_id):
+        # 验证管理员权限
+        if not request.user.is_staff:
+            return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
+        
+        # 模拟行为日志数据
+        logs = [{
+            'id': '1',
+            'action': 'login',
+            'target_id': None,
+            'target_type': None,
+            'ip_address': '192.168.1.1',
+            'created_at': '2025-04-20T10:00:00Z'
+        }]
+        
+        return Response({
+            'logs': logs,
+            'total': len(logs)
+        })
+
 class KnowledgeBaseView(APIView):
     """知识库管理"""
     def post(self, request):

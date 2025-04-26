@@ -176,3 +176,32 @@ class UserActionLog(models.Model):
 
     def __str__(self):
         return f'{self.user.username} {self.get_action_display()} at {self.created_at}'
+
+class AbnormalBehavior(models.Model):
+    """用户异常行为记录"""
+    ABNORMAL_TYPES = [
+        ('frequent_login', '频繁登录'),
+        ('suspicious_activity', '可疑操作'),
+        ('content_violation', '内容违规'),
+        ('spam', '垃圾信息'),
+        ('other', '其他异常')
+    ]
+    
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='abnormal_behaviors', verbose_name='用户')
+    abnormal_time = models.DateTimeField(auto_now_add=True, verbose_name='异常时间')
+    abnormal_type = models.CharField(max_length=50, choices=ABNORMAL_TYPES, verbose_name='异常类型')
+    description = models.TextField(verbose_name='异常描述')
+    ip_address = models.GenericIPAddressField(blank=True, null=True, verbose_name='IP地址')
+    is_handled = models.BooleanField(default=False, verbose_name='是否已处理')
+    handled_by = models.ForeignKey(User, on_delete=models.SET_NULL, blank=True, null=True,
+                                 related_name='handled_behaviors', verbose_name='处理人')
+    handled_at = models.DateTimeField(blank=True, null=True, verbose_name='处理时间')
+    handled_notes = models.TextField(blank=True, null=True, verbose_name='处理意见')
+
+    class Meta:
+        verbose_name = '异常行为记录'
+        verbose_name_plural = '异常行为记录'
+        ordering = ['-abnormal_time']
+
+    def __str__(self):
+        return f'{self.user.username} {self.get_abnormal_type_display()} at {self.abnormal_time}'

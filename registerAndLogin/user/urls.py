@@ -17,7 +17,13 @@ from .views import (
     UserActionLogView,
     SimpleBanView,
     UserSearchView,
-    UserLoginRecordView
+    UserLoginRecordView,
+    UserListAPIView,
+    UserDetailAPIView,
+    UserOperationRecordsView,
+    UserAbnormalBehaviorsView,
+    UserBehaviorStatsView,
+    UserBehaviorLogsView
 )
 
 urlpatterns = [
@@ -41,6 +47,14 @@ urlpatterns = [
     path('admin/knowledge_base/<int:kb_id>/', KnowledgeBaseView.as_view(), name='knowledge_base_detail'),
     path('admin/ban/<int:user_id>/', SimpleBanView.as_view(), name='simple_ban'),
     path('admin/behavior_logs/', UserActionLogView.as_view(), name='behavior_logs'),
+    path('admin/operation_records', UserOperationRecordsView.as_view(), name='admin_operation_records'),
     path('search/', UserSearchView.as_view(), name='user_search'),
     path('admin/login_records/', UserLoginRecordView.as_view(), name='login_records'),
+    
+    # 新增管理员接口路由
+    path('api/admin/user/list/', UserListAPIView.as_view(), name='admin_user_list'),
+    path('api/admin/user/<str:user_id>/', UserDetailAPIView.as_view(), name='admin_user_detail'),
+    path('admin/abnormal_behaviors', UserAbnormalBehaviorsView.as_view(), name='admin_abnormal_behaviors'),
+    path('api/admin/user/behavior_stats/', UserBehaviorStatsView.as_view(), name='admin_behavior_stats'),
+    path('api/admin/user/behavior_logs/<str:user_id>/', UserBehaviorLogsView.as_view(), name='admin_behavior_logs'),
 ]
