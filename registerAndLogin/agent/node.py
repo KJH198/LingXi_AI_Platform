@@ -1,4 +1,4 @@
-from .models import Node
+from .models import Node,Workflow
 from agent.llm import chat_with_condition, chat_with_aggregate, call_llm
 import types
 
@@ -26,8 +26,6 @@ class BaseNode:
 class InputNode(BaseNode):
     def __init__(self, node: Node):
         super().__init__(node)
-        self.input_type = "文本"  # 暂未传入，先这么设吧
-        self.default_value = "家里有两只猫和三只狗"
         self.name = node.node_data.get('name', 'input')
 
     def run(self, inputs, node_dict, results, handle):
@@ -48,7 +46,23 @@ def submit_static_inputs(request):
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
-            static_inputs.update(data)  # 更新到内存中
+            inputs = data.get('inputs', [])
+            print(inputs)
+            workflow_id = data.get('workflowId')
+
+            # 存储静态输入到内存中
+            for item in inputs:
+                name = item.get('name')
+                value = item.get('value')
+                if name is not None:
+                    static_inputs[name] = value
+
+            # 获取工作流对象
+            workflow = Workflow.objects.get(id=workflow_id, user_id=request.user.id)
+
+            # 调用工作流执行函数
+            run_workflow_from_output_node(workflow)
+
             return JsonResponse({'status': 'ok'})
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=400)
@@ -85,8 +99,8 @@ class DynamicInputNode(BaseNode):
 def submit_dynamic_input(request):
     if request.method == 'POST':
         data = json.loads(request.body)
-        input_name = data.get('input_name')
-        input_value = data.get('input_value')
+        input_name = data.get('input')
+        input_value = data.get('variables')
 
         if input_name in pending_inputs:
             pending_inputs[input_name] = input_value
@@ -103,6 +117,7 @@ class OutputNode(BaseNode):
         self.name = node.node_data.get('name', 'output')
 
     def run(self, inputs, node_dict, results, handle):
+        print(inputs)
         send_output_to_frontend(self.name, inputs)
         return inputs
 
