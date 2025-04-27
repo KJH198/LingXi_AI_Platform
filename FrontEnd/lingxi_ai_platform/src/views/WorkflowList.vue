@@ -271,11 +271,21 @@ const emit = defineEmits(['update:workflowId'])
 watch(() => props.active, (newVal) => {
   console.log('WorkflowList active 属性变化:', newVal)
   if (newVal) {
-    fetchWorkflows()
-    // 从localStorage获取选中的工作流ID
-    currentSelectedWorkflowId.value = localStorage.getItem('selectedWorkflowId') || null
+    fetchWorkflows().then(() => {
+      // 获取当前工作流ID - 优先使用父组件传入的值
+      currentSelectedWorkflowId.value = props.workflowId || localStorage.getItem('selectedWorkflowId') || null
+      console.log('恢复选中的工作流ID:', currentSelectedWorkflowId.value)
+    })
   }
-}, { immediate: true }) // 立即执行一次，如果初始值为 true 则加载数据
+}, { immediate: true })
+
+// 添加对 workflowId prop 的监听，确保当父组件传递新值时更新选中状态
+watch(() => props.workflowId, (newVal) => {
+  if (newVal) {
+    currentSelectedWorkflowId.value = newVal
+    console.log('通过 props 更新选中的工作流ID:', currentSelectedWorkflowId.value)
+  }
+}, { immediate: true })
 </script>
 
 <style scoped>
