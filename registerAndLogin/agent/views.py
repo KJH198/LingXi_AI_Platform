@@ -176,7 +176,7 @@ class DeleteWorkflowView(APIView):
 class GetInputCountView(APIView):
     def get(self, request, workflow_id):  # 改成 get
         try:
-            workflow = Workflow.objects.get(id=workflow_id, user_id=request.user.id)
+            workflow = Workflow.objects.get(id=workflow_id)
             nodes = Node.objects.filter(workflow=workflow, node_type='input')
             node_count = nodes.count()
 
