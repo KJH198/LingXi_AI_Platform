@@ -2014,7 +2014,6 @@ const saveWorkflow = async () => {
         minZoom: 0.2,
         maxZoom: 4,
         snapToGrid: true,
-        snapGrid: [15, 15],
         panOnDrag: true,
         panOnScroll: true,
         zoomOnScroll: true,
@@ -2038,7 +2037,7 @@ const saveWorkflow = async () => {
         position: node.position,
         data: {
           // 基本信息
-          name: node.data.name,
+          name: node.data.label, // 使用 label 作为 name，因为它包含了数字后缀
           type: node.data.type,
           label: node.data.label,
           description: node.data.description,
@@ -2184,8 +2183,6 @@ const loadWorkflow = async (workflowId) => {
       
       // 恢复画布配置
       if (workflowData.canvasConfig) {
-        // 注意：这些配置在VueFlow组件初始化时已经设置，这里不需要再次设置
-        // 但我们可以保存这些配置以供将来使用
         console.log('画布配置已加载:', workflowData.canvasConfig)
       }
       
@@ -2220,7 +2217,7 @@ const loadWorkflow = async (workflowId) => {
           position: node.position,
           data: {
             // 基本信息
-            name: node.data.name,
+            name: node.data.label, // 使用 label 作为 name，因为它包含了数字后缀
             type: node.data.type,
             label: node.data.label,
             description: node.data.description,
@@ -2253,12 +2250,8 @@ const loadWorkflow = async (workflowId) => {
             ifCondition: node.data.ifCondition || '',
             elseIfConditions: node.data.elseIfConditions || [],
             elseCondition: node.data.elseCondition || '',
-            // 动态生成的样式配置
-            icon: node.data.icon,
-            color: node.data.color,
-            bgColor: node.data.bgColor,
             // 意图识别配置
-            intentConfigs: node.data.intentConfigs,
+            intentConfigs: node.data.intentConfigs || [],
             // 大模型配置
             llmModel: node.data.llmModel || 'LLaMA-3',
             llmPrompt: node.data.llmPrompt || '',
@@ -2267,6 +2260,10 @@ const loadWorkflow = async (workflowId) => {
             // 智能体配置
             myAgents: node.data.myAgents || [],
             followedAgents: node.data.followedAgents || [],
+            // 样式配置
+            icon: icon,
+            color: color,
+            bgColor: bgColor
           }
         })
       })
@@ -2284,7 +2281,7 @@ const loadWorkflow = async (workflowId) => {
         })
       })
       
-      ElMessage.success('工作流 '+ workflowData.name +' 加载成功')
+      ElMessage.success('工作流加载成功')
     } else {
       throw new Error(result.message || '加载工作流失败')
     }
