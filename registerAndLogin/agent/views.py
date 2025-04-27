@@ -171,3 +171,32 @@ class DeleteWorkflowView(APIView):
                 'code': 404,
                 'message': '该工作流不存在或无权限删除'
             })
+
+
+class GetInputCountView(APIView):
+    def get(self, request, workflow_id):  # 改成 get
+        try:
+            workflow = Workflow.objects.get(id=workflow_id)
+            nodes = Node.objects.filter(workflow=workflow, node_type='input')
+            node_count = nodes.count()
+
+            node_names = []
+            for node in nodes:
+                node_data = node.node_data or {}
+                name = node_data.get('name', 'input')
+                node_names.append(name)
+
+            data = {
+                'node_count': node_count,
+                'node_names': node_names
+            }
+            return Response({
+                "code": 200,
+                "message": "查询成功",  # 改了
+                "data": data
+            })
+        except Workflow.DoesNotExist:
+            return Response({
+                'code': 404,
+                'message': '该工作流不存在'
+            })

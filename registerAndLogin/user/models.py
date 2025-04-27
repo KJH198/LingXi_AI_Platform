@@ -207,19 +207,3 @@ class PublishedAgent(models.Model):
 
     def __str__(self):
         return f'{self.name} (by {self.creator.username})'
-
-class PublishedAgentReview(models.Model):
-    """已发布智能体审核记录"""
-    agent = models.ForeignKey(PublishedAgent, on_delete=models.CASCADE, related_name='reviews', verbose_name='智能体')
-    reviewer = models.ForeignKey(User, on_delete=models.CASCADE, related_name='published_agent_reviews', verbose_name='审核员')
-    decision = models.CharField(max_length=20, choices=[('approve', '通过'), ('reject', '拒绝')], verbose_name='审核决定')
-    notes = models.TextField(blank=True, null=True, verbose_name='审核意见')
-    reviewed_at = models.DateTimeField(auto_now_add=True, verbose_name='审核时间')
-
-    class Meta:
-        verbose_name = '已发布智能体审核记录'
-        verbose_name_plural = '已发布智能体审核记录'
-        ordering = ['-reviewed_at']
-
-    def __str__(self):
-        return f'{self.agent.name} review by {self.reviewer.username}'

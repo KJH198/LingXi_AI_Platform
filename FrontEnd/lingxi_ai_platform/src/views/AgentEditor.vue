@@ -147,6 +147,7 @@
                 >
                   <div class="message-avatar">
                     <el-avatar :size="36" :src="message.role === 'user' ? userAvatar : defaultAgentAvatar"></el-avatar>
+                    <div v-if="message.role === 'assistant'" class="output-port-name">output</div>
                   </div>
                   <div class="message-content">
                     <div class="message-text" v-html="formatMessage(message.content)"></div>
@@ -156,6 +157,7 @@
                 <div v-if="isGenerating" class="bot-message message">
                   <div class="message-avatar">
                     <el-avatar :size="36" :src="defaultAgentAvatar"></el-avatar>
+                    <div class="output-port-name">output</div>
                   </div>
                   <div class="message-content">
                     <div class="typing-indicator">
@@ -165,51 +167,89 @@
                     </div>
                   </div>
                 </div>
+                <!-- 动态输入提示 -->
+                <div v-if="waitingForDynamicInput" class="dynamic-input-prompt">
+                  <div class="message-avatar">
+                    <el-avatar :size="36" :src="defaultAgentAvatar"></el-avatar>
+                    <div class="output-port-name">output</div>
+                  </div>
+                  <div class="message-content">
+                    <div class="dynamic-input-title">等待输入</div>
+                    <div class="dynamic-input-vars">
+                      <el-tag v-for="(varName, index) in dynamicInputVars" :key="index" type="info">
+                        {{ varName }}
+                      </el-tag>
+                    </div>
+                  </div>
+                </div>
               </div>
               
-              <div class="chat-input">
-                <el-input
-                  v-model="userInput"
-                  type="textarea"
-                  :rows="3"
-                  placeholder="输入消息，测试智能体的回复..."
-                  :disabled="isGenerating"
-                  @keydown.enter.prevent="handleSendMessage"
-                ></el-input>
-                <el-button
-                  type="primary"
-                  icon="Position"
-                  :disabled="!userInput.trim() || isGenerating"
-                  @click="handleSendMessage"
-                >
-                  发送
-                </el-button>
+              <!-- 输入区域容器 -->
+              <div class="input-container">
+                <!-- 动态输入区域 -->
+                <div v-if="waitingForDynamicInput" class="dynamic-input">
+                  <el-input
+                    v-model="dynamicInputValue"
+                    type="textarea"
+                    :rows="3"
+                    :placeholder="`请输入${dynamicInputVars.join('、')}`"
+                  ></el-input>
+                  <el-button
+                    type="primary"
+                    icon="Position"
+                    :disabled="!dynamicInputValue.trim()"
+                    @click="handleDynamicInput"
+                  >
+                    发送
+                  </el-button>
+                </div>
+                
+                <!-- 普通输入区域 -->
+                <div v-else class="chat-input">
+                  <el-input
+                    v-model="userInput"
+                    type="textarea"
+                    :rows="3"
+                    placeholder="输入消息，测试智能体的回复..."
+                    :disabled="isGenerating"
+                    @keydown.enter.prevent="handleSendMessage"
+                  ></el-input>
+                  <el-button
+                    type="primary"
+                    icon="Position"
+                    :disabled="!userInput.trim() || isGenerating"
+                    @click="handleSendMessage"
+                  >
+                    发送
+                  </el-button>
+                </div>
               </div>
             </div>
             
-            <div class="debug-panel">
-              <h4>调试面板</h4>
-              <el-tabs v-model="debugTab">
-                <el-tab-pane label="请求详情" name="request">
-                  <div class="debug-content">
-                    <pre>{{ JSON.stringify(lastRequest, null, 2) }}</pre>
-                  </div>
-                </el-tab-pane>
-                <el-tab-pane label="响应详情" name="response">
-                  <div class="debug-content">
-                    <pre>{{ JSON.stringify(lastResponse, null, 2) }}</pre>
-                  </div>
-                </el-tab-pane>
-                <el-tab-pane label="调用日志" name="logs">
-                  <div class="debug-content logs">
-                    <div v-for="(log, index) in modelLogs" :key="index" class="log-item">
-                      <span class="log-time">{{ log.time }}</span>
-                      <span :class="['log-type', `log-type-${log.type}`]">{{ log.type }}</span>
-                      <span class="log-message">{{ log.message }}</span>
-                    </div>
-                  </div>
-                </el-tab-pane>
-              </el-tabs>
+            <!-- 静态输入区域（移到右侧） -->
+            <div v-if="staticInputs.length > 0" class="static-inputs-panel">
+              <div class="static-inputs-header">
+                <h4>静态输入</h4>
+                <el-button 
+                  type="primary" 
+                  size="small"
+                  :disabled="!hasStaticInputValues"
+                  @click="handleSendStaticInputs"
+                >
+                  发送所有静态输入
+                </el-button>
+              </div>
+              <div class="static-inputs-content">
+                <div v-for="(input, index) in staticInputs" :key="index" class="static-input-item">
+                  <div class="static-input-label">{{ input.name }}</div>
+                  <el-input
+                    v-model="input.value"
+                    type="textarea"
+                    :rows="2"
+                    :placeholder="`请输入${input.name}`"
+                  ></el-input>
+                </div>
+              </div>
             </div>
           </div>
           
@@ -459,6 +499,70 @@ const previewLoading = ref(false)
 const knowledgeBases = ref<KnowledgeBase[]>([])
 const selectedKnowledgeBases = ref<string[]>([])
 
+// 静态输入相关
+interface StaticInput {
+  name: string;
+  value: string;
+}
+
+const staticInputs = ref<StaticInput[]>([])
+
+// 动态输入相关
+const waitingForDynamicInput = ref(false)
+const dynamicInputVars = ref<string[]>([])
+const dynamicInputValue = ref('')
+
+// 计算是否有静态输入值
+const hasStaticInputValues = computed(() => {
+  return staticInputs.value.some(input => input.value.trim() !== '')
+})
+
+// 发送所有静态输入
+const handleSendStaticInputs = async () => {
+  if (!hasStaticInputValues.value) return
+  
+  try {
+    const token = localStorage.getItem('token')
+    if (!token) {
+      ElMessage.error('请先登录')
+      return
+    }
+    
+    const response = await fetch('/agent/staticInput', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        workflowId: agentData.workflowId,
+        inputs: staticInputs.value.map(input => ({
+          name: input.name,
+          value: input.value
+        }))
+      })
+    })
+    
+    if (!response.ok) {
+      throw new Error('发送静态输入失败')
+    }
+    
+    const result = await response.json()
+    if (result.code === 200) {
+      ElMessage.success('静态输入发送成功')
+      // 清空所有静态输入
+      staticInputs.value.forEach(input => {
+        input.value = ''
+      })
+    } else {
+      throw new Error(result.message || '发送静态输入失败')
+    }
+  } catch (error) {
+    console.error('发送静态输入失败:', error)
+    ElMessage.error('发送静态输入失败')
+  }
+}
+
 // 监听步骤变化，当切换到知识库配置步骤时获取最新数据
 watch(activeStep, (newStep) => {
   if (newStep === 2) { // 2是知识库配置的步骤索引
@@ -620,7 +724,102 @@ const updateWorkflowId = (workflowId: string) => {
   saveToLocalStorage() // 更新工作流后立即保存
 }
 
-// 聊天预览功能
+// 获取静态输入配置
+const fetchStaticInputs = async () => {
+  if (!agentData.workflowId) return
+  
+  try {
+    const response = await fetch(`/agent/staticInputCount/${agentData.workflowId}`)
+    if (!response.ok) {
+      throw new Error('获取静态输入配置失败')
+    }
+    
+    const result = await response.json()
+    if (result.code === 200) {
+      // 根据后端返回的数据结构处理
+      const { node_count, node_names } = result.data
+      staticInputs.value = node_names.map((name: string) => ({
+        name: name,
+        value: ''
+      }))
+      console.log('获取静态输入配置成功:', staticInputs.value)
+    } else {
+      throw new Error(result.message || '获取静态输入配置失败')
+    }
+  } catch (error) {
+    console.error('获取静态输入配置失败:', error)
+    ElMessage.error('获取静态输入配置失败')
+  }
+}
+
+// 处理动态输入
+const handleDynamicInput = async () => {
+  if (!dynamicInputValue.value.trim()) return
+  
+  try {
+    const token = localStorage.getItem('token')
+    if (!token) {
+      ElMessage.error('请先登录')
+      return
+    }
+    
+    const response = await fetch('/agent/dynamicInput', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        workflowId: agentData.workflowId,
+        input: dynamicInputValue.value,
+        variables: dynamicInputVars.value
+      })
+    })
+    
+    if (!response.ok) {
+      throw new Error('发送动态输入失败')
+    }
+    
+    const result = await response.json()
+    if (result.code === 200) {
+      // 添加用户输入到聊天记录
+      chatMessages.value.push({
+        role: 'user',
+        content: dynamicInputValue.value,
+        time: new Date().toLocaleTimeString()
+      })
+      
+      // 重置动态输入状态
+      dynamicInputValue.value = ''
+      waitingForDynamicInput.value = false
+      dynamicInputVars.value = []
+      
+      // 继续处理响应
+      handleResponse(result.data)
+    }
+  } catch (error) {
+    console.error('发送动态输入失败:', error)
+    ElMessage.error('发送动态输入失败')
+  }
+}
+
+// 处理响应
+const handleResponse = (response: any) => {
+  if (response.requiresDynamicInput) {
+    // 需要动态输入
+    waitingForDynamicInput.value = true
+    dynamicInputVars.value = response.requiredVariables
+  } else {
+    // 普通响应
+    chatMessages.value.push({
+      role: 'assistant',
+      content: response.content,
+      time: new Date().toLocaleTimeString()
+    })
+  }
+}
+
+// 修改handleSendMessage函数
 const handleSendMessage = async () => {
   if (!userInput.value.trim() || isGenerating.value) return
   
@@ -646,7 +845,11 @@ const handleSendMessage = async () => {
   lastRequest.value = {
     messages: [...chatMessages.value.map(m => ({ role: m.role, content: m.content }))],
     model: agentData.modelId,
-    params: agentData.modelParams
+    params: agentData.modelParams,
+    staticInputs: staticInputs.value.map(input => ({
+      name: input.name,
+      value: input.value
+    }))
   }
   
   // 添加日志
@@ -654,69 +857,43 @@ const handleSendMessage = async () => {
   
   // 模拟生成回复
   isGenerating.value = true
-  setTimeout(async () => {
-    // 生成回复
-    const botReply = generateResponse(inputText)
-    
-    // 添加AI回复
-    const botMessage: ChatMessage = {
-      role: 'assistant',
-      content: botReply,
-      time: new Date().toLocaleTimeString()
+  try {
+    const token = localStorage.getItem('token')
+    if (!token) {
+      throw new Error('请先登录')
     }
-    chatMessages.value.push(botMessage)
     
-    // 记录响应
-    lastResponse.value = {
-      content: botReply,
-      usage: {
-        prompt_tokens: inputText.length * 2,
-        completion_tokens: botReply.length * 1.5,
-        total_tokens: inputText.length * 2 + botReply.length * 1.5
+    const response = await fetch('/agent/chat', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
       },
-      finish_reason: 'stop'
+      body: JSON.stringify({
+        workflowId: agentData.workflowId,
+        message: inputText,
+        staticInputs: staticInputs.value.map(input => ({
+          name: input.name,
+          value: input.value
+        }))
+      })
+    })
+    
+    if (!response.ok) {
+      throw new Error('发送消息失败')
     }
     
-    // 添加日志
-    addLog('success', '收到模型回复，长度: ' + botReply.length)
-    
+    const result = await response.json()
+    if (result.code === 200) {
+      handleResponse(result.data)
+    } else {
+      throw new Error(result.message || '发送消息失败')
+    }
+  } catch (error) {
+    console.error('发送消息失败:', error)
+    ElMessage.error('发送消息失败')
+  } finally {
     isGenerating.value = false
-    
-    // 滚动到底部
-    await nextTick()
-    if (chatMessagesRef.value) {
-      chatMessagesRef.value.scrollTop = chatMessagesRef.value.scrollHeight
-    }
-  }, 1500)
-}
-
-// 模拟生成响应
-const generateResponse = (input: string): string => {
-  if (input.toLowerCase().includes('hello') || input.includes('你好')) {
-    return `你好！我是${agentData.name || '智能助手'}，${agentData.description || '很高兴为您服务'}。
-    
-有什么我可以帮助您的吗？`;
-  } else if (input.includes('功能') || input.includes('你能做什么')) {
-    return `作为${agentData.name || '智能助手'}，我可以为您提供以下帮助：
-
-- 回答各类问题，提供信息和建议
-${agentData.knowledgeBases.length > 0 ? '- 基于知识库回答专业问题' : ''}
-${agentData.workflowId ? '- 执行定制工作流，处理多步骤任务' : ''}
-- 进行日常对话，提供信息和建议
-
-请随时告诉我您需要什么样的帮助，我会尽力满足您的需求。`;
-  } else {
-    return `感谢您的提问！我会尽力为您提供有用的信息和帮助。
-
-您的问题很有趣，根据我的理解，您想了解关于"${input.substring(0, 20)}..."的信息。这是一个很好的问题！
-
-${agentData.knowledgeBases.length > 0 ? '我已经查阅了相关知识库，' : ''}根据我掌握的信息，这个主题涉及多个方面：
-
-1. 首先，我们需要了解基本概念和背景
-2. 其次，考虑实际应用场景和最佳实践
-3. 最后，可能存在的挑战和解决方案
-
-如果您能提供更具体的信息或疑问，我可以给您更有针对性的回答。`;
   }
 }
 
@@ -1047,6 +1224,13 @@ onMounted(() => {
   window.addEventListener('beforeunload', () => {
     saveToLocalStorage()
   })
+  
+  // 监听步骤变化，当切换到预览与调试步骤时获取静态输入配置
+  watch(activeStep, (newStep) => {
+    if (newStep === 4) { // 4是预览与调试的步骤索引
+      fetchStaticInputs()
+    }
+  })
 })
 </script>
 
@@ -1206,7 +1390,7 @@ onMounted(() => {
 /* 预览与调试样式 */
 .preview-container {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr 300px;
   gap: 20px;
   height: 500px;
 }
@@ -1217,6 +1401,7 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  background-color: #fff;
 }
 
 .chat-header {
@@ -1249,7 +1434,17 @@ onMounted(() => {
 }
 
 .message-avatar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
   margin: 0 8px;
+}
+
+.output-port-name {
+  font-size: 12px;
+  color: #909399;
+  text-align: center;
 }
 
 .message-content {
@@ -1443,5 +1638,101 @@ onMounted(() => {
 .empty-preview {
   padding: 40px 0;
   text-align: center;
+}
+
+/* 动态输入提示样式 */
+.dynamic-input-prompt {
+  display: flex;
+  margin-bottom: 16px;
+  background-color: #f0f9eb;
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.dynamic-input-title {
+  font-weight: bold;
+  margin-bottom: 8px;
+  color: #67c23a;
+}
+
+.dynamic-input-vars {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* 静态输入区域样式 */
+.static-inputs-panel {
+  border: 1px solid #dcdfe6;
+  border-radius: 4px;
+  display: flex;
+  flex-direction: column;
+  background-color: #fff;
+  overflow: hidden;
+}
+
+.static-inputs-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background-color: #f5f7fa;
+  border-bottom: 1px solid #dcdfe6;
+}
+
+.static-inputs-header h4 {
+  margin: 0;
+  font-size: 14px;
+  color: #606266;
+}
+
+.static-inputs-content {
+  padding: 16px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1;
+}
+
+.static-input-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.static-input-label {
+  font-size: 14px;
+  color: #606266;
+}
+
+/* 输入区域容器样式 */
+.input-container {
+  display: flex;
+  flex-direction: column;
+  background-color: #fff;
+  border-top: 1px solid #dcdfe6;
+}
+
+/* 动态输入区域样式 */
+.dynamic-input {
+  padding: 16px;
+  display: flex;
+  gap: 12px;
+}
+
+.dynamic-input .el-input {
+  flex: 1;
+}
+
+/* 普通输入区域样式 */
+.chat-input {
+  padding: 16px;
+  display: flex;
+  gap: 12px;
+}
+
+.chat-input .el-input {
+  flex: 1;
 }
 </style>

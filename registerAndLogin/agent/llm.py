@@ -22,6 +22,9 @@ chatgpt = OpenAI(
 claude = chatgpt
 
 def chat_with_condition(condition: str, input_text: str) -> bool:
+    if isinstance(input_text, list):
+        input_text = "\n".join(map(str, input_text))
+
     system_prompt = f"""你是一个判断助手，负责根据输入信息判断是否满足条件。判断条件是：“{condition}”。请只回答“是”或“否”。"""
 
     response = deepseek.chat.completions.create(
@@ -38,6 +41,9 @@ def chat_with_condition(condition: str, input_text: str) -> bool:
     return reply.startswith("是")
 
 def chat_with_aggregate(aggregate_type: str, aggregate_field: str, input_text: str):
+    if isinstance(input_text, list):
+        input_text = "\n".join(map(str, input_text))
+    print(input_text)
     system_prompt = f"""你是一个聚合助手，负责将“{input_text}”按照“{aggregate_field}”求“{aggregate_type}”。输出聚合结果，只输出一个数字"""
 
     response = deepseek.chat.completions.create(
@@ -75,9 +81,9 @@ def call_llm(model_type: str, system_prompt: str, input_text: str) -> str:
         raise ValueError(f"Unsupported model type: {model_type}")
 
     if isinstance(input_text, list):
-        input_text = ''.join(input_text)
+        input_text = "\n".join(map(str, input_text))
     if isinstance(system_prompt, list):
-        system_prompt = ''.join(system_prompt)
+        system_prompt = "\n".join(map(str, system_prompt))
 
     # print(client)
     # print(model)
@@ -90,7 +96,6 @@ def call_llm(model_type: str, system_prompt: str, input_text: str) -> str:
             {"role": "user", "content": input_text}
         ]
     )
-    print(response)
     reply = response.choices[0].message.content.strip()
-    print(reply)
+    # print(reply)
     return reply
