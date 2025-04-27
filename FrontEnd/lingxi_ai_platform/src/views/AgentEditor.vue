@@ -546,13 +546,10 @@ const handleSendStaticInputs = async () => {
       })
     })
     
-    if (!response.ok) {
-      throw new Error('发送静态输入失败')
-    }
-    
     const result = await response.json()
-    console.log('发送静态输入结果:', result)
-    if (result.code === 200) {
+    
+    // 检查响应状态
+    if (response.ok && result.status === 'ok') {
       ElMessage.success('静态输入发送成功')
       // 清空所有静态输入
       staticInputs.value.forEach(input => {
@@ -563,7 +560,7 @@ const handleSendStaticInputs = async () => {
     }
   } catch (error) {
     console.error('发送静态输入失败:', error)
-    ElMessage.error('发送静态输入失败')
+    ElMessage.error(error instanceof Error ? error.message : '发送静态输入失败')
   }
 }
 
