@@ -2,7 +2,8 @@ from .models import Node,Workflow
 from agent.llm import chat_with_condition, chat_with_aggregate, call_llm
 import types
 
-import requests
+import websockets
+import asyncio
 import json
 import time
 from django.http import JsonResponse
@@ -118,7 +119,7 @@ class OutputNode(BaseNode):
 
     def run(self, inputs, node_dict, results, handle):
         print(inputs)
-        send_output_to_frontend(self.name, inputs)
+        asyncio.run(send_output_to_frontend(self.name, inputs))
         return inputs
 
 
@@ -128,24 +129,21 @@ class MonitorNode(BaseNode):
         self.name = node.node_data.get('name', 'monitor')
 
     def run(self, inputs, node_dict, results, handle):
-        send_output_to_frontend(self.name, inputs)
+        asyncio.run(send_output_to_frontend(self.name, inputs))
         return inputs
 
 
-def send_output_to_frontend(node_name: str, output: any):
-    url = ""  # 替换成你们前端提供的接口地址
+async def send_output_to_frontend(node_name: str, output: any):
+    uri = "ws://localhost:8000/ws/node_output"
     payload = {
         "node_name": node_name,
         "output": output
     }
-    headers = {
-        "Content-Type": "application/json"
-    }
     try:
-        response = requests.post(url, data=json.dumps(payload), headers=headers)
-        response.raise_for_status()
-        print(f"成功发送输出到前端: {node_name}")
-    except requests.RequestException as e:
+        async with websockets.connect(uri) as websocket:
+            await websocket.send(json.dumps(payload))
+            print(f"成功发送输出到前端: {node_name}")
+    except Exception as e:
         print(f"发送输出到前端失败: {e}")
 
 

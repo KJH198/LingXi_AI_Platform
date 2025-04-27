@@ -1219,6 +1219,17 @@ const nodeCount = computed(() => elements.value.filter(el =>
 ).length)
 const edgeCount = computed(() => elements.value.filter(el => el.type === 'smoothstep').length)
 
+// 节点类型计数器
+const nodeTypeCounters = ref({
+  input: 0,
+  'dynamic-input': 0,
+  process: 0,
+  llm: 0,
+  workflow: 0,
+  monitor: 0,
+  output: 0
+})
+
 const processTypes = [
   {
     value: 'code',
@@ -1297,11 +1308,15 @@ const addNode = (type) => {
     const id = `${type}-${Date.now()}`
     const position = findAvailablePosition()
     
+    // 增加对应类型的计数器
+    nodeTypeCounters.value[type]++
+    
     let nodeData = {
-      label: type === 'llm' ? '大模型' : 
-             type === 'workflow' ? '工作流' : 
-             type === 'monitor' ? '监听节点' :
-             type === 'dynamic-input' ? '动态输入' : type,
+      label: type === 'llm' ? `大模型 ${nodeTypeCounters.value[type]}` : 
+             type === 'workflow' ? `工作流 ${nodeTypeCounters.value[type]}` : 
+             type === 'monitor' ? `监听节点 ${nodeTypeCounters.value[type]}` :
+             type === 'dynamic-input' ? `动态输入 ${nodeTypeCounters.value[type]}` : 
+             `${type} ${nodeTypeCounters.value[type]}`,
       type,
       description: '',
     }
@@ -1365,12 +1380,15 @@ const confirmAddProcessNode = () => {
   if (pendingProcessNode.value) {
     const selectedType = processTypes.find(type => type.value === selectedProcessType.value)
     
+    // 增加处理节点的计数器
+    nodeTypeCounters.value.process++
+    
     elements.value.push({
       id: pendingProcessNode.value.id,
       type: 'process',
       position: pendingProcessNode.value.position,
       data: {
-        label: selectedType.label,
+        label: `${selectedType.label} ${nodeTypeCounters.value.process}`,
         type: 'process',
         description: selectedType.description,
         processType: selectedType.value,
