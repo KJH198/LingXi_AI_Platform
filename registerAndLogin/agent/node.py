@@ -8,6 +8,8 @@ import json
 import time
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
+from channels.layers import get_channel_layer
+from asgiref.sync import async_to_sync
 
 static_inputs = {} #全局变量，保存所有静态输入
 pending_inputs = {}  # 全局变量，存等待中的动态输入
@@ -134,15 +136,20 @@ class MonitorNode(BaseNode):
 
 
 async def send_output_to_frontend(node_name: str, output: any):
-    uri = "ws://localhost:8000/ws/node_output"
+    channel_layer = get_channel_layer()
     payload = {
         "node_name": node_name,
         "output": output
     }
     try:
-        async with websockets.connect(uri) as websocket:
-            await websocket.send(json.dumps(payload))
-            print(f"成功发送输出到前端: {node_name}")
+        await channel_layer.group_send(
+            "node_output",
+            {
+                "type": "node.output",
+                "message": payload
+            }
+        )
+        print(f"成功发送输出到前端: {node_name} : {output}")
     except Exception as e:
         print(f"发送输出到前端失败: {e}")
 

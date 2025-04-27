@@ -26,10 +26,12 @@ INSTALLED_APPS = [
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
+    'daphne',  # 必须在staticfiles之前
     'django.contrib.staticfiles',
     'corsheaders',
     'rest_framework',
     'drf_yasg',
+    'channels',
     'user',
     'agent',
     'knowledge_base'
@@ -52,7 +54,9 @@ CORS_ORIGIN_WHITELIST = (
     'http://localhost:8000',
     'http://127.0.0.1:3000',  # 添加前端开发服务器地址
     'http://localhost:3000',   # 添加前端开发服务器地址
-    'http://122.9.37.3:8000'   # 添加云服务器地址
+    'http://122.9.37.3:8000',   # 添加云服务器地址
+    'ws://localhost:8000',     # 添加WebSocket连接
+    'ws://127.0.0.1:8000'      # 添加WebSocket连接
 )
 
 # 允许所有跨域请求（仅用于开发环境）
@@ -104,6 +108,16 @@ TEMPLATES = [
         },
     },
 ]
+
+# 配置ASGI应用
+ASGI_APPLICATION = 'registerAndLogin.asgi.application'
+
+# 配置Channels层
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels.layers.InMemoryChannelLayer'
+    }
+}
 
 WSGI_APPLICATION = 'registerAndLogin.wsgi.application'
 
@@ -200,4 +214,93 @@ SIMPLE_JWT = {
     'USER_ID_CLAIM': 'user_id',
     'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt.tokens.AccessToken',),
     'TOKEN_TYPE_CLAIM': 'token_type',
+}
+
+# 配置CORS
+CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+    "ws://localhost:8000",
+    "ws://127.0.0.1:8000",
+]
+
+CORS_ALLOW_METHODS = [
+    'DELETE',
+    'GET',
+    'OPTIONS',
+    'PATCH',
+    'POST',
+    'PUT',
+]
+
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+]
+
+# 日志配置
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': True,  # 禁用所有现有日志记录器
+    'formatters': {
+        'simple': {
+            'format': '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'simple',
+        },
+    },
+    'loggers': {
+        'django.channels.server': {
+            'handlers': [],
+            'level': 'CRITICAL',
+            'propagate': False,
+        },
+        'django.channels': {
+            'handlers': [],
+            'level': 'CRITICAL',
+            'propagate': False,
+        },
+        'daphne': {
+            'handlers': [],
+            'level': 'CRITICAL',
+            'propagate': False,
+        },
+        'channels': {
+            'handlers': [],
+            'level': 'CRITICAL',
+            'propagate': False,
+        },
+        'asyncio': {
+            'handlers': [],
+            'level': 'CRITICAL',
+            'propagate': False,
+        },
+        'websockets': {
+            'handlers': [],
+            'level': 'CRITICAL',
+            'propagate': False,
+        },
+        'django': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'WARNING',
+    },
 }

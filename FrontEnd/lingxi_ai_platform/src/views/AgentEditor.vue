@@ -551,6 +551,7 @@ const handleSendStaticInputs = async () => {
     }
     
     const result = await response.json()
+    console.log('发送静态输入结果:', result)
     if (result.code === 200) {
       ElMessage.success('静态输入发送成功')
       // 清空所有静态输入
@@ -1214,7 +1215,7 @@ onMounted(() => {
   console.log('AgentEditor 组件已挂载，开始初始化数据')
   
   // 建立 WebSocket 连接
-  const ws = new WebSocket('ws://localhost:8000/ws/node_output')
+  const ws = new WebSocket('ws://localhost:8000/ws/node_output/')
   
   ws.onmessage = (event) => {
     try {
@@ -1227,6 +1228,14 @@ onMounted(() => {
   
   ws.onerror = (error) => {
     console.error('WebSocket 连接错误:', error)
+  }
+  
+  ws.onclose = () => {
+    console.log('WebSocket 连接已关闭')
+  }
+  
+  ws.onopen = () => {
+    console.log('WebSocket 连接已建立')
   }
   
   // 检查是否有从 Community 传递过来的初始数据

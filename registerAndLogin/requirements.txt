@@ -6,3 +6,6 @@ djangorestframework-simplejwt
 mysqlclient
 mysql-connector-python
 setuptools
+channels
+channels-redis
+daphne
