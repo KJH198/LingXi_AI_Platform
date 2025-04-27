@@ -23,7 +23,8 @@ from .views import (
     UserOperationRecordsView,
     UserAbnormalBehaviorsView,
     UserBehaviorStatsView,
-    UserBehaviorLogsView
+    UserBehaviorLogsView,
+    AnnouncementView
 )
 
 urlpatterns = [
@@ -40,7 +41,7 @@ urlpatterns = [
     # 管理员路由
     path('adminLogin', AdminLoginView.as_view(), name='admin_login'),
     path('adminDashboard', AdminDashboardView.as_view(), name='admin_dashboard'),
-    path('adminGetUsers', UserManagementView.as_view(), name='user_management'),
+    path('adminGetUsers/', UserManagementView.as_view(), name='user_management'),
     path('adminGetUsersDetail/<int:user_id>/', UserManagementView.as_view(), name='user_detail'),
     path('admin/agent_rating/', AgentRatingView.as_view(), name='agent_rating'),
     path('admin/knowledge_base/', KnowledgeBaseView.as_view(), name='knowledge_base'),
@@ -50,6 +51,8 @@ urlpatterns = [
     path('admin/operation_records', UserOperationRecordsView.as_view(), name='admin_operation_records'),
     path('search/', UserSearchView.as_view(), name='user_search'),
     path('admin/login_records/', UserLoginRecordView.as_view(), name='login_records'),
+    path('admin/announcements/', AnnouncementView.as_view(), name='announcements'),
+    path('admin/announcements/<int:announcement_id>/', AnnouncementView.as_view(), name='announcement_detail'),
     
     # 新增管理员接口路由
     path('api/admin/user/list/', UserListAPIView.as_view(), name='admin_user_list'),

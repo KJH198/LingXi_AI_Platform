@@ -1290,3 +1290,97 @@ class UserLoginRecordView(APIView):
             })
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class AnnouncementView(APIView):
+    """系统公告管理视图"""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        """获取公告列表"""
+        # 验证管理员权限
+        if not request.user.is_staff:
+            return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
+
+        from django.core.paginator import Paginator
+        from .models import Announcement
+
+        # 获取查询参数
+        status_filter = request.query_params.get('status')
+        is_pinned = request.query_params.get('is_pinned')
+        page = request.query_params.get('page', 1)
+        page_size = request.query_params.get('page_size', 10)
+
+        # 构建查询条件
+        queryset = Announcement.objects.all().order_by('-is_pinned', '-created_at')
+        if status_filter:
+            queryset = queryset.filter(status=status_filter)
+        if is_pinned:
+            queryset = queryset.filter(is_pinned=(is_pinned.lower() == 'true'))
+
+        # 分页处理
+        paginator = Paginator(queryset, page_size)
+        try:
+            announcements_page = paginator.page(page)
+        except:
+            announcements_page = paginator.page(1)
+
+        # 序列化数据
+        from .serializers import AnnouncementSerializer
+        serializer = AnnouncementSerializer(announcements_page, many=True)
+
+        return Response({
+            'announcements': serializer.data,
+            'total': paginator.count,
+            'page': announcements_page.number,
+            'page_size': int(page_size),
+            'page_count': paginator.num_pages
+        })
+
+    def post(self, request):
+        """创建新公告"""
+        # 验证管理员权限
+        if not request.user.is_staff:
+            return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
+
+        from .serializers import AnnouncementCreateSerializer
+        serializer = AnnouncementCreateSerializer(data=request.data)
+        if serializer.is_valid():
+            announcement = serializer.save(creator=request.user)
+            return Response({
+                'message': '公告创建成功',
+                'id': announcement.id
+            }, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def put(self, request, announcement_id):
+        """更新公告"""
+        # 验证管理员权限
+        if not request.user.is_staff:
+            return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
+
+        from .models import Announcement
+        try:
+            announcement = Announcement.objects.get(id=announcement_id)
+        except Announcement.DoesNotExist:
+            return Response({'error': '公告不存在'}, status=status.HTTP_404_NOT_FOUND)
+
+        from .serializers import AnnouncementCreateSerializer
+        serializer = AnnouncementCreateSerializer(announcement, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({'message': '公告更新成功'})
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, announcement_id):
+        """删除公告"""
+        # 验证管理员权限
+        if not request.user.is_staff:
+            return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
+
+        from .models import Announcement
+        try:
+            announcement = Announcement.objects.get(id=announcement_id)
+            announcement.delete()
+            return Response({'message': '公告删除成功'})
+        except Announcement.DoesNotExist:
+            return Response({'error': '公告不存在'}, status=status.HTTP_404_NOT_FOUND)

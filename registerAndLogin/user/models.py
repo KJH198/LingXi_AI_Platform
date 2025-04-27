@@ -205,3 +205,27 @@ class AbnormalBehavior(models.Model):
 
     def __str__(self):
         return f'{self.user.username} {self.get_abnormal_type_display()} at {self.abnormal_time}'
+
+class Announcement(models.Model):
+    """系统公告模型"""
+    STATUS_CHOICES = [
+        ('draft', '草稿'),
+        ('published', '已发布'),
+        ('withdrawn', '已撤回'),
+    ]
+    
+    title = models.CharField(max_length=200, verbose_name='公告标题')
+    content = models.TextField(verbose_name='公告内容')
+    creator = models.ForeignKey(User, on_delete=models.CASCADE, related_name='created_announcements', verbose_name='发布者')
+    is_pinned = models.BooleanField(default=False, verbose_name='是否置顶')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft', verbose_name='状态')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='更新时间')
+
+    class Meta:
+        verbose_name = '系统公告'
+        verbose_name_plural = '系统公告'
+        ordering = ['-is_pinned', '-created_at']
+
+    def __str__(self):
+        return f'{self.title} ({self.get_status_display()})'
