@@ -103,12 +103,8 @@ def submit_dynamic_input(request):
         input_name = '动态输入 1'
         input_value = data.get('variables')
         print(f"收到动态输入: {input_name} = {input_value}")
-
-        if input_name in pending_inputs:
-            pending_inputs[input_name] = input_value
-            return JsonResponse({'status': 'ok'})
-        else:
-            return JsonResponse({'error': 'Input not pending'}, status=400)
+        pending_inputs[input_name] = input_value
+        return JsonResponse({'status': 'ok'})
     else:
         return JsonResponse({'error': 'Invalid request method'}, status=400)
 

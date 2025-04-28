@@ -924,12 +924,6 @@ const handleInput = async () => {
       throw new Error('发送消息失败')
     }
     
-    const result = await response.json()
-    if (result.code === 200) {
-      handleResponse(result.data)
-    } else {
-      throw new Error(result.message || '发送消息失败')
-    }
   } catch (error) {
     console.error('发送消息失败:', error)
     ElMessage.error('发送消息失败')
