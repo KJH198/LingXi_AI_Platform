@@ -246,7 +246,7 @@ class PublishedAgent(models.Model):
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='更新时间')
     is_active = models.BooleanField(default=True, verbose_name='是否激活')
-    model_id = models.CharField(max_length=100, verbose_name='模型ID')
+    model_id = models.CharField(max_length=100, verbose_name='模型ID', default='模型999')
     workflow_id = models.CharField(max_length=100, blank=True, null=True, verbose_name='工作流ID')
     knowledge_bases = models.ManyToManyField('knowledge_base.KnowledgeBase', blank=True, verbose_name='知识库')
     views = models.IntegerField(default=0, verbose_name='浏览量')
