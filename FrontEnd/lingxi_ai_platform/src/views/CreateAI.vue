@@ -1307,80 +1307,67 @@ const followedAgentsList = ref([
 ])
 
 // 添加节点
-const addNode = (type) => {
-  if (type === 'process') {
-    processTypeDialogVisible.value = true
-    const id = `${type}-${Date.now()}`
-    const position = findAvailablePosition()
-    pendingProcessNode.value = { id, position }
-  } else {
-    const id = `${type}-${Date.now()}`
-    const position = findAvailablePosition()
+const addNode = (type, position) => {
+  const id = `${type}-${Date.now()}`
+  
+  if (type === 'input') {
+    // 增加输入节点的计数器
+    nodeTypeCounters.value.input++
     
-    // 增加对应类型的计数器
-    nodeTypeCounters.value[type]++
-    
-    let nodeData = {
-      label: type === 'llm' ? `大模型 ${nodeTypeCounters.value[type]}` : 
-             type === 'workflow' ? `工作流 ${nodeTypeCounters.value[type]}` : 
-             type === 'monitor' ? `监听节点 ${nodeTypeCounters.value[type]}` :
-             type === 'dynamic-input' ? `动态输入 ${nodeTypeCounters.value[type]}` : 
-             `${type} ${nodeTypeCounters.value[type]}`,
-      type,
-      description: '',
-    }
-
-    // 根据节点类型设置不同的样式和图标
-    if (type === 'input') {
-      nodeData = {
-        ...nodeData,
-        icon: 'Upload',
-        color: '#409EFF',
-        bgColor: '#f0f9ff'
-      }
-    } else if (type === 'dynamic-input') {
-      nodeData = {
-        ...nodeData,
-        icon: 'Connection',
-        color: '#409EFF',
-        bgColor: '#f0f9ff'
-      }
-    } else if (type === 'output') {
-      nodeData = {
-        ...nodeData,
-        icon: 'Download',
-        color: '#409EFF',
-        bgColor: '#f0f9ff'
-      }
-    } else if (type === 'llm') {
-      nodeData = {
-        ...nodeData,
-        icon: 'ChatDotRound',
-        color: '#9B59B6',
-        bgColor: '#f9f0ff'
-      }
-    } else if (type === 'workflow') {
-      nodeData = {
-        ...nodeData,
-        icon: 'Share',
-        color: '#7B68EE',
-        bgColor: '#f0f0ff'
-      }
-    } else if (type === 'monitor') {
-      nodeData = {
-        ...nodeData,
-        icon: 'View',
-        color: '#F56C6C',
-        bgColor: '#fff0f0'
-      }
+    // 创建输入节点的默认配置
+    const defaultInputConfig = {
+      name: '',
+      type: 'input',
+      description: '输入节点',
+      inputType: 'text',
+      defaultValue: '',
+      fileType: 'text',
+      apiUrl: '',
+      apiMethod: 'get'
     }
     
     elements.value.push({
       id,
       type,
       position,
-      data: nodeData
+      data: {
+        ...defaultInputConfig,
+        label: `输入 ${nodeTypeCounters.value.input}`,
+        icon: 'Upload',
+        color: '#409EFF',
+        bgColor: '#f0f9ff'
+      }
     })
+  } else if (type === 'output') {
+    // 增加输出节点的计数器
+    nodeTypeCounters.value.output++
+    
+    // 创建输出节点的默认配置
+    const defaultOutputConfig = {
+      name: '',
+      type: 'output',
+      description: '输出节点',
+      outputType: 'text',
+      fileFormat: 'json',
+      filePath: ''
+    }
+    
+    elements.value.push({
+      id,
+      type,
+      position,
+      data: {
+        ...defaultOutputConfig,
+        label: `输出 ${nodeTypeCounters.value.output}`,
+        icon: 'Download',
+        color: '#E6A23C',
+        bgColor: '#fdf6ec'
+      }
+    })
+  } else if (type === 'process') {
+    // 显示处理类型选择对话框
+    processTypeDialogVisible.value = true
+    pendingProcessNode.value = { id, position }
   }
 }
 
@@ -1392,22 +1379,53 @@ const confirmAddProcessNode = () => {
     // 增加处理节点的计数器
     nodeTypeCounters.value.process++
     
+    // 创建默认配置对象
+    const defaultConfig = {
+      // 基础配置
+      name: '',
+      type: 'process',
+      description: selectedType.description,
+      // 处理节点配置
+      processType: selectedType.value,
+      codeType: 'javascript',
+      codeContent: '',
+      conditionType: 'equals',
+      conditionValue: '',
+      loopType: 'fixed',
+      loopCount: 1,
+      loopCondition: '',
+      intentType: 'text',
+      intentModel: 'bert',
+      batchSize: 32,
+      parallel: true,
+      aggregateType: 'sum',
+      aggregateField: '',
+      // 选择器配置
+      ifCondition: selectedType.value === 'selector' ? '' : undefined,
+      elseIfConditions: selectedType.value === 'selector' ? [] : undefined,
+      elseCondition: selectedType.value === 'selector' ? '' : undefined,
+      // 意图识别配置
+      intentConfigs: [],
+      // 大模型配置
+      llmModel: 'LLaMA-3',
+      llmPrompt: '',
+      // 监听节点配置
+      monitorType: 'all',
+      // 智能体配置
+      myAgents: [],
+      followedAgents: []
+    }
+    
     elements.value.push({
       id: pendingProcessNode.value.id,
       type: 'process',
       position: pendingProcessNode.value.position,
       data: {
+        ...defaultConfig,
         label: `${selectedType.label} ${nodeTypeCounters.value.process}`,
-        type: 'process',
-        description: selectedType.description,
-        processType: selectedType.value,
         icon: selectedType.icon,
         color: selectedType.color,
-        bgColor: selectedType.bgColor,
-        // 如果是选择器节点，初始化条件数组
-        elseIfConditions: selectedType.value === 'selector' ? [] : undefined,
-        ifCondition: selectedType.value === 'selector' ? '' : undefined,
-        elseCondition: selectedType.value === 'selector' ? '' : undefined
+        bgColor: selectedType.bgColor
       }
     })
     
