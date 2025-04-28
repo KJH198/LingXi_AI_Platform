@@ -177,33 +177,55 @@ class UserActionLog(models.Model):
     def __str__(self):
         return f'{self.user.username} {self.get_action_display()} at {self.created_at}'
 
-class PublishedAgent(models.Model):
-    """已发布的智能体模型"""
-    STATUS_CHOICES = [
-        ('pending', '待审核'),
-        ('approved', '已通过'),
-        ('rejected', '已拒绝'),
+class AbnormalBehavior(models.Model):
+    """用户异常行为记录"""
+    ABNORMAL_TYPES = [
+        ('frequent_login', '频繁登录'),
+        ('suspicious_activity', '可疑操作'),
+        ('content_violation', '内容违规'),
+        ('spam', '垃圾信息'),
+        ('other', '其他异常')
     ]
     
-    name = models.CharField(max_length=100, verbose_name='智能体名称')
-    description = models.TextField(verbose_name='描述')
-    creator = models.ForeignKey(User, on_delete=models.CASCADE, related_name='published_agents', verbose_name='创建者')
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending', verbose_name='审核状态')
-    review_notes = models.TextField(blank=True, null=True, verbose_name='审核意见')
-    created_at = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')
-    updated_at = models.DateTimeField(auto_now=True, verbose_name='更新时间')
-    is_active = models.BooleanField(default=True, verbose_name='是否激活')
-    model_id = models.CharField(max_length=100, verbose_name='模型ID')
-    workflow_id = models.CharField(max_length=100, blank=True, null=True, verbose_name='工作流ID')
-    knowledge_bases = models.ManyToManyField('knowledge_base.KnowledgeBase', blank=True, verbose_name='知识库')
-    views = models.IntegerField(default=0, verbose_name='浏览量')
-    likes = models.IntegerField(default=0, verbose_name='点赞数')
-    comments = models.IntegerField(default=0, verbose_name='评论数')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='abnormal_behaviors', verbose_name='用户')
+    abnormal_time = models.DateTimeField(auto_now_add=True, verbose_name='异常时间')
+    abnormal_type = models.CharField(max_length=50, choices=ABNORMAL_TYPES, verbose_name='异常类型')
+    description = models.TextField(verbose_name='异常描述')
+    ip_address = models.GenericIPAddressField(blank=True, null=True, verbose_name='IP地址')
+    is_handled = models.BooleanField(default=False, verbose_name='是否已处理')
+    handled_by = models.ForeignKey(User, on_delete=models.SET_NULL, blank=True, null=True,
+                                 related_name='handled_behaviors', verbose_name='处理人')
+    handled_at = models.DateTimeField(blank=True, null=True, verbose_name='处理时间')
+    handled_notes = models.TextField(blank=True, null=True, verbose_name='处理意见')
 
     class Meta:
-        verbose_name = '已发布智能体'
-        verbose_name_plural = '已发布智能体'
-        ordering = ['-created_at']
+        verbose_name = '异常行为记录'
+        verbose_name_plural = '异常行为记录'
+        ordering = ['-abnormal_time']
 
     def __str__(self):
-        return f'{self.name} (by {self.creator.username})'
+        return f'{self.user.username} {self.get_abnormal_type_display()} at {self.abnormal_time}'
+
+class Announcement(models.Model):
+    """系统公告模型"""
+    STATUS_CHOICES = [
+        ('draft', '草稿'),
+        ('published', '已发布'),
+        ('withdrawn', '已撤回'),
+    ]
+    
+    title = models.CharField(max_length=200, verbose_name='公告标题')
+    content = models.TextField(verbose_name='公告内容')
+    creator = models.ForeignKey(User, on_delete=models.CASCADE, related_name='created_announcements', verbose_name='发布者')
+    is_pinned = models.BooleanField(default=False, verbose_name='是否置顶')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft', verbose_name='状态')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='更新时间')
+
+    class Meta:
+        verbose_name = '系统公告'
+        verbose_name_plural = '系统公告'
+        ordering = ['-is_pinned', '-created_at']
+
+    def __str__(self):
+        return f'{self.title} ({self.get_status_display()})'

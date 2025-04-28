@@ -238,15 +238,17 @@ class UserManagementView(APIView):
             }
             # 根据封禁原因设置违规类型
             if not user.is_active and user.ban_reason:
-                # 从封禁原因中提取违规类型
-                if 'light违规' in user.ban_reason:
-                    user_dict['violationType'] = 'light'
-                elif 'medium违规' in user.ban_reason:
-                    user_dict['violationType'] = 'medium'
-                elif 'severe违规' in user.ban_reason:
-                    user_dict['violationType'] = 'severe'
-                elif 'permanent违规' in user.ban_reason:
-                    user_dict['violationType'] = 'permanent'
+                # 从封禁类型中提取违规类型
+                ban_type_mapping = {
+                    'light': 'light',
+                    'medium': 'medium',
+                    'severe': 'severe',
+                    'permanent': 'permanent'
+                }
+                for ban_type, violation_type in ban_type_mapping.items():
+                    if ban_type in user.ban_reason:
+                        user_dict['violationType'] = violation_type
+                        break
                 else:
                     user_dict['violationType'] = 'severe'  # 默认设置为严重违规
             user_data.append(user_dict)
@@ -379,6 +381,194 @@ class AgentRatingView(APIView):
             })
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class UserListAPIView(APIView):
+    """获取用户列表接口"""
+    def get(self, request):
+        # 验证管理员权限
+        if not request.user.is_staff:
+            return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
+        
+        users = User.objects.all()
+        user_data = []
+        for user in users:
+            user_dict = {
+                'id': str(user.id),
+                'username': user.username,
+                'register_time': user.created_at.strftime('%Y-%m-%dT%H:%M:%SZ'),
+                'violation_type': user.ban_reason.split(':')[0] if user.ban_reason else None,
+                'status': 'banned' if not user.is_active else 'normal',
+                'ip_address': user.last_login_ip if hasattr(user, 'last_login_ip') else None,
+                'device': user.last_login_device if hasattr(user, 'last_login_device') else None
+            }
+            user_data.append(user_dict)
+        
+        return Response({'users': user_data})
+
+class UserDetailAPIView(APIView):
+    """获取用户详情接口"""
+    def get(self, request, user_id):
+        # 验证管理员权限
+        if not request.user.is_staff:
+            return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
+        
+        try:
+            user = User.objects.get(id=user_id)
+            return Response({
+                'id': str(user.id),
+                'username': user.username,
+                'register_time': user.created_at.strftime('%Y-%m-%dT%H:%M:%SZ'),
+                'last_login_time': user.last_login.strftime('%Y-%m-%dT%H:%M:%SZ') if user.last_login else None,
+                'violation_type': user.ban_reason.split(':')[0] if user.ban_reason else None,
+                'status': 'banned' if not user.is_active else 'normal',
+                'ip_address': user.last_login_ip if hasattr(user, 'last_login_ip') else None,
+                'device': user.last_login_device if hasattr(user, 'last_login_device') else None
+            })
+        except User.DoesNotExist:
+            return Response({'error': '用户不存在'}, status=status.HTTP_404_NOT_FOUND)
+
+class UserOperationRecordsView(APIView):
+    """获取用户操作记录接口"""
+    def get(self, request):
+        # 验证管理员权限
+        if not request.user.is_staff:
+            return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
+        
+        from django.core.paginator import Paginator
+        from .models import UserActionLog
+        
+        # 获取查询参数
+        user_id = request.query_params.get('user_id')
+        page = request.query_params.get('page', 1)
+        page_size = request.query_params.get('page_size', 20)
+        
+        # 构建查询条件
+        queryset = UserActionLog.objects.all().order_by('-created_at')
+        if user_id:
+            queryset = queryset.filter(user_id=user_id)
+        
+        # 分页处理
+        paginator = Paginator(queryset, page_size)
+        try:
+            records_page = paginator.page(page)
+        except:
+            records_page = paginator.page(1)
+        
+        # 构造返回数据
+        records = []
+        for log in records_page:
+            records.append({
+                'id': log.id,
+                'user_id': log.user.id,
+                'username': log.user.username,
+                'operation_time': log.created_at.strftime('%Y-%m-%dT%H:%M:%SZ'),
+                'operation_type': log.get_action_display(),
+                'operation_content': f"{log.user.username} {log.get_action_display()}",
+                'ip_address': log.ip_address,
+                'target_id': log.target_id,
+                'target_type': log.target_type
+            })
+        
+        return Response({
+            'records': records,
+            'total': paginator.count,
+            'page': records_page.number,
+            'page_size': int(page_size),
+            'page_count': paginator.num_pages
+        })
+
+class UserAbnormalBehaviorsView(APIView):
+    """获取用户异常行为接口"""
+    def get(self, request):
+        # 验证管理员权限
+        if not request.user.is_staff:
+            return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
+        
+        from django.core.paginator import Paginator
+        from .models import AbnormalBehavior
+        
+        # 获取查询参数
+        user_id = request.query_params.get('user_id')
+        abnormal_type = request.query_params.get('type')
+        page = request.query_params.get('page', 1)
+        page_size = request.query_params.get('page_size', 20)
+        handled = request.query_params.get('handled')
+        
+        # 构建查询条件
+        queryset = AbnormalBehavior.objects.all().order_by('-abnormal_time')
+        if user_id:
+            queryset = queryset.filter(user_id=user_id)
+        if abnormal_type:
+            queryset = queryset.filter(abnormal_type=abnormal_type)
+        if handled:
+            queryset = queryset.filter(is_handled=handled.lower() == 'true')
+        
+        # 分页处理
+        paginator = Paginator(queryset, page_size)
+        try:
+            records_page = paginator.page(page)
+        except:
+            records_page = paginator.page(1)
+        
+        # 构造返回数据
+        records = []
+        for behavior in records_page:
+            records.append({
+                'user_id': str(behavior.user.id),
+                'username': behavior.user.username,
+                'abnormal_time': behavior.abnormal_time.strftime('%Y-%m-%dT%H:%M:%SZ'),
+                'abnormal_type': behavior.abnormal_type,
+                'abnormal_type_display': behavior.get_abnormal_type_display(),
+                'description': behavior.description,
+                'ip_address': behavior.ip_address,
+                'is_handled': behavior.is_handled,
+                'handled_by': behavior.handled_by.username if behavior.handled_by else None,
+                'handled_at': behavior.handled_at.strftime('%Y-%m-%dT%H:%M:%SZ') if behavior.handled_at else None
+            })
+        
+        return Response({
+            'records': records,
+            'total': paginator.count,
+            'page': records_page.number,
+            'page_size': int(page_size),
+            'page_count': paginator.num_pages
+        })
+
+class UserBehaviorStatsView(APIView):
+    """获取用户行为统计数据接口"""
+    def get(self, request):
+        # 验证管理员权限
+        if not request.user.is_staff:
+            return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
+        
+        # 模拟统计数据
+        return Response({
+            'today_logins': 15,
+            'avg_login_duration': 12.5,
+            'abnormal_logins': 3
+        })
+
+class UserBehaviorLogsView(APIView):
+    """获取用户行为日志接口"""
+    def get(self, request, user_id):
+        # 验证管理员权限
+        if not request.user.is_staff:
+            return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
+        
+        # 模拟行为日志数据
+        logs = [{
+            'id': '1',
+            'action': 'login',
+            'target_id': None,
+            'target_type': None,
+            'ip_address': '192.168.1.1',
+            'created_at': '2025-04-20T10:00:00Z'
+        }]
+        
+        return Response({
+            'logs': logs,
+            'total': len(logs)
+        })
 
 class KnowledgeBaseView(APIView):
     """知识库管理"""
@@ -1102,74 +1292,96 @@ class UserLoginRecordView(APIView):
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-class AgentPublishView(APIView):
-    """智能体发布视图"""
-    
-    def post(self, request):
-        """发布智能体"""
+class AnnouncementView(APIView):
+    """系统公告管理视图"""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        """获取公告列表"""
+        # 验证管理员权限
+        if not request.user.is_staff:
+            return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
+
+        from django.core.paginator import Paginator
+        from .models import Announcement
+
+        # 获取查询参数
+        status_filter = request.query_params.get('status')
+        is_pinned = request.query_params.get('is_pinned')
+        page = request.query_params.get('page', 1)
+        page_size = request.query_params.get('page_size', 10)
+
+        # 构建查询条件
+        queryset = Announcement.objects.all().order_by('-is_pinned', '-created_at')
+        if status_filter:
+            queryset = queryset.filter(status=status_filter)
+        if is_pinned:
+            queryset = queryset.filter(is_pinned=(is_pinned.lower() == 'true'))
+
+        # 分页处理
+        paginator = Paginator(queryset, page_size)
         try:
-            print("收到发布智能体请求")
-            print("请求数据:", request.data)
-            
-            # 获取请求数据
-            data = request.data
-            name = data.get('name')
-            description = data.get('description')
-            model_id = data.get('modelId')
-            knowledge_bases = data.get('knowledgeBases', [])
-            workflow_id = data.get('workflowId')
-            
-            print("解析的数据:")
-            print(f"名称: {name}")
-            print(f"描述: {description}")
-            print(f"模型ID: {model_id}")
-            print(f"知识库: {knowledge_bases}")
-            print(f"工作流ID: {workflow_id}")
-            
-            # 验证必填字段
-            if not all([name, model_id]):
-                print("缺少必要字段")
-                return Response({
-                    'code': 400,
-                    'message': '缺少必要字段',
-                    'data': None
-                }, status=status.HTTP_400_BAD_REQUEST)
-            
-            # 创建智能体
-            print("开始创建智能体")
-            agent = PublishedAgent.objects.create(
-                name=name,
-                description=description,
-                creator=request.user,
-                status='pending',  # 默认为待审核状态
-                model_id=model_id,
-                workflow_id=workflow_id
-            )
-            print(f"智能体创建成功，ID: {agent.id}")
-            
-            # 添加知识库关联
-            if knowledge_bases:
-                print("添加知识库关联")
-                agent.knowledge_bases.set(knowledge_bases)
-            
-            # 返回成功响应
-            response_data = {
-                'code': 200,
-                'message': '智能体发布成功，等待审核',
-                'data': {
-                    'id': agent.id,
-                    'name': agent.name,
-                    'status': agent.status,
-                    'created_at': agent.created_at
-                }
-            }
-            print("返回响应:", response_data)
-            return Response(response_data)
-            
-        except Exception as e:
-            print("发布失败，错误:", str(e))
+            announcements_page = paginator.page(page)
+        except:
+            announcements_page = paginator.page(1)
+
+        # 序列化数据
+        from .serializers import AnnouncementSerializer
+        serializer = AnnouncementSerializer(announcements_page, many=True)
+
+        return Response({
+            'announcements': serializer.data,
+            'total': paginator.count,
+            'page': announcements_page.number,
+            'page_size': int(page_size),
+            'page_count': paginator.num_pages
+        })
+
+    def post(self, request):
+        """创建新公告"""
+        # 验证管理员权限
+        if not request.user.is_staff:
+            return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
+
+        from .serializers import AnnouncementCreateSerializer
+        serializer = AnnouncementCreateSerializer(data=request.data)
+        if serializer.is_valid():
+            announcement = serializer.save(creator=request.user)
             return Response({
-                'code': 500,
-                'message': f'发布失败：{str(e)}',
-                'data': None
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                'message': '公告创建成功',
+                'id': announcement.id
+            }, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def put(self, request, announcement_id):
+        """更新公告"""
+        # 验证管理员权限
+        if not request.user.is_staff:
+            return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
+
+        from .models import Announcement
+        try:
+            announcement = Announcement.objects.get(id=announcement_id)
+        except Announcement.DoesNotExist:
+            return Response({'error': '公告不存在'}, status=status.HTTP_404_NOT_FOUND)
+
+        from .serializers import AnnouncementCreateSerializer
+        serializer = AnnouncementCreateSerializer(announcement, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({'message': '公告更新成功'})
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, announcement_id):
+        """删除公告"""
+        # 验证管理员权限
+        if not request.user.is_staff:
+            return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
+
+        from .models import Announcement
+        try:
+            announcement = Announcement.objects.get(id=announcement_id)
+            announcement.delete()
+            return Response({'message': '公告删除成功'})
+        except Announcement.DoesNotExist:
+            return Response({'error': '公告不存在'}, status=status.HTTP_404_NOT_FOUND)
