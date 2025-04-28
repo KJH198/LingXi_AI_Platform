@@ -147,7 +147,7 @@
                 >
                   <div class="message-avatar">
                     <el-avatar :size="36" :src="message.role === 'user' ? userAvatar : defaultAgentAvatar"></el-avatar>
-                    <div v-if="message.role === 'assistant'" class="output-port-name">output</div>
+                    <div v-if="message.role === 'assistant'" class="output-port-name">{{ message.nodeName || 'output' }}</div>
                   </div>
                   <div class="message-content">
                     <div class="message-text" v-html="formatMessage(message.content)"></div>
@@ -157,7 +157,7 @@
                 <div v-if="isGenerating" class="bot-message message">
                   <div class="message-avatar">
                     <el-avatar :size="36" :src="defaultAgentAvatar"></el-avatar>
-                    <div class="output-port-name">output</div>
+                    <div class="output-port-name">{{ currentNodeName || 'output' }}</div>
                   </div>
                   <div class="message-content">
                     <div class="typing-indicator">
@@ -369,6 +369,7 @@ interface ChatMessage {
   role: string;
   content: string;
   time: string;
+  nodeName?: string;
 }
 
 interface ModelLog {
@@ -514,6 +515,9 @@ const dynamicInputValue = ref('')
 
 // 在 script setup 部分添加新的接口和状态
 const nodeOutputs = ref<Record<string, any>>({})
+
+// 在 script setup 部分添加新的状态变量
+const currentNodeName = ref('')
 
 // 计算是否有静态输入值
 const hasStaticInputValues = computed(() => {
@@ -725,16 +729,18 @@ const updateWorkflowId = (workflowId: string) => {
   saveToLocalStorage() // 更新工作流后立即保存
 }
 
-// 添加处理节点输出的方法
+// 修改 handleNodeOutput 方法
 const handleNodeOutput = (data: { node_name: string, output: any }) => {
   const { node_name, output } = data
   nodeOutputs.value[node_name] = output
+  currentNodeName.value = node_name
   
   // 在聊天记录中添加节点输出
   chatMessages.value.push({
     role: 'assistant',
-    content: `节点 ${node_name} 输出: ${JSON.stringify(output, null, 2)}`,
-    time: new Date().toLocaleTimeString()
+    content: `${output}`,
+    time: new Date().toLocaleTimeString(),
+    nodeName: node_name
   })
   
   // 滚动到底部
@@ -745,88 +751,7 @@ const handleNodeOutput = (data: { node_name: string, output: any }) => {
   })
 }
 
-// 修改获取静态输入配置的方法
-const fetchStaticInputs = async () => {
-  if (!agentData.workflowId) return
-  
-  try {
-    const response = await fetch(`/agent/staticInputCount/${agentData.workflowId}`)
-    if (!response.ok) {
-      throw new Error('获取静态输入配置失败')
-    }
-    
-    const result = await response.json()
-    if (result.code === 200) {
-      // 根据后端返回的数据结构处理，并按名称排序
-      const { node_count, node_names } = result.data
-      staticInputs.value = node_names
-        .map((name: string) => ({
-          name: name,
-          value: ''
-        }))
-        .sort((a: StaticInput, b: StaticInput) => a.name.localeCompare(b.name))
-      console.log('获取静态输入配置成功:', staticInputs.value)
-    } else {
-      throw new Error(result.message || '获取静态输入配置失败')
-    }
-  } catch (error) {
-    console.error('获取静态输入配置失败:', error)
-    ElMessage.error('获取静态输入配置失败')
-  }
-}
-
-// 处理动态输入
-const handleDynamicInput = async () => {
-  if (!dynamicInputValue.value.trim()) return
-  
-  try {
-    const token = localStorage.getItem('token')
-    if (!token) {
-      ElMessage.error('请先登录')
-      return
-    }
-    
-    const response = await fetch('/agent/dynamicInput', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify({
-        workflowId: agentData.workflowId,
-        input: dynamicInputValue.value,
-        variables: dynamicInputVars.value
-      })
-    })
-    
-    if (!response.ok) {
-      throw new Error('发送动态输入失败')
-    }
-    
-    const result = await response.json()
-    if (result.code === 200) {
-      // 添加用户输入到聊天记录
-      chatMessages.value.push({
-        role: 'user',
-        content: dynamicInputValue.value,
-        time: new Date().toLocaleTimeString()
-      })
-      
-      // 重置动态输入状态
-      dynamicInputValue.value = ''
-      waitingForDynamicInput.value = false
-      dynamicInputVars.value = []
-      
-      // 继续处理响应
-      handleResponse(result.data)
-    }
-  } catch (error) {
-    console.error('发送动态输入失败:', error)
-    ElMessage.error('发送动态输入失败')
-  }
-}
-
-// 处理响应
+// 修改 handleResponse 方法
 const handleResponse = (response: any) => {
   if (response.requiresDynamicInput) {
     // 需要动态输入
@@ -837,12 +762,13 @@ const handleResponse = (response: any) => {
     chatMessages.value.push({
       role: 'assistant',
       content: response.content,
-      time: new Date().toLocaleTimeString()
+      time: new Date().toLocaleTimeString(),
+      nodeName: response.nodeName || currentNodeName.value
     })
   }
 }
 
-// 修改handleSendMessage函数
+// 修改 handleSendMessage 方法
 const handleSendMessage = async () => {
   if (!userInput.value.trim() || isGenerating.value) return
   
@@ -1204,6 +1130,87 @@ const handlePublish = async (): Promise<void> => {
     
     console.error('发布智能体失败:', error)
     ElMessage.error('发布智能体失败，请稍后重试')
+  }
+}
+
+// 修改获取静态输入配置的方法
+const fetchStaticInputs = async () => {
+  if (!agentData.workflowId) return
+  
+  try {
+    const response = await fetch(`/agent/staticInputCount/${agentData.workflowId}`)
+    if (!response.ok) {
+      throw new Error('获取静态输入配置失败')
+    }
+    
+    const result = await response.json()
+    if (result.code === 200) {
+      // 根据后端返回的数据结构处理，并按名称排序
+      const { node_count, node_names } = result.data
+      staticInputs.value = node_names
+        .map((name: string) => ({
+          name: name,
+          value: ''
+        }))
+        .sort((a: StaticInput, b: StaticInput) => a.name.localeCompare(b.name))
+      console.log('获取静态输入配置成功:', staticInputs.value)
+    } else {
+      throw new Error(result.message || '获取静态输入配置失败')
+    }
+  } catch (error) {
+    console.error('获取静态输入配置失败:', error)
+    ElMessage.error('获取静态输入配置失败')
+  }
+}
+
+// 处理动态输入
+const handleDynamicInput = async () => {
+  if (!dynamicInputValue.value.trim()) return
+  
+  try {
+    const token = localStorage.getItem('token')
+    if (!token) {
+      ElMessage.error('请先登录')
+      return
+    }
+    
+    const response = await fetch('/agent/dynamicInput', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        workflowId: agentData.workflowId,
+        input: dynamicInputValue.value,
+        variables: dynamicInputVars.value
+      })
+    })
+    
+    if (!response.ok) {
+      throw new Error('发送动态输入失败')
+    }
+    
+    const result = await response.json()
+    if (result.code === 200) {
+      // 添加用户输入到聊天记录
+      chatMessages.value.push({
+        role: 'user',
+        content: dynamicInputValue.value,
+        time: new Date().toLocaleTimeString()
+      })
+      
+      // 重置动态输入状态
+      dynamicInputValue.value = ''
+      waitingForDynamicInput.value = false
+      dynamicInputVars.value = []
+      
+      // 继续处理响应
+      handleResponse(result.data)
+    }
+  } catch (error) {
+    console.error('发送动态输入失败:', error)
+    ElMessage.error('发送动态输入失败')
   }
 }
 
