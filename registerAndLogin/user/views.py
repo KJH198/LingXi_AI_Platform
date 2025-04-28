@@ -1400,15 +1400,31 @@ class AgentPublishView(APIView):
             name = data.get('name')
             description = data.get('description')
             model_id = data.get('modelId')
+            avatar = data.get('avatar')
             knowledge_bases = data.get('knowledgeBases', [])
             workflow_id = data.get('workflowId')
+            
+            if avatar and 'temp_' in os.path.basename(avatar):
+                # 获取新文件名（移除temp_前缀）
+                old_filename = os.path.basename(avatar)
+                new_filename = old_filename.replace('temp_', '')
+            
+                # 重命名文件
+                old_path = os.path.join(settings.MEDIA_ROOT, 'agent_avatars', old_filename)
+                new_path = os.path.join(settings.MEDIA_ROOT, 'agent_avatars', new_filename)
+                os.rename(old_path, new_path)
+            
+                # 更新头像URL
+                avatar = f"/media/agent_avatars/{new_filename}"
             
             print("解析的数据:")
             print(f"名称: {name}")
             print(f"描述: {description}")
+            print(f"头像URL: {avatar}")
             print(f"模型ID: {model_id}")
             print(f"知识库: {knowledge_bases}")
             print(f"工作流ID: {workflow_id}")
+            
             
             # 验证必填字段
             if not all([name, model_id]):
@@ -1427,6 +1443,7 @@ class AgentPublishView(APIView):
                 creator=request.user,
                 status='pending',  # 默认为待审核状态
                 model_id=model_id,
+                avatar=avatar,
                 workflow_id=workflow_id
             )
             print(f"智能体创建成功，ID: {agent.id}")

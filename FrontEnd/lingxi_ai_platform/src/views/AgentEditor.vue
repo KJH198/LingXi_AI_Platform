@@ -44,6 +44,30 @@
                 placeholder="请输入智能体简介"
               ></el-input>
             </el-form-item>
+            <el-form-item label="头像">
+              <div class="avatar-upload-container">
+                <div class="avatar-preview" @click="triggerAvatarUpload">
+                  <img 
+                    v-if="agentData.avatar" 
+                    :src="agentData.avatar" 
+                    alt="智能体头像"
+                    class="agent-avatar" 
+                  />
+                  <div v-else class="avatar-placeholder">
+                    <el-icon><Plus /></el-icon>
+                    <span>上传头像</span>
+                  </div>
+                </div>
+                <input 
+                  type="file" 
+                  ref="avatarInput" 
+                  style="display: none" 
+                  accept="image/*" 
+                  @change="handleAvatarChange" 
+                />
+                <p class="avatar-tip">点击上传或更换头像（建议使用正方形图片）</p>
+              </div>
+            </el-form-item>
           </el-form>
           <div class="step-actions">
             <el-button type="primary" @click="nextStep">下一步</el-button>
@@ -146,7 +170,7 @@
                   :class="['message', message.role === 'user' ? 'user-message' : 'bot-message']"
                 >
                   <div class="message-avatar">
-                    <el-avatar :size="36" :src="message.role === 'user' ? userAvatar : defaultAgentAvatar"></el-avatar>
+                    <el-avatar :size="36" :src="message.role === 'user' ? userAvatar : (agentData.avatar ? agentData.avatar : defaultAgentAvatar)"></el-avatar>
                     <div v-if="message.role === 'assistant'" class="output-port-name">{{ message.nodeName || 'output' }}</div>
                   </div>
                   <div class="message-content">
@@ -342,13 +366,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, nextTick, onMounted, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { ref, reactive, computed, nextTick, onMounted, watch, onBeforeUnmount } from 'vue'
+import { useRoute, useRouter, onBeforeRouteLeave } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { marked } from 'marked'
 import DOMPurify from 'dompurify'
 import KnowledgeBaseConfig from '@/views/KnowledgeBaseConfig.vue'
 import WorkflowList from '@/views/WorkflowList.vue'
+import { Plus } from '@element-plus/icons-vue'
 
 // 定义接口
 interface AgentData {
@@ -361,6 +386,7 @@ interface AgentData {
     maxTokens: number;
     topP: number;
   };
+  avatar: string;
   knowledgeBases: string[];
   workflowId: string;
 }
@@ -426,6 +452,8 @@ const lastRequest = ref<Record<string, any>>({})
 const lastResponse = ref<Record<string, any>>({})
 const modelLogs = ref<ModelLog[]>([])
 
+const avatarInput = ref<HTMLInputElement | null>(null)
+
 // 智能体数据
 const agentData = reactive<AgentData>({
   id: '',
@@ -437,6 +465,7 @@ const agentData = reactive<AgentData>({
     maxTokens: 1024,
     topP: 0.95
   },
+  avatar: '',
   knowledgeBases: [],
   workflowId: ''
 })
@@ -499,6 +528,86 @@ const previewLoading = ref(false)
 // 知识库列表相关
 const knowledgeBases = ref<KnowledgeBase[]>([])
 const selectedKnowledgeBases = ref<string[]>([])
+
+// 触发文件选择器
+const triggerAvatarUpload = () => {
+  avatarInput.value?.click()
+}
+
+// 处理头像选择变化
+const handleAvatarChange = async (event: Event) => {
+  const target = event.target as HTMLInputElement
+  const files = target.files
+  
+  if (!files || files.length === 0) return
+  
+  const file = files[0]
+  
+  // 检查文件类型
+  if (!file.type.startsWith('image/')) {
+    ElMessage.error('请上传图片文件')
+    return
+  }
+  
+  // 检查文件大小（限制为2MB）
+  if (file.size > 2 * 1024 * 1024) {
+    ElMessage.error('图片大小不能超过2MB')
+    return
+  }
+  
+  try {
+    // 先创建一个临时预览URL
+    const previewUrl = URL.createObjectURL(file)
+    agentData.avatar = previewUrl
+    
+    const formData = new FormData()
+    formData.append('avatar', file)
+    
+    // 如果agent已有ID，也发送ID
+    if (agentData.id) {
+      formData.append('agent_id', agentData.id)
+    }
+    
+    const token = localStorage.getItem('token')
+    if (!token) {
+      ElMessage.error('请先登录')
+      return
+    }
+    
+    const response = await fetch('/agent/upload_avatar', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      },
+      body: formData
+    })
+    
+    if (!response.ok) {
+      throw new Error('上传失败')
+    }
+    
+    const result = await response.json()
+    
+    if (result.code === 200) {
+      // 用服务器返回的URL替换临时URL
+      agentData.avatar = result.data.avatar
+      ElMessage.success('头像上传成功')
+      // 释放临时URL
+      URL.revokeObjectURL(previewUrl)
+      
+      // 保存到本地存储
+      saveToLocalStorage()
+    } else {
+      throw new Error(result.message || '上传失败')
+    }
+  } catch (error) {
+    console.error('头像上传失败:', error)
+    ElMessage.error(error instanceof Error ? error.message : '头像上传失败')
+  } finally {
+    // 清空文件输入，允许重新选择同一文件
+    target.value = ''
+  }
+}
 
 // 静态输入相关
 interface StaticInput {
@@ -592,6 +701,7 @@ const saveToLocalStorage = (): void => {
     description: agentData.description,
     modelId: agentData.modelId,
     modelParams: agentData.modelParams,
+    avatar: agentData.avatar,
     knowledgeBases: agentData.knowledgeBases,
     workflowId: agentData.workflowId,
     activeStep: activeStep.value
@@ -615,7 +725,7 @@ const restoreFromLocalStorage = (): void => {
       if (parsedData.id) agentData.id = parsedData.id
       if (parsedData.name) agentData.name = parsedData.name
       if (parsedData.description) agentData.description = parsedData.description
-      
+      if (parsedData.avatar) agentData.avatar = parsedData.avatar
       // 恢复模型选择
       if (parsedData.modelId) agentData.modelId = parsedData.modelId
       
@@ -1103,6 +1213,7 @@ const handlePublish = async (): Promise<void> => {
       name: agentData.name,
       description: agentData.description,
       modelId: agentData.modelId,
+      avatar: agentData.avatar,
       knowledgeBases: agentData.knowledgeBases,
       workflowId: agentData.workflowId
     }
@@ -1283,6 +1394,67 @@ onMounted(() => {
   watch(activeStep, (newStep) => {
     if (newStep === 4) { // 4是预览与调试的步骤索引
       fetchStaticInputs()
+    }
+  })
+})
+
+// 在AgentEditor.vue中添加清理临时资源的方法
+const cleanupTempResources = async () => {
+  try {
+    // 检查是否有临时头像需要清理
+    if (agentData.avatar && agentData.avatar.includes('temp_')) {
+      const token = localStorage.getItem('token')
+      if (!token) return
+      
+
+      const response = await fetch('/agent/cleanup_temp_resources', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          temp_avatar: agentData.avatar,
+          agent_id: agentData.id || null
+        })
+      })
+
+      if (!response.ok || response.status !== 200) {
+        throw new Error('清理临时资源失败')
+      }
+      
+      console.log('清理临时资源成功')
+    }
+  } catch (error) {
+    console.error('清理临时资源失败:', error)
+  }
+}
+
+// 在组件卸载时调用
+onBeforeUnmount(() => {
+  // 如果未发布，则清理临时资源
+  if (!isPublished.value) {
+    cleanupTempResources()
+  }
+})
+
+// 添加页面离开守卫
+onBeforeRouteLeave((to, from, next) => {
+  console.log('页面离开，')
+  if (agentData.avatar && agentData.avatar.includes('temp_') && !isPublished.value) {
+    cleanupTempResources();
+  }
+  next();
+})
+
+// 添加浏览器关闭/刷新前的事件处理
+onMounted(() => {
+  window.addEventListener('beforeunload', (event) => {
+    if (!isPublished.value && agentData.avatar) {
+      cleanupTempResources()
+      // 现代浏览器通常需要返回值来显示确认对话框
+      event.preventDefault()
+      event.returnValue = ''
     }
   })
 })
@@ -1788,5 +1960,54 @@ onMounted(() => {
 
 .chat-input .el-input {
   flex: 1;
+}
+
+/* 头像上传样式 */
+.avatar-upload-container {
+  margin-bottom: 16px;
+}
+
+.avatar-preview {
+  width: 120px;
+  height: 120px;
+  border-radius: 8px;
+  overflow: hidden;
+  background-color: #f0f2f5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border: 2px dashed #ccc;
+  margin-bottom: 8px;
+  transition: all 0.3s;
+}
+
+.avatar-preview:hover {
+  border-color: #409EFF;
+  background-color: #f5f7fa;
+}
+
+.agent-avatar {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.avatar-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  color: #909399;
+}
+
+.avatar-placeholder .el-icon {
+  font-size: 24px;
+  margin-bottom: 8px;
+}
+
+.avatar-tip {
+  font-size: 12px;
+  color: #909399;
+  margin-top: 4px;
 }
 </style>

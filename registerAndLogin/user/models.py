@@ -252,6 +252,7 @@ class PublishedAgent(models.Model):
     views = models.IntegerField(default=0, verbose_name='浏览量')
     likes = models.IntegerField(default=0, verbose_name='点赞数')
     comments = models.IntegerField(default=0, verbose_name='评论数')
+    avatar = models.CharField(max_length=255, blank=True, null=True, verbose_name='头像URL')
 
     class Meta:
         verbose_name = '已发布智能体'
