@@ -667,7 +667,16 @@
       <!-- 节点配置抽屉 -->
       <el-drawer
         v-model="drawerVisible"
-        :title="`${nodeForm.type === 'input' ? '输入' : nodeForm.type === 'process' ? '处理' : '输出'}节点配置`"
+        :title="`${
+        nodeForm.type === 'input' ? '输入' : 
+        nodeForm.type === 'process' ? '处理' : 
+        nodeForm.type === 'output' ? '输出' :
+        nodeForm.type === 'llm' ? '大模型' :
+        nodeForm.type === 'workflow' ? '智能体' :
+        nodeForm.type === 'monitor' ? '监听' :
+        nodeForm.type === 'dynamic-input' ? '动态输入' :
+        '未知'
+        }节点配置`"
         direction="rtl"
         size="400px"
         :append-to-body="true"
