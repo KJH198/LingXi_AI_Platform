@@ -229,26 +229,29 @@ class Announcement(models.Model):
 
     def __str__(self):
         return f'{self.title} ({self.get_status_display()})'
-
+    
 class PublishedAgent(models.Model):
     """已发布的智能体模型"""
     STATUS_CHOICES = [
-        ('published', '已发布'),
-        ('unpublished', '未发布'),
-        ('suspended', '已暂停'),
+        ('pending', '待审核'),
+        ('approved', '已通过'),
+        ('rejected', '已拒绝'),
     ]
     
     name = models.CharField(max_length=100, verbose_name='智能体名称')
     description = models.TextField(verbose_name='描述')
     creator = models.ForeignKey(User, on_delete=models.CASCADE, related_name='published_agents', verbose_name='创建者')
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='published', verbose_name='发布状态')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending', verbose_name='审核状态')
+    review_notes = models.TextField(blank=True, null=True, verbose_name='审核意见')
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='更新时间')
     is_active = models.BooleanField(default=True, verbose_name='是否激活')
-    version = models.CharField(max_length=20, default='1.0.0', verbose_name='版本号')
-    download_count = models.IntegerField(default=0, verbose_name='下载次数')
-    rating = models.FloatField(default=0.0, verbose_name='评分')
-    rating_count = models.IntegerField(default=0, verbose_name='评分人数')
+    model_id = models.CharField(max_length=100, verbose_name='模型ID')
+    workflow_id = models.CharField(max_length=100, blank=True, null=True, verbose_name='工作流ID')
+    knowledge_bases = models.ManyToManyField('knowledge_base.KnowledgeBase', blank=True, verbose_name='知识库')
+    views = models.IntegerField(default=0, verbose_name='浏览量')
+    likes = models.IntegerField(default=0, verbose_name='点赞数')
+    comments = models.IntegerField(default=0, verbose_name='评论数')
 
     class Meta:
         verbose_name = '已发布智能体'
