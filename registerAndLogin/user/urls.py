@@ -41,7 +41,7 @@ urlpatterns = [
     # 管理员路由
     path('adminLogin', AdminLoginView.as_view(), name='admin_login'),
     path('adminDashboard', AdminDashboardView.as_view(), name='admin_dashboard'),
-    path('adminGetUsers/', UserManagementView.as_view(), name='user_management'),
+    path('adminGetUsers', UserManagementView.as_view(), name='user_management'),
     path('adminGetUsersDetail/<int:user_id>/', UserManagementView.as_view(), name='user_detail'),
     path('admin/agent_rating/', AgentRatingView.as_view(), name='agent_rating'),
     path('admin/knowledge_base/', KnowledgeBaseView.as_view(), name='knowledge_base'),
