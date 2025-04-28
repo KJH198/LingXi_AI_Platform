@@ -1385,3 +1385,75 @@ class AnnouncementView(APIView):
             return Response({'message': '公告删除成功'})
         except Announcement.DoesNotExist:
             return Response({'error': '公告不存在'}, status=status.HTTP_404_NOT_FOUND)
+        
+class AgentPublishView(APIView):
+    """智能体发布视图"""
+    
+    def post(self, request):
+        """发布智能体"""
+        try:
+            print("收到发布智能体请求")
+            print("请求数据:", request.data)
+            
+            # 获取请求数据
+            data = request.data
+            name = data.get('name')
+            description = data.get('description')
+            model_id = data.get('modelId')
+            knowledge_bases = data.get('knowledgeBases', [])
+            workflow_id = data.get('workflowId')
+            
+            print("解析的数据:")
+            print(f"名称: {name}")
+            print(f"描述: {description}")
+            print(f"模型ID: {model_id}")
+            print(f"知识库: {knowledge_bases}")
+            print(f"工作流ID: {workflow_id}")
+            
+            # 验证必填字段
+            if not all([name, model_id]):
+                print("缺少必要字段")
+                return Response({
+                    'code': 400,
+                    'message': '缺少必要字段',
+                    'data': None
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # 创建智能体
+            print("开始创建智能体")
+            agent = PublishedAgent.objects.create(
+                name=name,
+                description=description,
+                creator=request.user,
+                status='pending',  # 默认为待审核状态
+                model_id=model_id,
+                workflow_id=workflow_id
+            )
+            print(f"智能体创建成功，ID: {agent.id}")
+            
+            # 添加知识库关联
+            if knowledge_bases:
+                print("添加知识库关联")
+                agent.knowledge_bases.set(knowledge_bases)
+            
+            # 返回成功响应
+            response_data = {
+                'code': 200,
+                'message': '智能体发布成功，等待审核',
+                'data': {
+                    'id': agent.id,
+                    'name': agent.name,
+                    'status': agent.status,
+                    'created_at': agent.created_at
+                }
+            }
+            print("返回响应:", response_data)
+            return Response(response_data)
+            
+        except Exception as e:
+            print("发布失败，错误:", str(e))
+            return Response({
+                'code': 500,
+                'message': f'发布失败：{str(e)}',
+                'data': None
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

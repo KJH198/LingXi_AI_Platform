@@ -1182,7 +1182,7 @@ const handlePublish = async (): Promise<void> => {
     }
     
     // 这里实现真正的发布逻辑
-    const response = await fetch('user/agent/publish/', {
+    const response = await fetch('user/agent/publish', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

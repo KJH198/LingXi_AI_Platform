@@ -24,7 +24,8 @@ from .views import (
     UserAbnormalBehaviorsView,
     UserBehaviorStatsView,
     UserBehaviorLogsView,
-    AnnouncementView
+    AnnouncementView,
+    AgentPublishView,
 )
 
 urlpatterns = [
@@ -54,6 +55,7 @@ urlpatterns = [
     path('admin/announcements/', AnnouncementView.as_view(), name='announcements'),
     path('admin/announcements/<int:announcement_id>/', AnnouncementView.as_view(), name='announcement_detail'),
     
+    path('agent/publish/', AgentPublishView.as_view(), name='agent-publish'),
     # 新增管理员接口路由
     path('api/admin/user/list/', UserListAPIView.as_view(), name='admin_user_list'),
     path('api/admin/user/<str:user_id>/', UserDetailAPIView.as_view(), name='admin_user_detail'),
