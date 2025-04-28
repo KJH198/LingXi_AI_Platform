@@ -1307,8 +1307,9 @@ const followedAgentsList = ref([
 ])
 
 // 添加节点
-const addNode = (type, position) => {
+const addNode = (type) => {
   const id = `${type}-${Date.now()}`
+  const position = findAvailablePosition()
   
   if (type === 'input') {
     // 增加输入节点的计数器
@@ -1368,6 +1369,77 @@ const addNode = (type, position) => {
     // 显示处理类型选择对话框
     processTypeDialogVisible.value = true
     pendingProcessNode.value = { id, position }
+  } else if (type === 'llm') {
+    // 增加大模型节点的计数器
+    nodeTypeCounters.value.llm++
+    
+    elements.value.push({
+      id,
+      type,
+      position,
+      data: {
+        label: `大模型 ${nodeTypeCounters.value.llm}`,
+        type: 'llm',
+        description: '大模型节点',
+        icon: 'ChatDotRound',
+        color: '#9B59B6',
+        bgColor: '#f9f0ff',
+        llmModel: 'LLaMA-3',
+        llmPrompt: ''
+      }
+    })
+  } else if (type === 'workflow') {
+    // 增加工作流节点的计数器
+    nodeTypeCounters.value.workflow++
+    
+    elements.value.push({
+      id,
+      type,
+      position,
+      data: {
+        label: `工作流 ${nodeTypeCounters.value.workflow}`,
+        type: 'workflow',
+        description: '工作流节点',
+        icon: 'Share',
+        color: '#7B68EE',
+        bgColor: '#f0f0ff'
+      }
+    })
+  } else if (type === 'monitor') {
+    // 增加监听节点的计数器
+    nodeTypeCounters.value.monitor++
+    
+    elements.value.push({
+      id,
+      type,
+      position,
+      data: {
+        label: `监听节点 ${nodeTypeCounters.value.monitor}`,
+        type: 'monitor',
+        description: '监听节点',
+        icon: 'View',
+        color: '#F56C6C',
+        bgColor: '#fff0f0',
+        monitorType: 'all'
+      }
+    })
+  } else if (type === 'dynamic-input') {
+    // 增加动态输入节点的计数器
+    nodeTypeCounters.value['dynamic-input']++
+    
+    elements.value.push({
+      id,
+      type,
+      position,
+      data: {
+        label: `动态输入 ${nodeTypeCounters.value['dynamic-input']}`,
+        type: 'dynamic-input',
+        description: '动态输入节点',
+        icon: 'Connection',
+        color: '#409EFF',
+        bgColor: '#f0f9ff'
+      }
+    })
   }
 }
 
