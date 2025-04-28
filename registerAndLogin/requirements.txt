@@ -9,3 +9,4 @@ setuptools
 channels
 channels-redis
 daphne
+WebSocket
