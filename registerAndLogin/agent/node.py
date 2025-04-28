@@ -82,7 +82,7 @@ class DynamicInputNode(BaseNode):
         print(f"等待前端输入: {self.name}")
 
         # 第一步：主动通知前端，需要输入了
-        async_to_sync(send_dynamic_input_request_to_frontend)(self.name)
+        asyncio.run(send_output_to_frontend(self.name, '请输入：'))
 
         # 第二步：后端在这里等待前端发送输入
         pending_inputs[self.name] = None  # 标记这个输入在等待中
@@ -100,8 +100,9 @@ class DynamicInputNode(BaseNode):
 def submit_dynamic_input(request):
     if request.method == 'POST':
         data = json.loads(request.body)
-        input_name = data.get('input')
+        input_name = '动态输入 1'
         input_value = data.get('variables')
+        print(f"收到动态输入: {input_name} = {input_value}")
 
         if input_name in pending_inputs:
             pending_inputs[input_name] = input_value
@@ -110,23 +111,6 @@ def submit_dynamic_input(request):
             return JsonResponse({'error': 'Input not pending'}, status=400)
     else:
         return JsonResponse({'error': 'Invalid request method'}, status=400)
-
-async def send_dynamic_input_request_to_frontend(input_name: str):
-    channel_layer = get_channel_layer()
-    payload = {
-        "input_name": input_name
-    }
-    try:
-        await channel_layer.group_send(
-            "node_output",
-            {
-                "type": "node.dynamic_input",  # 注意这里的type
-                "message": payload
-            }
-        )
-        print(f"成功通知前端需要输入: {input_name}")
-    except Exception as e:
-        print(f"通知前端需要输入失败: {e}")
 
 
 class OutputNode(BaseNode):

@@ -186,39 +186,21 @@
               
               <!-- 输入区域容器 -->
               <div class="input-container">
-                <!-- 动态输入区域 -->
-                <div v-if="waitingForDynamicInput" class="dynamic-input">
-                  <el-input
-                    v-model="dynamicInputValue"
-                    type="textarea"
-                    :rows="3"
-                    :placeholder="`请输入${dynamicInputVars.join('、')}`"
-                  ></el-input>
-                  <el-button
-                    type="primary"
-                    icon="Position"
-                    :disabled="!dynamicInputValue.trim()"
-                    @click="handleDynamicInput"
-                  >
-                    发送
-                  </el-button>
-                </div>
-                
-                <!-- 普通输入区域 -->
-                <div v-else class="chat-input">
+                <div class="chat-input">
                   <el-input
                     v-model="userInput"
                     type="textarea"
                     :rows="3"
-                    placeholder="输入消息，测试智能体的回复..."
+                    :placeholder="waitingForDynamicInput ? `请输入${dynamicInputVars.join('、')}` : '请输入消息...'"
                     :disabled="isGenerating"
-                    @keydown.enter.prevent="handleSendMessage"
+                    @keydown.enter.prevent="handleInput"
                   ></el-input>
                   <el-button
                     type="primary"
                     icon="Position"
                     :disabled="!userInput.trim() || isGenerating"
-                    @click="handleSendMessage"
+                    :class="{ 'dynamic-input-button': waitingForDynamicInput }"
+                    @click="handleInput"
                   >
                     发送
                   </el-button>
@@ -518,6 +500,7 @@ const nodeOutputs = ref<Record<string, any>>({})
 
 // 在 script setup 部分添加新的状态变量
 const currentNodeName = ref('')
+const dynamicInputName = ref('')
 
 // 计算是否有静态输入值
 const hasStaticInputValues = computed(() => {
@@ -757,6 +740,8 @@ const handleResponse = (response: any) => {
     // 需要动态输入
     waitingForDynamicInput.value = true
     dynamicInputVars.value = response.requiredVariables
+    dynamicInputName.value = response.inputName // 记录输入名称
+    // 不添加到聊天记录中
   } else {
     // 普通响应
     chatMessages.value.push({
@@ -768,63 +753,60 @@ const handleResponse = (response: any) => {
   }
 }
 
-// 修改 handleSendMessage 方法
-const handleSendMessage = async () => {
+// 处理输入
+const handleInput = async () => {
   if (!userInput.value.trim() || isGenerating.value) return
   
-  // 添加用户消息
-  const userMessage: ChatMessage = {
-    role: 'user',
-    content: userInput.value,
-    time: new Date().toLocaleTimeString()
-  }
-  chatMessages.value.push(userMessage)
-  
-  // 清空输入框
-  const inputText = userInput.value
-  userInput.value = ''
-  
-  // 滚动到底部
-  await nextTick()
-  if (chatMessagesRef.value) {
-    chatMessagesRef.value.scrollTop = chatMessagesRef.value.scrollHeight
-  }
-  
-  // 记录请求
-  lastRequest.value = {
-    messages: [...chatMessages.value.map(m => ({ role: m.role, content: m.content }))],
-    model: agentData.modelId,
-    params: agentData.modelParams,
-    staticInputs: staticInputs.value.map(input => ({
-      name: input.name,
-      value: input.value
-    }))
-  }
-  
-  // 添加日志
-  addLog('info', '发送用户消息: ' + inputText)
-  
-  // 模拟生成回复
-  isGenerating.value = true
   try {
     const token = localStorage.getItem('token')
     if (!token) {
-      throw new Error('请先登录')
+      ElMessage.error('请先登录')
+      return
     }
     
-    const response = await fetch('/agent/chat', {
+    // 添加用户消息到聊天记录
+    const userMessage: ChatMessage = {
+      role: 'user',
+      content: userInput.value,
+      time: new Date().toLocaleTimeString()
+    }
+    chatMessages.value.push(userMessage)
+    
+    // 清空输入框
+    const inputText = userInput.value
+    userInput.value = ''
+    
+    // 滚动到底部
+    await nextTick()
+    if (chatMessagesRef.value) {
+      chatMessagesRef.value.scrollTop = chatMessagesRef.value.scrollHeight
+    }
+    
+    // 记录请求
+    lastRequest.value = {
+      messages: [...chatMessages.value.map(m => ({ role: m.role, content: m.content }))],
+      model: agentData.modelId,
+      params: agentData.modelParams,
+      staticInputs: staticInputs.value.map(input => ({
+        name: input.name,
+        value: input.value
+      }))
+    }
+    
+    // 添加日志
+    addLog('info', '发送用户消息: ' + inputText)
+    
+    // 发送消息到dynamicInput
+    isGenerating.value = true
+    const response = await fetch('/agent/dynamicInput', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`
       },
       body: JSON.stringify({
-        workflowId: agentData.workflowId,
-        message: inputText,
-        staticInputs: staticInputs.value.map(input => ({
-          name: input.name,
-          value: input.value
-        }))
+        input: dynamicInputName.value,
+        variables: inputText
       })
     })
     
@@ -1160,57 +1142,6 @@ const fetchStaticInputs = async () => {
   } catch (error) {
     console.error('获取静态输入配置失败:', error)
     ElMessage.error('获取静态输入配置失败')
-  }
-}
-
-// 处理动态输入
-const handleDynamicInput = async () => {
-  if (!dynamicInputValue.value.trim()) return
-  
-  try {
-    const token = localStorage.getItem('token')
-    if (!token) {
-      ElMessage.error('请先登录')
-      return
-    }
-    
-    const response = await fetch('/agent/dynamicInput', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify({
-        workflowId: agentData.workflowId,
-        input: dynamicInputValue.value,
-        variables: dynamicInputVars.value
-      })
-    })
-    
-    if (!response.ok) {
-      throw new Error('发送动态输入失败')
-    }
-    
-    const result = await response.json()
-    if (result.code === 200) {
-      // 添加用户输入到聊天记录
-      chatMessages.value.push({
-        role: 'user',
-        content: dynamicInputValue.value,
-        time: new Date().toLocaleTimeString()
-      })
-      
-      // 重置动态输入状态
-      dynamicInputValue.value = ''
-      waitingForDynamicInput.value = false
-      dynamicInputVars.value = []
-      
-      // 继续处理响应
-      handleResponse(result.data)
-    }
-  } catch (error) {
-    console.error('发送动态输入失败:', error)
-    ElMessage.error('发送动态输入失败')
   }
 }
 
@@ -1788,5 +1719,15 @@ onMounted(() => {
 
 .chat-input .el-input {
   flex: 1;
+}
+
+.dynamic-input-button {
+  background-color: #67c23a !important;
+  border-color: #67c23a !important;
+}
+
+.dynamic-input-button:hover {
+  background-color: #85ce61 !important;
+  border-color: #85ce61 !important;
 }
 </style>
