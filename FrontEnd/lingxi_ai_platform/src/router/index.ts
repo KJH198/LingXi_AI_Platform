@@ -47,6 +47,21 @@ const routes: RouteRecordRaw[] = [
     component: () => import('../views/Register.vue')
   },
   {
+    path: '/user-profile/:id',
+    name: 'UserProfileDetail',
+    component: () => import('../views/UserProfileDetail.vue')
+  },
+  {
+    path: '/agent-detail/:id',
+    name: 'AgentDetail',
+    component: () => import('../views/AgentDetail.vue')
+  },
+  {
+    path: '/knowledge-base/:id',
+    name: 'KnowledgeBaseDetail',
+    component: () => import('../views/KnowledgeBaseDetail.vue')
+  },
+  {
     path: '/admin',
     name: 'AdminLogin',
     component: () => import('../views/AdminLogin.vue')
@@ -73,4 +88,4 @@ const router = createRouter({
   routes
 })
 
-export default router 
+export default router
