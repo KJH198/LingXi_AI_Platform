@@ -512,6 +512,9 @@ const waitingForDynamicInput = ref(false)
 const dynamicInputVars = ref<string[]>([])
 const dynamicInputValue = ref('')
 
+// 在 script setup 部分添加新的接口和状态
+const nodeOutputs = ref<Record<string, any>>({})
+
 // 计算是否有静态输入值
 const hasStaticInputValues = computed(() => {
   return staticInputs.value.some(input => input.value.trim() !== '')
@@ -543,12 +546,10 @@ const handleSendStaticInputs = async () => {
       })
     })
     
-    if (!response.ok) {
-      throw new Error('发送静态输入失败')
-    }
-    
     const result = await response.json()
-    if (result.code === 200) {
+    
+    // 检查响应状态
+    if (response.ok && result.status === 'ok') {
       ElMessage.success('静态输入发送成功')
       // 清空所有静态输入
       staticInputs.value.forEach(input => {
@@ -559,7 +560,7 @@ const handleSendStaticInputs = async () => {
     }
   } catch (error) {
     console.error('发送静态输入失败:', error)
-    ElMessage.error('发送静态输入失败')
+    ElMessage.error(error instanceof Error ? error.message : '发送静态输入失败')
   }
 }
 
@@ -724,7 +725,27 @@ const updateWorkflowId = (workflowId: string) => {
   saveToLocalStorage() // 更新工作流后立即保存
 }
 
-// 获取静态输入配置
+// 添加处理节点输出的方法
+const handleNodeOutput = (data: { node_name: string, output: any }) => {
+  const { node_name, output } = data
+  nodeOutputs.value[node_name] = output
+  
+  // 在聊天记录中添加节点输出
+  chatMessages.value.push({
+    role: 'assistant',
+    content: `节点 ${node_name} 输出: ${JSON.stringify(output, null, 2)}`,
+    time: new Date().toLocaleTimeString()
+  })
+  
+  // 滚动到底部
+  nextTick(() => {
+    if (chatMessagesRef.value) {
+      chatMessagesRef.value.scrollTop = chatMessagesRef.value.scrollHeight
+    }
+  })
+}
+
+// 修改获取静态输入配置的方法
 const fetchStaticInputs = async () => {
   if (!agentData.workflowId) return
   
@@ -736,12 +757,14 @@ const fetchStaticInputs = async () => {
     
     const result = await response.json()
     if (result.code === 200) {
-      // 根据后端返回的数据结构处理
+      // 根据后端返回的数据结构处理，并按名称排序
       const { node_count, node_names } = result.data
-      staticInputs.value = node_names.map((name: string) => ({
-        name: name,
-        value: ''
-      }))
+      staticInputs.value = node_names
+        .map((name: string) => ({
+          name: name,
+          value: ''
+        }))
+        .sort((a: StaticInput, b: StaticInput) => a.name.localeCompare(b.name))
       console.log('获取静态输入配置成功:', staticInputs.value)
     } else {
       throw new Error(result.message || '获取静态输入配置失败')
@@ -1187,6 +1210,30 @@ const handlePublish = async (): Promise<void> => {
 // 在 AgentEditor.vue 中修改 onMounted 钩子
 onMounted(() => {
   console.log('AgentEditor 组件已挂载，开始初始化数据')
+  
+  // 建立 WebSocket 连接
+  const ws = new WebSocket('ws://localhost:8000/ws/node_output/')
+  
+  ws.onmessage = (event) => {
+    try {
+      const data = JSON.parse(event.data)
+      handleNodeOutput(data)
+    } catch (error) {
+      console.error('处理节点输出失败:', error)
+    }
+  }
+  
+  ws.onerror = (error) => {
+    console.error('WebSocket 连接错误:', error)
+  }
+  
+  ws.onclose = () => {
+    console.log('WebSocket 连接已关闭')
+  }
+  
+  ws.onopen = () => {
+    console.log('WebSocket 连接已建立')
+  }
   
   // 检查是否有从 Community 传递过来的初始数据
   const initData = localStorage.getItem('agentInitData')
