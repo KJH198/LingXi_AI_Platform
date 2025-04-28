@@ -1,6 +1,10 @@
 # agents/urls.py
 from django.urls import path
-from .views import WorkflowSaveView, GetWorkflowsView, DeleteWorkflowView, WorkflowRetrieveView, GetInputCountView
+from .views import (
+    WorkflowSaveView, GetWorkflowsView, DeleteWorkflowView, 
+    WorkflowRetrieveView, GetInputCountView, AgentAvatarUploadView, 
+    CleanupTempResourcesView
+)
 from .node import submit_static_inputs,submit_dynamic_input
 
 urlpatterns = [
@@ -12,4 +16,6 @@ urlpatterns = [
     path('staticInput', submit_static_inputs, name='submit-static-input'),
     path('dynamicInput', submit_dynamic_input, name='submit-dynamic-input'),
     #path('chat', AgentChatView.as_view(), name='agent-chat'),
+    path('upload_avatar', AgentAvatarUploadView.as_view(), name='agent-avatar-upload'),
+    path('cleanup_temp_resources', CleanupTempResourcesView.as_view(), name='cleanup-temp-resources'),
 ]
