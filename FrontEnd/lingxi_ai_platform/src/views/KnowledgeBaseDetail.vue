@@ -71,7 +71,7 @@
                     <el-icon><Share /></el-icon> 分享
                   </el-dropdown-item>
                   <el-dropdown-item @click="handleLike">
-                    <el-icon><ThumbUp /></el-icon> {{ kbData.isLiked ? '取消点赞' : '点赞' }}
+                    <el-icon><StarFilled /></el-icon> {{ kbData.isLiked ? '取消点赞' : '点赞' }}
                   </el-dropdown-item>
                   <el-dropdown-item @click="handleClone" v-if="canClone">
                     <el-icon><CopyDocument /></el-icon> 克隆知识库
@@ -235,7 +235,7 @@
                   <p>{{ comment.content }}</p>
                   <div class="comment-actions">
                     <el-button text type="primary" size="small" @click="likeComment(comment)">
-                      <el-icon><ThumbUp /></el-icon> {{ comment.likes || 0 }}
+                      <el-icon><StarFilled /></el-icon> {{ comment.likes || 0 }}
                     </el-button>
                     <el-button text size="small" @click="replyComment(comment)">
                       <el-icon><ChatLineRound /></el-icon> 回复
@@ -331,7 +331,7 @@ import {
   User, 
   ArrowLeft, 
   More, 
-  ThumbUp, 
+  StarFilled, 
   Share, 
   CopyDocument, 
   Warning, 

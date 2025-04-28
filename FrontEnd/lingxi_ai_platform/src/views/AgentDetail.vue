@@ -44,7 +44,7 @@
             </div>
             <div class="agent-stats">
               <span class="stat-item"><el-icon><View /></el-icon> {{ agentData.views || 0 }} 浏览</span>
-              <span class="stat-item"><el-icon><Star /></el-icon> {{ agentData.likes || 0 }} 点赞</span>
+              <span class="stat-item"><el-icon><StarFilled /></el-icon> {{ agentData.likes || 0 }} 点赞</span>
               <span class="stat-item"><el-icon><User /></el-icon> {{ agentData.followers || 0 }} 关注</span>
               <span class="stat-item"><el-icon><ChatDotRound /></el-icon> {{ agentData.comments?.length || 0 }} 评论</span>
             </div>
@@ -63,7 +63,7 @@
               size="large" 
               @click="handleFollow"
             >
-              <el-icon><Star /></el-icon> 
+              <el-icon><StarFilled /></el-icon> 
               {{ agentData.isFollowed ? '已关注' : '关注' }}
             </el-button>
             <el-dropdown trigger="click">
@@ -73,7 +73,7 @@
               <template #dropdown>
                 <el-dropdown-menu>
                   <el-dropdown-item @click="handleLike">
-                    <el-icon><ThumbUp /></el-icon> {{ agentData.isLiked ? '取消点赞' : '点赞' }}
+                    <el-icon><StarFilled /></el-icon> {{ agentData.isLiked ? '取消点赞' : '点赞' }}
                   </el-dropdown-item>
                   <el-dropdown-item @click="handleShare">
                     <el-icon><Share /></el-icon> 分享
@@ -214,7 +214,7 @@
                   <p>{{ comment.content }}</p>
                   <div class="comment-actions">
                     <el-button text type="primary" size="small" @click="likeComment(comment)">
-                      <el-icon><ThumbUp /></el-icon> {{ comment.likes || 0 }}
+                      <el-icon><StarFilled /></el-icon> {{ comment.likes || 0 }}
                     </el-button>
                     <el-button text size="small" @click="replyComment(comment)">
                       <el-icon><ChatLineRound /></el-icon> 回复
@@ -276,13 +276,12 @@ import { ref, reactive, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { 
-  Star, 
+  StarFilled, 
   View, 
   ChatDotRound, 
   User, 
   ArrowLeft, 
   More, 
-  ThumbUp, 
   Share, 
   CopyDocument, 
   Warning, 
