@@ -1074,7 +1074,8 @@ import {
   Plus,
   ChatDotRound,
   Share,
-  View
+  View,
+  Document
 } from '@element-plus/icons-vue'
 
 // 引入 Vue Flow 样式
@@ -1166,10 +1167,10 @@ const processTypes = [
   {
     value: 'code',
     label: '代码处理',
-    icon: 'Edit',
+    icon: 'Document',
     description: '执行自定义代码逻辑',
-    color: '#E6A23C',  // 橙色
-    bgColor: '#fdf6ec'
+    color: '#409EFF',  // 蓝色
+    bgColor: '#ecf5ff'
   },
   {
     value: 'selector',
@@ -1600,7 +1601,8 @@ const updateNode = async () => {
         'loop': 'Refresh',
         'llm': 'ChatDotRound',
         'batch': 'DataLine',
-        'aggregate': 'Collection'
+        'aggregate': 'Collection',
+        'code': 'Document'
       }
 
       const processTypeColors = {
@@ -1608,7 +1610,8 @@ const updateNode = async () => {
         'loop': { color: '#9B59B6', bgColor: '#f9f0ff' },
         'llm': { color: '#9B59B6', bgColor: '#f9f0ff' },
         'batch': { color: '#909399', bgColor: '#f4f4f5' },
-        'aggregate': { color: '#7B68EE', bgColor: '#f0f0ff' }
+        'aggregate': { color: '#7B68EE', bgColor: '#f0f0ff' },
+        'code': { color: '#409EFF', bgColor: '#ecf5ff' }
       }
       
       // 创建一个新的节点数据对象，包含所有配置
