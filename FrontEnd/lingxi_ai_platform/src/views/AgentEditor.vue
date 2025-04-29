@@ -195,7 +195,7 @@
                 <div v-if="waitingForDynamicInput" class="dynamic-input-prompt">
                   <div class="message-avatar">
                     <el-avatar :size="36" :src="defaultAgentAvatar"></el-avatar>
-                    <div class="output-port-name">output</div>
+                    <div class="output-port-name">{{ dynamicInputName || 'output' }}</div>
                   </div>
                   <div class="message-content">
                     <div class="dynamic-input-title">等待输入</div>
