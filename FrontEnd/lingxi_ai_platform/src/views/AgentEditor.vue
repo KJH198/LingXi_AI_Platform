@@ -191,25 +191,16 @@
                     </div>
                   </div>
                 </div>
-                <!-- 动态输入提示 -->
-                <div v-if="waitingForDynamicInput" class="dynamic-input-prompt">
-                  <div class="message-avatar">
-                    <el-avatar :size="36" :src="defaultAgentAvatar"></el-avatar>
-                    <div class="output-port-name">output</div>
-                  </div>
-                  <div class="message-content">
-                    <div class="dynamic-input-title">等待输入</div>
-                    <div class="dynamic-input-vars">
-                      <el-tag v-for="(varName, index) in dynamicInputVars" :key="index" type="info">
-                        {{ varName }}
-                      </el-tag>
-                    </div>
-                  </div>
-                </div>
               </div>
               
               <!-- 输入区域容器 -->
               <div class="input-container">
+                <div v-if="waitingForDynamicInput" class="dynamic-input-indicator">
+                  <div class="dynamic-input-tag">
+                    <el-icon><Edit /></el-icon>
+                    <span>等待输入：{{ dynamicInputName }}</span>
+                  </div>
+                </div>
                 <div class="chat-input">
                   <el-input
                     v-model="userInput"
@@ -355,7 +346,7 @@ import { marked } from 'marked'
 import DOMPurify from 'dompurify'
 import KnowledgeBaseConfig from '@/views/KnowledgeBaseConfig.vue'
 import WorkflowList from '@/views/WorkflowList.vue'
-import { Plus } from '@element-plus/icons-vue'
+import { Plus, Edit } from '@element-plus/icons-vue'
 
 // 定义接口
 interface AgentData {
@@ -413,6 +404,11 @@ interface KnowledgeBaseFile {
   size: number;
   upload_time: string;
   status: string;
+}
+
+interface StaticInput {
+  name: string;
+  value: string;
 }
 
 const router = useRouter()
@@ -511,105 +507,19 @@ const previewLoading = ref(false)
 const knowledgeBases = ref<KnowledgeBase[]>([])
 const selectedKnowledgeBases = ref<string[]>([])
 
-// 触发文件选择器
-const triggerAvatarUpload = () => {
-  avatarInput.value?.click()
-}
-
-// 处理头像选择变化
-const handleAvatarChange = async (event: Event) => {
-  const target = event.target as HTMLInputElement
-  const files = target.files
-  
-  if (!files || files.length === 0) return
-  
-  const file = files[0]
-  
-  // 检查文件类型
-  if (!file.type.startsWith('image/')) {
-    ElMessage.error('请上传图片文件')
-    return
-  }
-  
-  // 检查文件大小（限制为2MB）
-  if (file.size > 2 * 1024 * 1024) {
-    ElMessage.error('图片大小不能超过2MB')
-    return
-  }
-  
-  try {
-    // 先创建一个临时预览URL
-    const previewUrl = URL.createObjectURL(file)
-    agentData.avatar = previewUrl
-    
-    const formData = new FormData()
-    formData.append('avatar', file)
-    
-    // 如果agent已有ID，也发送ID
-    if (agentData.id) {
-      formData.append('agent_id', agentData.id)
-    }
-    
-    const token = localStorage.getItem('token')
-    if (!token) {
-      ElMessage.error('请先登录')
-      return
-    }
-    
-    const response = await fetch('/agent/upload_avatar', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`
-      },
-      body: formData
-    })
-    
-    if (!response.ok) {
-      throw new Error('上传失败')
-    }
-    
-    const result = await response.json()
-    
-    if (result.code === 200) {
-      // 用服务器返回的URL替换临时URL
-      agentData.avatar = result.data.avatar
-      ElMessage.success('头像上传成功')
-      // 释放临时URL
-      URL.revokeObjectURL(previewUrl)
-      
-      // 保存到本地存储
-      saveToLocalStorage()
-    } else {
-      throw new Error(result.message || '上传失败')
-    }
-  } catch (error) {
-    console.error('头像上传失败:', error)
-    ElMessage.error(error instanceof Error ? error.message : '头像上传失败')
-  } finally {
-    // 清空文件输入，允许重新选择同一文件
-    target.value = ''
-  }
-}
-
 // 静态输入相关
-interface StaticInput {
-  name: string;
-  value: string;
-}
-
 const staticInputs = ref<StaticInput[]>([])
 
 // 动态输入相关
 const waitingForDynamicInput = ref(false)
 const dynamicInputVars = ref<string[]>([])
-const dynamicInputValue = ref('')
+const dynamicInputName = ref('')
 
 // 在 script setup 部分添加新的接口和状态
 const nodeOutputs = ref<Record<string, any>>({})
 
 // 在 script setup 部分添加新的状态变量
 const currentNodeName = ref('')
-const dynamicInputName = ref('')
 
 // 计算是否有静态输入值
 const hasStaticInputValues = computed(() => {
@@ -908,6 +818,11 @@ const handleInput = async () => {
     
     // 发送消息到dynamicInput
     isGenerating.value = true
+    console.log('发送动态输入:', {
+      input: dynamicInputName.value,
+      variables: inputText
+    })
+    
     const response = await fetch('/agent/dynamicInput', {
       method: 'POST',
       headers: {
@@ -924,9 +839,21 @@ const handleInput = async () => {
       throw new Error('发送消息失败')
     }
     
+    const result = await response.json()
+    console.log('动态输入响应:', result)
+    
+    // 发送成功后重置动态输入状态
+    waitingForDynamicInput.value = false
+    dynamicInputVars.value = []
+    dynamicInputName.value = ''
+    
   } catch (error) {
     console.error('发送消息失败:', error)
     ElMessage.error('发送消息失败')
+    // 发生错误时也重置状态
+    waitingForDynamicInput.value = false
+    dynamicInputVars.value = []
+    dynamicInputName.value = ''
   } finally {
     isGenerating.value = false
   }
@@ -1260,9 +1187,35 @@ onMounted(() => {
   ws.onmessage = (event) => {
     try {
       const data = JSON.parse(event.data)
-      handleNodeOutput(data)
+      console.log('收到WebSocket消息:', data)
+      
+      if (data.type === 'output') {
+        // 处理节点输出
+        handleNodeOutput(data)
+      } else if (data.type === 'request_input') {
+        // 处理动态输入请求
+        console.log('收到动态输入请求:', data)
+        if (data.node_name) {
+          waitingForDynamicInput.value = true
+          // 使用节点名称作为输入名称
+          dynamicInputName.value = data.node_name
+          // 默认需要输入一个变量
+          dynamicInputVars.value = ['输入']
+          console.log('设置动态输入状态:', {
+            waitingForDynamicInput: waitingForDynamicInput.value,
+            dynamicInputVars: dynamicInputVars.value,
+            dynamicInputName: dynamicInputName.value
+          })
+        } else {
+          console.error('动态输入请求缺少节点名称:', data)
+          ElMessage.error('动态输入请求格式错误')
+        }
+      } else {
+        console.warn('未知的WebSocket消息类型:', data.type)
+      }
     } catch (error) {
-      console.error('处理节点输出失败:', error)
+      console.error('处理WebSocket消息失败:', error)
+      ElMessage.error('处理消息失败，请刷新页面重试')
     }
   }
   
@@ -1387,6 +1340,86 @@ onMounted(() => {
     }
   })
 })
+
+// 触发文件选择器
+const triggerAvatarUpload = () => {
+  avatarInput.value?.click()
+}
+
+// 处理头像选择变化
+const handleAvatarChange = async (event: Event) => {
+  const target = event.target as HTMLInputElement
+  const files = target.files
+  
+  if (!files || files.length === 0) return
+  
+  const file = files[0]
+  
+  // 检查文件类型
+  if (!file.type.startsWith('image/')) {
+    ElMessage.error('请上传图片文件')
+    return
+  }
+  
+  // 检查文件大小（限制为2MB）
+  if (file.size > 2 * 1024 * 1024) {
+    ElMessage.error('图片大小不能超过2MB')
+    return
+  }
+  
+  try {
+    // 先创建一个临时预览URL
+    const previewUrl = URL.createObjectURL(file)
+    agentData.avatar = previewUrl
+    
+    const formData = new FormData()
+    formData.append('avatar', file)
+    
+    // 如果agent已有ID，也发送ID
+    if (agentData.id) {
+      formData.append('agent_id', agentData.id)
+    }
+    
+    const token = localStorage.getItem('token')
+    if (!token) {
+      ElMessage.error('请先登录')
+      return
+    }
+    
+    const response = await fetch('/agent/upload_avatar', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      },
+      body: formData
+    })
+    
+    if (!response.ok) {
+      throw new Error('上传失败')
+    }
+    
+    const result = await response.json()
+    
+    if (result.code === 200) {
+      // 用服务器返回的URL替换临时URL
+      agentData.avatar = result.data.avatar
+      ElMessage.success('头像上传成功')
+      // 释放临时URL
+      URL.revokeObjectURL(previewUrl)
+      
+      // 保存到本地存储
+      saveToLocalStorage()
+    } else {
+      throw new Error(result.message || '上传失败')
+    }
+  } catch (error) {
+    console.error('头像上传失败:', error)
+    ElMessage.error(error instanceof Error ? error.message : '头像上传失败')
+  } finally {
+    // 清空文件输入，允许重新选择同一文件
+    target.value = ''
+  }
+}
 </script>
 
 <style scoped>
@@ -1577,11 +1610,24 @@ onMounted(() => {
   overflow-y: auto;
   padding: 16px;
   background-color: #f5f7fa;
+  border-radius: 8px 8px 0 0;
 }
 
 .message {
   display: flex;
   margin-bottom: 16px;
+  animation: messageFadeIn 0.3s ease-out;
+}
+
+@keyframes messageFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .user-message {
@@ -1604,27 +1650,27 @@ onMounted(() => {
 
 .message-content {
   max-width: 75%;
-  padding: 12px;
+  padding: 12px 16px;
   border-radius: 8px;
   background-color: #fff;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  transition: all 0.3s;
 }
 
 .bot-message .message-content {
   background-color: #ecf5ff;
+  border: 1px solid #d9ecff;
+}
+
+.user-message .message-content {
+  background-color: #fff;
+  border: 1px solid #ebeef5;
 }
 
 .message-text {
   white-space: pre-wrap;
   word-break: break-word;
-}
-
-.message-text :deep(p) {
-  margin: 0 0 10px 0;
-}
-
-.message-text :deep(p:last-child) {
-  margin-bottom: 0;
+  line-height: 1.6;
 }
 
 .message-time {
@@ -1636,14 +1682,60 @@ onMounted(() => {
 
 .chat-input {
   padding: 16px;
-  background-color: #fff;
-  border-top: 1px solid #dcdfe6;
   display: flex;
   gap: 12px;
+  background-color: #f5f7fa;
+  border-radius: 0 0 8px 8px;
 }
 
 .chat-input .el-input {
   flex: 1;
+}
+
+.chat-input .el-input :deep(.el-textarea__inner) {
+  border-radius: 4px;
+  border: 1px solid #dcdfe6;
+  background-color: #fff;
+  transition: all 0.3s;
+  padding: 12px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.chat-input .el-input :deep(.el-textarea__inner:focus) {
+  border-color: #409eff;
+  box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.1);
+}
+
+.chat-input .el-input :deep(.el-textarea__inner:hover) {
+  border-color: #c0c4cc;
+}
+
+.chat-input .el-input :deep(.el-textarea__inner:focus) {
+  border-color: #409eff;
+  box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.1);
+}
+
+.chat-input .el-input :deep(.el-textarea__inner:hover) {
+  border-color: #c0c4cc;
+}
+
+.dynamic-input-button {
+  background-color: #67c23a !important;
+  border-color: #67c23a !important;
+  transition: all 0.3s;
+}
+
+.dynamic-input-button:hover {
+  background-color: #85ce61 !important;
+  border-color: #85ce61 !important;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(103, 194, 58, 0.2);
+}
+
+.dynamic-input-button:active {
+  transform: translateY(0);
+  box-shadow: none;
 }
 
 .typing-indicator {
@@ -1795,25 +1887,98 @@ onMounted(() => {
   text-align: center;
 }
 
-/* 动态输入提示样式 */
-.dynamic-input-prompt {
-  display: flex;
-  margin-bottom: 16px;
+/* 新的动态输入指示器样式 */
+.dynamic-input-indicator {
+  padding: 8px 16px;
   background-color: #f0f9eb;
-  border-radius: 8px;
-  padding: 12px;
+  border-bottom: 1px solid #e1f3d8;
+  animation: slideDown 0.3s ease-out;
 }
 
-.dynamic-input-title {
-  font-weight: bold;
-  margin-bottom: 8px;
+.dynamic-input-tag {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #67c23a;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.dynamic-input-tag .el-icon {
+  font-size: 16px;
   color: #67c23a;
 }
 
-.dynamic-input-vars {
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 输入区域容器样式 */
+.input-container {
+  position: relative;
   display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
+  flex-direction: column;
+  background-color: #fff;
+  border-top: 1px solid #dcdfe6;
+}
+
+/* 聊天输入区域样式 */
+.chat-input {
+  padding: 16px;
+  display: flex;
+  gap: 12px;
+  background-color: #f5f7fa;
+  border-radius: 0 0 8px 8px;
+}
+
+.chat-input .el-input {
+  flex: 1;
+}
+
+.chat-input .el-input :deep(.el-textarea__inner) {
+  border-radius: 4px;
+  border: 1px solid #dcdfe6;
+  background-color: #fff;
+  transition: all 0.3s;
+  padding: 12px;
+  font-size: 14px;
+  line-height: 1.5;
+  resize: none;
+}
+
+.chat-input .el-input :deep(.el-textarea__inner:focus) {
+  border-color: #67c23a;
+  box-shadow: 0 0 0 2px rgba(103, 194, 58, 0.1);
+}
+
+.chat-input .el-input :deep(.el-textarea__inner:hover) {
+  border-color: #85ce61;
+}
+
+/* 动态输入按钮样式 */
+.dynamic-input-button {
+  background-color: #67c23a !important;
+  border-color: #67c23a !important;
+  transition: all 0.3s;
+}
+
+.dynamic-input-button:hover {
+  background-color: #85ce61 !important;
+  border-color: #85ce61 !important;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(103, 194, 58, 0.2);
+}
+
+.dynamic-input-button:active {
+  transform: translateY(0);
+  box-shadow: none;
 }
 
 /* 静态输入区域样式 */
@@ -1859,46 +2024,6 @@ onMounted(() => {
 .static-input-label {
   font-size: 14px;
   color: #606266;
-}
-
-/* 输入区域容器样式 */
-.input-container {
-  display: flex;
-  flex-direction: column;
-  background-color: #fff;
-  border-top: 1px solid #dcdfe6;
-}
-
-/* 动态输入区域样式 */
-.dynamic-input {
-  padding: 16px;
-  display: flex;
-  gap: 12px;
-}
-
-.dynamic-input .el-input {
-  flex: 1;
-}
-
-/* 普通输入区域样式 */
-.chat-input {
-  padding: 16px;
-  display: flex;
-  gap: 12px;
-}
-
-.chat-input .el-input {
-  flex: 1;
-}
-
-.dynamic-input-button {
-  background-color: #67c23a !important;
-  border-color: #67c23a !important;
-}
-
-.dynamic-input-button:hover {
-  background-color: #85ce61 !important;
-  border-color: #85ce61 !important;
 }
 
 /* 头像上传样式 */

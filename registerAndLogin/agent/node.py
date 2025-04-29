@@ -82,7 +82,7 @@ class DynamicInputNode(BaseNode):
         print(f"等待前端输入: {self.name}")
 
         # 第一步：主动通知前端，需要输入了
-        asyncio.run(send_output_to_frontend(self.name, '请输入：'))
+        asyncio.run(send_dynamic_request_to_frontend(self.name))
 
         # 第二步：后端在这里等待前端发送输入
         pending_inputs[self.name] = None  # 标记这个输入在等待中
@@ -133,6 +133,7 @@ class MonitorNode(BaseNode):
 async def send_output_to_frontend(node_name: str, output: any):
     channel_layer = get_channel_layer()
     payload = {
+        "type": "output",
         "node_name": node_name,
         "output": output
     }
@@ -147,6 +148,24 @@ async def send_output_to_frontend(node_name: str, output: any):
         print(f"成功发送输出到前端: {node_name} : {output}")
     except Exception as e:
         print(f"发送输出到前端失败: {e}")
+        
+async def send_dynamic_request_to_frontend(node_name: str):
+    channel_layer = get_channel_layer()
+    payload = {
+        "node_name": node_name,
+        "type": "request_input"
+    }
+    try:
+        await channel_layer.group_send(
+            "node_output",
+            {
+                "type": "node.output",
+                "message": payload
+            }
+        )
+        print(f"成功动态输入需求到前端: {node_name}")
+    except Exception as e:
+        print(f"发送动态输入需求到前端失败: {e}")
 
 
 class CodeNode(BaseNode):
