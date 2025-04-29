@@ -1269,9 +1269,12 @@ onMounted(() => {
   })
   
   // 监听步骤变化，当切换到预览与调试步骤时获取静态输入配置
-  watch(activeStep, (newStep) => {
+  watch(activeStep, async (newStep) => {
     if (newStep === 4) { // 4是预览与调试的步骤索引
-      fetchStaticInputs()
+      // 获取静态输入配置
+      await fetchStaticInputs()
+      // 启动预览模式
+      await startPreview()
     }
   })
 })
@@ -1414,6 +1417,47 @@ const handleAvatarChange = async (event: Event) => {
   } finally {
     // 清空文件输入，允许重新选择同一文件
     target.value = ''
+  }
+}
+
+// 在 script setup 部分添加新的函数
+const startPreview = async () => {
+  try {
+    const token = localStorage.getItem('token')
+    if (!token) {
+      ElMessage.error('请先登录')
+      return
+    }
+
+    const response = await fetch('/agent/start_preview', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        agent_id: agentData.id,
+        workflow_id: agentData.workflowId,
+        model_id: agentData.modelId,
+        knowledge_bases: agentData.knowledgeBases
+      })
+    })
+
+    if (!response.ok) {
+      throw new Error('启动预览失败')
+    }
+
+    const result = await response.json()
+    if (result.code === 200) {
+      console.log('预览模式已启动')
+      // 重置聊天
+      resetChat()
+    } else {
+      throw new Error(result.message || '启动预览失败')
+    }
+  } catch (error) {
+    console.error('启动预览失败:', error)
+    ElMessage.error('启动预览失败，请稍后重试')
   }
 }
 </script>
