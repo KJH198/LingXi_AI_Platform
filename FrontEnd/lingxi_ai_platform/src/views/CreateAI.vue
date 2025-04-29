@@ -1050,7 +1050,7 @@
 </template>
 
 <script setup>
-import { ref, computed, nextTick, onMounted } from 'vue'
+import { ref, computed, nextTick, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { VueFlow, useVueFlow, Handle } from '@vue-flow/core'
 import { Background } from '@vue-flow/background'
@@ -2369,6 +2369,16 @@ const handleAgentSelect = (type) => {
     nodeForm.value.myAgents = null
   }
 }
+
+watch(() => nodeForm.value.processType, (newType) => {
+  const typeConfig = processTypes.find(type => type.value === newType)
+  if (typeConfig) {
+    // 只在未手动输入名称时自动更新
+    if (!nodeForm.value.name || nodeForm.value.name === '' || nodeForm.value.name === originalNodeData.value.name) {
+      nodeForm.value.name = `${typeConfig.label} ${nodeTypeCounters.value.process}`
+    }
+  }
+})
 </script>
 
 <style scoped>
