@@ -1321,9 +1321,13 @@ onBeforeUnmount(() => {
 
 // 添加页面离开守卫
 onBeforeRouteLeave((to, from, next) => {
-  console.log('页面离开，')
-  if (agentData.avatar && agentData.avatar.includes('temp_') && !isPublished.value) {
+  console.log("页面离开");
+  if (to.path !== '/create-ai' && agentData.avatar && agentData.avatar.includes('temp_') && !isPublished.value) {
+    console.log("to.path :", to.path);
     cleanupTempResources();
+  }
+  else {
+    console.log("to.path :", to.path);
   }
   next();
 })
