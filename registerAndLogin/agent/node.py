@@ -503,3 +503,24 @@ def run_workflow_from_output_node(workflow):
         final_result[output_node_id] = result
 
     return final_result
+
+@csrf_exempt
+def check_next_input(request):
+    if request.method == 'GET':
+        try:
+            # 检查是否有待处理的动态输入
+            if pending_inputs:
+                # 获取第一个待处理的输入
+                next_input_name = next(iter(pending_inputs))
+                return JsonResponse({
+                    'hasNextInput': True,
+                    'nextInputName': next_input_name
+                })
+            else:
+                return JsonResponse({
+                    'hasNextInput': False
+                })
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=400)
+    else:
+        return JsonResponse({'error': 'Invalid request method'}, status=400)
