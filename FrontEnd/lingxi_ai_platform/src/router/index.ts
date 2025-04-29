@@ -80,6 +80,11 @@ const routes: RouteRecordRaw[] = [
     path: '/editor',
     name: 'Editor',
     component: Editor
+  },
+  {
+    path: '/chat',
+    name: 'Chat',
+    component: () => import('../views/Chat.vue')
   }
 ]
 

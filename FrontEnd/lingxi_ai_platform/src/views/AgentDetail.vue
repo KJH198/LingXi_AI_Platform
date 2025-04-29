@@ -655,15 +655,17 @@ const handleLike = async () => {
 
 // 开始对话
 const handleChat = () => {
-  // 保存智能体信息到本地存储以便聊天页面使用
-  localStorage.setItem('chatAgent', JSON.stringify({
+  // 将智能体信息存储到localStorage
+  const chatAgentInfo = {
     id: agentData.id,
     name: agentData.name,
+    description: agentData.description,
     avatar: agentAvatar.value
-  }))
+  }
+  localStorage.setItem('currentChatAgent', JSON.stringify(chatAgentInfo))
   
   // 跳转到聊天页面
-  router.push('/create-ai')
+  router.push('/chat')
 }
 
 // 分享智能体
