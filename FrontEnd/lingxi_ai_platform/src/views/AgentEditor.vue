@@ -191,25 +191,16 @@
                     </div>
                   </div>
                 </div>
-                <!-- 动态输入提示 -->
-                <div v-if="waitingForDynamicInput" class="dynamic-input-prompt">
-                  <div class="message-avatar">
-                    <el-avatar :size="36" :src="defaultAgentAvatar"></el-avatar>
-                    <div class="output-port-name">{{ dynamicInputName || 'output' }}</div>
-                  </div>
-                  <div class="message-content">
-                    <div class="dynamic-input-title">等待输入</div>
-                    <div class="dynamic-input-vars">
-                      <el-tag v-for="(varName, index) in dynamicInputVars" :key="index" type="info">
-                        {{ varName }}
-                      </el-tag>
-                    </div>
-                  </div>
-                </div>
               </div>
               
               <!-- 输入区域容器 -->
               <div class="input-container">
+                <div v-if="waitingForDynamicInput" class="dynamic-input-indicator">
+                  <div class="dynamic-input-tag">
+                    <el-icon><Edit /></el-icon>
+                    <span>等待输入：{{ dynamicInputName }}</span>
+                  </div>
+                </div>
                 <div class="chat-input">
                   <el-input
                     v-model="userInput"
@@ -355,7 +346,7 @@ import { marked } from 'marked'
 import DOMPurify from 'dompurify'
 import KnowledgeBaseConfig from '@/views/KnowledgeBaseConfig.vue'
 import WorkflowList from '@/views/WorkflowList.vue'
-import { Plus } from '@element-plus/icons-vue'
+import { Plus, Edit } from '@element-plus/icons-vue'
 
 // 定义接口
 interface AgentData {
@@ -1615,11 +1606,24 @@ const handleAvatarChange = async (event: Event) => {
   overflow-y: auto;
   padding: 16px;
   background-color: #f5f7fa;
+  border-radius: 8px 8px 0 0;
 }
 
 .message {
   display: flex;
   margin-bottom: 16px;
+  animation: messageFadeIn 0.3s ease-out;
+}
+
+@keyframes messageFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .user-message {
@@ -1642,27 +1646,27 @@ const handleAvatarChange = async (event: Event) => {
 
 .message-content {
   max-width: 75%;
-  padding: 12px;
+  padding: 12px 16px;
   border-radius: 8px;
   background-color: #fff;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  transition: all 0.3s;
 }
 
 .bot-message .message-content {
   background-color: #ecf5ff;
+  border: 1px solid #d9ecff;
+}
+
+.user-message .message-content {
+  background-color: #fff;
+  border: 1px solid #ebeef5;
 }
 
 .message-text {
   white-space: pre-wrap;
   word-break: break-word;
-}
-
-.message-text :deep(p) {
-  margin: 0 0 10px 0;
-}
-
-.message-text :deep(p:last-child) {
-  margin-bottom: 0;
+  line-height: 1.6;
 }
 
 .message-time {
@@ -1674,14 +1678,60 @@ const handleAvatarChange = async (event: Event) => {
 
 .chat-input {
   padding: 16px;
-  background-color: #fff;
-  border-top: 1px solid #dcdfe6;
   display: flex;
   gap: 12px;
+  background-color: #f5f7fa;
+  border-radius: 0 0 8px 8px;
 }
 
 .chat-input .el-input {
   flex: 1;
+}
+
+.chat-input .el-input :deep(.el-textarea__inner) {
+  border-radius: 4px;
+  border: 1px solid #dcdfe6;
+  background-color: #fff;
+  transition: all 0.3s;
+  padding: 12px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.chat-input .el-input :deep(.el-textarea__inner:focus) {
+  border-color: #409eff;
+  box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.1);
+}
+
+.chat-input .el-input :deep(.el-textarea__inner:hover) {
+  border-color: #c0c4cc;
+}
+
+.chat-input .el-input :deep(.el-textarea__inner:focus) {
+  border-color: #409eff;
+  box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.1);
+}
+
+.chat-input .el-input :deep(.el-textarea__inner:hover) {
+  border-color: #c0c4cc;
+}
+
+.dynamic-input-button {
+  background-color: #67c23a !important;
+  border-color: #67c23a !important;
+  transition: all 0.3s;
+}
+
+.dynamic-input-button:hover {
+  background-color: #85ce61 !important;
+  border-color: #85ce61 !important;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(103, 194, 58, 0.2);
+}
+
+.dynamic-input-button:active {
+  transform: translateY(0);
+  box-shadow: none;
 }
 
 .typing-indicator {
@@ -1833,25 +1883,98 @@ const handleAvatarChange = async (event: Event) => {
   text-align: center;
 }
 
-/* 动态输入提示样式 */
-.dynamic-input-prompt {
-  display: flex;
-  margin-bottom: 16px;
+/* 新的动态输入指示器样式 */
+.dynamic-input-indicator {
+  padding: 8px 16px;
   background-color: #f0f9eb;
-  border-radius: 8px;
-  padding: 12px;
+  border-bottom: 1px solid #e1f3d8;
+  animation: slideDown 0.3s ease-out;
 }
 
-.dynamic-input-title {
-  font-weight: bold;
-  margin-bottom: 8px;
+.dynamic-input-tag {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #67c23a;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.dynamic-input-tag .el-icon {
+  font-size: 16px;
   color: #67c23a;
 }
 
-.dynamic-input-vars {
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 输入区域容器样式 */
+.input-container {
+  position: relative;
   display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
+  flex-direction: column;
+  background-color: #fff;
+  border-top: 1px solid #dcdfe6;
+}
+
+/* 聊天输入区域样式 */
+.chat-input {
+  padding: 16px;
+  display: flex;
+  gap: 12px;
+  background-color: #f5f7fa;
+  border-radius: 0 0 8px 8px;
+}
+
+.chat-input .el-input {
+  flex: 1;
+}
+
+.chat-input .el-input :deep(.el-textarea__inner) {
+  border-radius: 4px;
+  border: 1px solid #dcdfe6;
+  background-color: #fff;
+  transition: all 0.3s;
+  padding: 12px;
+  font-size: 14px;
+  line-height: 1.5;
+  resize: none;
+}
+
+.chat-input .el-input :deep(.el-textarea__inner:focus) {
+  border-color: #67c23a;
+  box-shadow: 0 0 0 2px rgba(103, 194, 58, 0.1);
+}
+
+.chat-input .el-input :deep(.el-textarea__inner:hover) {
+  border-color: #85ce61;
+}
+
+/* 动态输入按钮样式 */
+.dynamic-input-button {
+  background-color: #67c23a !important;
+  border-color: #67c23a !important;
+  transition: all 0.3s;
+}
+
+.dynamic-input-button:hover {
+  background-color: #85ce61 !important;
+  border-color: #85ce61 !important;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(103, 194, 58, 0.2);
+}
+
+.dynamic-input-button:active {
+  transform: translateY(0);
+  box-shadow: none;
 }
 
 /* 静态输入区域样式 */
@@ -1897,46 +2020,6 @@ const handleAvatarChange = async (event: Event) => {
 .static-input-label {
   font-size: 14px;
   color: #606266;
-}
-
-/* 输入区域容器样式 */
-.input-container {
-  display: flex;
-  flex-direction: column;
-  background-color: #fff;
-  border-top: 1px solid #dcdfe6;
-}
-
-/* 动态输入区域样式 */
-.dynamic-input {
-  padding: 16px;
-  display: flex;
-  gap: 12px;
-}
-
-.dynamic-input .el-input {
-  flex: 1;
-}
-
-/* 普通输入区域样式 */
-.chat-input {
-  padding: 16px;
-  display: flex;
-  gap: 12px;
-}
-
-.chat-input .el-input {
-  flex: 1;
-}
-
-.dynamic-input-button {
-  background-color: #67c23a !important;
-  border-color: #67c23a !important;
-}
-
-.dynamic-input-button:hover {
-  background-color: #85ce61 !important;
-  border-color: #85ce61 !important;
 }
 
 /* 头像上传样式 */
