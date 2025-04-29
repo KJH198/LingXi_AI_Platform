@@ -384,11 +384,11 @@
               backgroundColor: nodeProps.data.bgColor,
               borderColor: nodeProps.data.color
             }"
-            v-else-if="nodeProps.data.processType === 'intent'"
+            v-else-if="nodeProps.data.processType === 'llm'"
           >
             <div class="node-content">
               <el-tooltip
-                content="内容输入"
+                content="大模型输入"
                 placement="top"
                 :show-after="500"
                 :hide-after="0"
@@ -404,7 +404,7 @@
                 {{ nodeProps.data.label }}
               </div>
               <el-tooltip
-                content="意图输出"
+                content="大模型输出"
                 placement="bottom"
                 :show-after="500"
                 :hide-after="0"
@@ -478,43 +478,6 @@
             <div class="node-label" style="color: #409EFF">
               {{ nodeProps.data.label }}
             </div>
-          </div>
-        </template>
-
-        <template #node-llm="nodeProps">
-          <div 
-            class="llm-node"
-            :style="{
-              backgroundColor: '#f9f0ff',
-              borderColor: '#9B59B6'
-            }"
-          >
-            <el-tooltip
-              content="大模型输入"
-              placement="top"
-              :show-after="500"
-              :hide-after="0"
-              :effect="'light'"
-              popper-class="flow-handle-tooltip"
-            >
-              <Handle type="target" position="top" :style="{ background: '#9B59B6' }" />
-            </el-tooltip>
-            <el-icon :size="20" color="#9B59B6">
-              <ChatDotRound />
-            </el-icon>
-            <div class="node-label" style="color: #9B59B6">
-              {{ nodeProps.data.label }}
-            </div>
-            <el-tooltip
-              content="大模型输出"
-              placement="bottom"
-              :show-after="500"
-              :hide-after="0"
-              :effect="'light'"
-              popper-class="flow-handle-tooltip"
-            >
-              <Handle type="source" position="bottom" :style="{ background: '#9B59B6' }" />
-            </el-tooltip>
           </div>
         </template>
 
@@ -633,10 +596,6 @@
               <el-icon><Operation /></el-icon>
               处理节点
             </el-button>
-            <el-button @click="addNode('llm')" type="info">
-              <el-icon><ChatDotRound /></el-icon>
-              大模型
-            </el-button>
             <el-button @click="addNode('workflow')" type="warning">
               <el-icon><Share /></el-icon>
               智能体节点
@@ -671,7 +630,6 @@
         nodeForm.type === 'input' ? '输入' : 
         nodeForm.type === 'process' ? '处理' : 
         nodeForm.type === 'output' ? '输出' :
-        nodeForm.type === 'llm' ? '大模型' :
         nodeForm.type === 'workflow' ? '智能体' :
         nodeForm.type === 'monitor' ? '监听' :
         nodeForm.type === 'dynamic-input' ? '动态输入' :
@@ -779,7 +737,7 @@
                     <el-option label="代码处理" value="code" />
                     <el-option label="选择器" value="selector" />
                     <el-option label="循环" value="loop" />
-                    <el-option label="意图识别" value="intent" />
+                    <el-option label="大模型" value="llm" />
                     <el-option label="批处理" value="batch" />
                     <el-option label="变量聚合" value="aggregate" />
                   </el-select>
@@ -850,42 +808,6 @@
                   <el-form-item v-if="nodeForm.loopType === 'conditional'" label="条件表达式" label-width="100px">
                     <el-input v-model="nodeForm.loopCondition" />
                   </el-form-item>
-                </template>
-
-                <!-- 意图识别配置 -->
-                <template v-if="nodeForm.processType === 'intent'">
-                  <el-card shadow="never" class="form-card">
-                    <template #header>
-                      <div class="card-header">
-                        <span>意图识别配置</span>
-                        <el-button type="primary" @click="addIntentConfig" size="small">
-                          <el-icon><Plus /></el-icon>
-                          添加配置组
-                        </el-button>
-                      </div>
-                    </template>
-                    <el-scrollbar height="300px">
-                      <div class="intent-config-container">
-                        <div v-for="(config, index) in nodeForm.intentConfigs" :key="index" class="intent-config-group">
-                          <div class="config-group-header">
-                            <span class="config-group-title">配置组 {{ index + 1 }}</span>
-                            <el-button type="danger" @click="removeIntentConfig(index)" size="small" circle>
-                              <el-icon><Delete /></el-icon>
-                            </el-button>
-                          </div>
-                          <el-form-item label="分析要素" label-width="100px">
-                            <el-input v-model="config.analysisElement" placeholder="请输入分析要素" />
-                          </el-form-item>
-                          <el-form-item label="意图类型" label-width="100px">
-                            <el-input v-model="config.intentType" placeholder="请输入意图类型" />
-                          </el-form-item>
-                        </div>
-                        <div v-if="nodeForm.intentConfigs.length === 0" class="empty-config-tip">
-                          <el-empty description="暂无配置组，请点击添加配置组按钮添加" />
-                        </div>
-                      </div>
-                    </el-scrollbar>
-                  </el-card>
                 </template>
 
                 <!-- 批处理配置 -->
@@ -960,7 +882,7 @@
             </template>
 
             <!-- 大模型配置 -->
-            <template v-if="nodeForm.type === 'llm'">
+            <template v-if="nodeForm.processType === 'llm'">
               <el-card shadow="never" class="form-card">
                 <template #header>
                   <div class="card-header">
@@ -1194,8 +1116,6 @@ const nodeForm = ref({
   loopType: 'fixed',
   loopCount: 1,
   loopCondition: '',
-  intentType: 'text',
-  intentModel: 'bert',
   batchSize: 32,
   parallel: true,
   aggregateType: 'sum',
@@ -1208,10 +1128,8 @@ const nodeForm = ref({
   ifCondition: '',
   elseIfConditions: [],
   elseCondition: '否则（默认执行路径）',
-  // 意图识别配置
-  intentConfigs: [],
   // 大模型配置
-  llmModel: 'LLaMA-3',
+  llmModel: 'Qwen',
   llmPrompt: '',
   // 监听节点配置
   monitorType: 'all',
@@ -1270,12 +1188,12 @@ const processTypes = [
     bgColor: '#f9f0ff'
   },
   {
-    value: 'intent',
-    label: '意图识别',
-    icon: 'Connection',
-    description: '识别用户意图并分类',
-    color: '#FF6B6B',  // 红色
-    bgColor: '#fff0f0'
+    value: 'llm',
+    label: '大模型',
+    icon: 'ChatDotRound',
+    description: '调用大模型处理',
+    color: '#9B59B6',
+    bgColor: '#f9f0ff'
   },
   {
     value: 'batch',
@@ -1389,7 +1307,7 @@ const addNode = (type) => {
         icon: 'ChatDotRound',
         color: '#9B59B6',
         bgColor: '#f9f0ff',
-        llmModel: 'LLaMA-3',
+        llmModel: 'Qwen',
         llmPrompt: ''
       }
     })
@@ -1471,8 +1389,6 @@ const confirmAddProcessNode = () => {
       loopType: 'fixed',
       loopCount: 1,
       loopCondition: '',
-      intentType: 'text',
-      intentModel: 'bert',
       batchSize: 32,
       parallel: true,
       aggregateType: 'sum',
@@ -1481,10 +1397,8 @@ const confirmAddProcessNode = () => {
       ifCondition: selectedType.value === 'selector' ? '' : undefined,
       elseIfConditions: selectedType.value === 'selector' ? [] : undefined,
       elseCondition: selectedType.value === 'selector' ? '' : undefined,
-      // 意图识别配置
-      intentConfigs: [],
       // 大模型配置
-      llmModel: 'LLaMA-3',
+      llmModel: 'Qwen',
       llmPrompt: '',
       // 监听节点配置
       monitorType: 'all',
@@ -1616,8 +1530,6 @@ const handleNodeClick = (event) => {
     loopType: node.data?.loopType || 'fixed',
     loopCount: node.data?.loopCount || 1,
     loopCondition: node.data?.loopCondition || '',
-    intentType: node.data?.intentType || 'text',
-    intentModel: node.data?.intentModel || 'bert',
     batchSize: node.data?.batchSize || 32,
     parallel: node.data?.parallel ?? true,
     aggregateType: node.data?.aggregateType || 'sum',
@@ -1630,10 +1542,8 @@ const handleNodeClick = (event) => {
     ifCondition: node.data?.ifCondition || '',
     elseIfConditions: node.data?.elseIfConditions || [],
     elseCondition: '否则（默认执行路径）',
-    // 意图识别配置
-    intentConfigs: node.data?.intentConfigs || [],
     // 大模型配置
-    llmModel: node.data?.llmModel || 'LLaMA-3',
+    llmModel: node.data?.llmModel || 'Qwen',
     llmPrompt: node.data?.llmPrompt || '',
     // 监听节点配置
     monitorType: node.data?.monitorType || 'all',
@@ -1680,7 +1590,7 @@ const updateNode = async () => {
       const processTypeLabels = {
         'selector': '选择器',
         'loop': '循环',
-        'intent': '意图识别',
+        'llm': '大模型',
         'batch': '批处理',
         'aggregate': '变量聚合'
       }
@@ -1688,7 +1598,7 @@ const updateNode = async () => {
       const processTypeIcons = {
         'selector': 'Select',
         'loop': 'Refresh',
-        'intent': 'Connection',
+        'llm': 'ChatDotRound',
         'batch': 'DataLine',
         'aggregate': 'Collection'
       }
@@ -1696,7 +1606,7 @@ const updateNode = async () => {
       const processTypeColors = {
         'selector': { color: '#67C23A', bgColor: '#f0f9eb' },
         'loop': { color: '#9B59B6', bgColor: '#f9f0ff' },
-        'intent': { color: '#FF6B6B', bgColor: '#fff0f0' },
+        'llm': { color: '#9B59B6', bgColor: '#f9f0ff' },
         'batch': { color: '#909399', bgColor: '#f4f4f5' },
         'aggregate': { color: '#7B68EE', bgColor: '#f0f0ff' }
       }
@@ -1728,8 +1638,6 @@ const updateNode = async () => {
         loopType: nodeForm.value.loopType,
         loopCount: nodeForm.value.loopCount,
         loopCondition: nodeForm.value.loopCondition,
-        intentType: nodeForm.value.intentType,
-        intentModel: nodeForm.value.intentModel,
         batchSize: nodeForm.value.batchSize,
         parallel: nodeForm.value.parallel,
         aggregateType: nodeForm.value.aggregateType,
@@ -1742,8 +1650,6 @@ const updateNode = async () => {
         ifCondition: nodeForm.value.ifCondition,
         elseIfConditions: nodeForm.value.elseIfConditions,
         elseCondition: '否则（默认执行路径）', // 固定值
-        // 意图识别配置
-        intentConfigs: nodeForm.value.intentConfigs,
         // 大模型配置
         llmModel: nodeForm.value.llmModel,
         llmPrompt: nodeForm.value.llmPrompt,
@@ -1783,8 +1689,6 @@ const updateNode = async () => {
       ifCondition: nodeForm.value.ifCondition,
       elseIfConditions: nodeForm.value.elseIfConditions,
       elseCondition: '否则（默认执行路径）', // 固定值
-      // 意图识别配置
-      intentConfigs: nodeForm.value.intentConfigs,
     }
     
     // 使用 Vue Flow 的 updateNode 方法更新节点
@@ -1824,8 +1728,6 @@ const deleteNode = () => {
     loopType: 'fixed',
     loopCount: 1,
     loopCondition: '',
-    intentType: 'text',
-    intentModel: 'bert',
     batchSize: 32,
     parallel: true,
     aggregateType: 'sum',
@@ -1836,7 +1738,6 @@ const deleteNode = () => {
     ifCondition: '',
     elseIfConditions: [],
     elseCondition: '',
-    intentConfigs: []
   }
   
   // 同时清空原始数据
@@ -1939,8 +1840,6 @@ const onSelectionChange = (params) => {
       loopType: node.data?.loopType || 'fixed',
       loopCount: node.data?.loopCount || 1,
       loopCondition: node.data?.loopCondition || '',
-      intentType: node.data?.intentType || 'text',
-      intentModel: node.data?.intentModel || 'bert',
       batchSize: node.data?.batchSize || 32,
       parallel: node.data?.parallel ?? true,
       aggregateType: node.data?.aggregateType || 'sum',
@@ -1952,9 +1851,7 @@ const onSelectionChange = (params) => {
       // 选择器配置
       ifCondition: node.data?.ifCondition || '',
       elseIfConditions: node.data?.elseIfConditions || [],
-      elseCondition: node.data?.elseCondition || '',
-      // 意图识别配置
-      intentConfigs: node.data?.intentConfigs || [],
+      elseCondition: node.data?.elseCondition || ''
     }
     
     // 保存原始数据
@@ -2160,8 +2057,6 @@ const saveWorkflow = async () => {
           loopType: node.data.loopType,
           loopCount: node.data.loopCount,
           loopCondition: node.data.loopCondition,
-          intentType: node.data.intentType,
-          intentModel: node.data.intentModel,
           batchSize: node.data.batchSize,
           parallel: node.data.parallel,
           aggregateType: node.data.aggregateType,
@@ -2174,8 +2069,6 @@ const saveWorkflow = async () => {
           ifCondition: node.data.ifCondition,
           elseIfConditions: node.data.elseIfConditions,
           elseCondition: node.data.elseCondition,
-          // 意图识别配置
-          intentConfigs: node.data.intentConfigs,
           // 大模型配置
           llmModel: node.data.llmModel,
           llmPrompt: node.data.llmPrompt,
@@ -2340,8 +2233,6 @@ const loadWorkflow = async (workflowId) => {
             loopType: node.data.loopType,
             loopCount: node.data.loopCount,
             loopCondition: node.data.loopCondition,
-            intentType: node.data.intentType,
-            intentModel: node.data.intentModel,
             batchSize: node.data.batchSize,
             parallel: node.data.parallel,
             aggregateType: node.data.aggregateType,
@@ -2354,10 +2245,8 @@ const loadWorkflow = async (workflowId) => {
             ifCondition: node.data.ifCondition || '',
             elseIfConditions: node.data.elseIfConditions || [],
             elseCondition: node.data.elseCondition || '',
-            // 意图识别配置
-            intentConfigs: node.data.intentConfigs || [],
             // 大模型配置
-            llmModel: node.data.llmModel || 'LLaMA-3',
+            llmModel: node.data.llmModel || 'Qwen',
             llmPrompt: node.data.llmPrompt || '',
             // 监听节点配置
             monitorType: node.data.monitorType || 'all',
@@ -2471,18 +2360,6 @@ onMounted(() => {
     loadWorkflow(workflowId)
   }
 })
-
-// 添加意图识别配置相关方法
-const addIntentConfig = () => {
-  nodeForm.value.intentConfigs.push({
-    analysisElement: '',
-    intentType: ''
-  })
-}
-
-const removeIntentConfig = (index) => {
-  nodeForm.value.intentConfigs.splice(index, 1)
-}
 
 // 添加智能体选择处理方法
 const handleAgentSelect = (type) => {
@@ -2665,9 +2542,9 @@ const handleAgentSelect = (type) => {
   border-color: #9B59B6;
 }
 
-:deep(.vue-flow__node[data-type="process"][data-process-type="intent"]) {
-  background: #fff0f0;
-  border-color: #FF6B6B;
+:deep(.vue-flow__node[data-type="process"][data-process-type="llm"]) {
+  background: #f9f0ff;
+  border-color: #9B59B6;
 }
 
 :deep(.vue-flow__node[data-type="process"][data-process-type="batch"]) {
@@ -2706,9 +2583,9 @@ const handleAgentSelect = (type) => {
   color: #9B59B6;
 }
 
-:deep(.vue-flow__node[data-type="process"][data-process-type="intent"] .process-type-icon),
-:deep(.vue-flow__node[data-type="process"][data-process-type="intent"] .vue-flow__node-label) {
-  color: #FF6B6B;
+:deep(.vue-flow__node[data-type="process"][data-process-type="llm"] .process-type-icon),
+:deep(.vue-flow__node[data-type="process"][data-process-type="llm"] .vue-flow__node-label) {
+  color: '#9B59B6';
 }
 
 :deep(.vue-flow__node[data-type="process"][data-process-type="batch"] .process-type-icon),
@@ -3252,21 +3129,6 @@ const handleAgentSelect = (type) => {
   font-weight: bold;
 }
 
-.intent-config-container {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  padding: 10px;
-}
-
-.intent-config-group {
-  padding: 15px;
-  border: 1px solid #ebeef5;
-  border-radius: 4px;
-  background-color: #fafafa;
-  margin-bottom: 10px;
-}
-
 .config-group-header {
   display: flex;
   justify-content: space-between;
@@ -3638,9 +3500,9 @@ const handleAgentSelect = (type) => {
   border-color: #9B59B6;
 }
 
-:deep(.vue-flow__node[data-type="process"][data-process-type="intent"]) {
-  background: #fff0f0;
-  border-color: #FF6B6B;
+:deep(.vue-flow__node[data-type="process"][data-process-type="llm"]) {
+  background: #f9f0ff;
+  border-color: #9B59B6;
 }
 
 :deep(.vue-flow__node[data-type="process"][data-process-type="batch"]) {
@@ -3651,11 +3513,6 @@ const handleAgentSelect = (type) => {
 :deep(.vue-flow__node[data-type="process"][data-process-type="aggregate"]) {
   background: #f0f0ff;
   border-color: #7B68EE;
-}
-
-:deep(.vue-flow__node[data-type="llm"]) {
-  background: #f9f0ff;
-  border-color: #9B59B6;
 }
 
 :deep(.vue-flow__node[data-type="workflow"]) {
@@ -3688,9 +3545,9 @@ const handleAgentSelect = (type) => {
   color: #9B59B6;
 }
 
-:deep(.vue-flow__node[data-type="process"][data-process-type="intent"] .el-icon),
-:deep(.vue-flow__node[data-type="process"][data-process-type="intent"] .node-label) {
-  color: #FF6B6B;
+:deep(.vue-flow__node[data-type="process"][data-process-type="llm"] .el-icon),
+:deep(.vue-flow__node[data-type="process"][data-process-type="llm"] .node-label) {
+  color: #9B59B6;
 }
 
 :deep(.vue-flow__node[data-type="process"][data-process-type="batch"] .el-icon),
@@ -3701,11 +3558,6 @@ const handleAgentSelect = (type) => {
 :deep(.vue-flow__node[data-type="process"][data-process-type="aggregate"] .el-icon),
 :deep(.vue-flow__node[data-type="process"][data-process-type="aggregate"] .node-label) {
   color: #7B68EE;
-}
-
-:deep(.vue-flow__node[data-type="llm"] .el-icon),
-:deep(.vue-flow__node[data-type="llm"] .node-label) {
-  color: #9B59B6;
 }
 
 :deep(.vue-flow__node[data-type="workflow"] .el-icon),
