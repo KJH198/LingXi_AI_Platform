@@ -821,7 +821,12 @@
                         </el-button>
                       </div>
                       <div class="condition-item">
-                        <el-input v-model="nodeForm.elseCondition" placeholder="否则" />
+                        <el-input 
+                          v-model="nodeForm.elseCondition" 
+                          placeholder="否则" 
+                          disabled
+                          :value="'否则（默认执行路径）'"
+                        />
                       </div>
                       <el-button type="primary" @click="addElseIfCondition" class="add-condition-btn">
                         <el-icon><Plus /></el-icon>
@@ -1202,7 +1207,7 @@ const nodeForm = ref({
   // 选择器配置
   ifCondition: '',
   elseIfConditions: [],
-  elseCondition: '',
+  elseCondition: '否则（默认执行路径）',
   // 意图识别配置
   intentConfigs: [],
   // 大模型配置
@@ -1624,7 +1629,7 @@ const handleNodeClick = (event) => {
     // 选择器配置
     ifCondition: node.data?.ifCondition || '',
     elseIfConditions: node.data?.elseIfConditions || [],
-    elseCondition: node.data?.elseCondition || '',
+    elseCondition: '否则（默认执行路径）',
     // 意图识别配置
     intentConfigs: node.data?.intentConfigs || [],
     // 大模型配置
@@ -1736,7 +1741,7 @@ const updateNode = async () => {
         // 选择器配置
         ifCondition: nodeForm.value.ifCondition,
         elseIfConditions: nodeForm.value.elseIfConditions,
-        elseCondition: nodeForm.value.elseCondition,
+        elseCondition: '否则（默认执行路径）', // 固定值
         // 意图识别配置
         intentConfigs: nodeForm.value.intentConfigs,
         // 大模型配置
@@ -1777,7 +1782,7 @@ const updateNode = async () => {
       // 选择器配置
       ifCondition: nodeForm.value.ifCondition,
       elseIfConditions: nodeForm.value.elseIfConditions,
-      elseCondition: nodeForm.value.elseCondition,
+      elseCondition: '否则（默认执行路径）', // 固定值
       // 意图识别配置
       intentConfigs: nodeForm.value.intentConfigs,
     }
