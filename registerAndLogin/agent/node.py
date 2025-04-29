@@ -6,6 +6,7 @@ import websockets
 import asyncio
 import json
 import time
+import threading
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from channels.layers import get_channel_layer
@@ -23,7 +24,7 @@ class BaseNode:
         self.predecessors = node.predecessors
         self.successors = node.successors
 
-    def run(self, inputs, node_dict, results, handle):
+    async def run(self, inputs, node_dict, results, handle):
         raise NotImplementedError("Each node must implement its own run method.")
 
 class InputNode(BaseNode):
@@ -81,20 +82,23 @@ class DynamicInputNode(BaseNode):
     def run(self, inputs, node_dict, results, handle):
         print(f"等待前端输入: {self.name}")
 
-        # 第一步：主动通知前端，需要输入了
+        # 第一步：通知前端需要输入
         asyncio.run(send_dynamic_request_to_frontend(self.name))
 
-        # 第二步：后端在这里等待前端发送输入
-        pending_inputs[self.name] = None  # 标记这个输入在等待中
+        # 第二步：创建线程事件，并记录在 pending_inputs 中
+        event = threading.Event()
+        pending_inputs[self.name] = (event, None)
 
-        while pending_inputs[self.name] is None:
-            time.sleep(0.5)  # 简单轮询等待
+        # 第三步：等待事件被 set，或超时
+        if not event.wait(timeout=30):  # 最多等待30秒
+            print("等待输入超时！")
+            pending_inputs.pop(self.name, None)
+            return None
 
-        # 第三步：前端提交了，后端收到，继续执行
-        dynamic_input = pending_inputs.pop(self.name)
-        print(f"收到前端输入: {dynamic_input}")
-        return dynamic_input
-
+        # 第四步：事件已 set，获取输入值
+        _, value = pending_inputs.pop(self.name)
+        print(f"收到前端输入: {value}")
+        return value
 
 @csrf_exempt
 def submit_dynamic_input(request):
@@ -103,8 +107,14 @@ def submit_dynamic_input(request):
         input_name = '动态输入 1'
         input_value = data.get('variables')
         print(f"收到动态输入: {input_name} = {input_value}")
-        pending_inputs[input_name] = input_value
-        return JsonResponse({'status': 'ok'})
+
+        if input_name in pending_inputs:
+            event, _ = pending_inputs[input_name]
+            pending_inputs[input_name] = (event, input_value)
+            event.set()  # 唤醒等待线程
+            return JsonResponse({'status': 'ok'})
+        else:
+            return JsonResponse({'error': 'Input not pending'}, status=400)
     else:
         return JsonResponse({'error': 'Invalid request method'}, status=400)
 
@@ -437,6 +447,7 @@ def execute_loop(current_id, node_dict, results, inputs):
             # 找到批处理入口，使用 inputs 执行该入口节点
             print(f"[Entry] 执行 {current_node.type} {current_id}")
             output = current_node.run(inputs, node_dict, results, pred_handle)
+
             print(output)
             cache_key = (current_id, pred_handle)
             results[cache_key] = output
