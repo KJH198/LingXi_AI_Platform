@@ -104,7 +104,7 @@ class DynamicInputNode(BaseNode):
 def submit_dynamic_input(request):
     if request.method == 'POST':
         data = json.loads(request.body)
-        input_name = '动态输入 1'
+        input_name = data.get('input')
         input_value = data.get('variables')
         print(f"收到动态输入: {input_name} = {input_value}")
 
