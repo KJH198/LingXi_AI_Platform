@@ -847,6 +847,25 @@ const handleInput = async () => {
     dynamicInputVars.value = []
     dynamicInputName.value = ''
     
+    // 检查是否还有其他待处理的动态输入
+    const checkNextInputResponse = await fetch('/agent/checkNextInput', {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
+    
+    if (checkNextInputResponse.ok) {
+      const nextInputResult = await checkNextInputResponse.json()
+      if (nextInputResult.hasNextInput) {
+        // 立即显示下一个动态输入请求
+        waitingForDynamicInput.value = true
+        dynamicInputName.value = nextInputResult.nextInputName
+        dynamicInputVars.value = ['输入']
+        ElMessage.info(`请处理下一个动态输入：${nextInputResult.nextInputName}`)
+      }
+    }
+    
   } catch (error) {
     console.error('发送消息失败:', error)
     ElMessage.error('发送消息失败')
