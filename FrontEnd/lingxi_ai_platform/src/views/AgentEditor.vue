@@ -415,6 +415,11 @@ interface KnowledgeBaseFile {
   status: string;
 }
 
+interface StaticInput {
+  name: string;
+  value: string;
+}
+
 const router = useRouter()
 const route = useRoute()
 
@@ -511,105 +516,19 @@ const previewLoading = ref(false)
 const knowledgeBases = ref<KnowledgeBase[]>([])
 const selectedKnowledgeBases = ref<string[]>([])
 
-// 触发文件选择器
-const triggerAvatarUpload = () => {
-  avatarInput.value?.click()
-}
-
-// 处理头像选择变化
-const handleAvatarChange = async (event: Event) => {
-  const target = event.target as HTMLInputElement
-  const files = target.files
-  
-  if (!files || files.length === 0) return
-  
-  const file = files[0]
-  
-  // 检查文件类型
-  if (!file.type.startsWith('image/')) {
-    ElMessage.error('请上传图片文件')
-    return
-  }
-  
-  // 检查文件大小（限制为2MB）
-  if (file.size > 2 * 1024 * 1024) {
-    ElMessage.error('图片大小不能超过2MB')
-    return
-  }
-  
-  try {
-    // 先创建一个临时预览URL
-    const previewUrl = URL.createObjectURL(file)
-    agentData.avatar = previewUrl
-    
-    const formData = new FormData()
-    formData.append('avatar', file)
-    
-    // 如果agent已有ID，也发送ID
-    if (agentData.id) {
-      formData.append('agent_id', agentData.id)
-    }
-    
-    const token = localStorage.getItem('token')
-    if (!token) {
-      ElMessage.error('请先登录')
-      return
-    }
-    
-    const response = await fetch('/agent/upload_avatar', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`
-      },
-      body: formData
-    })
-    
-    if (!response.ok) {
-      throw new Error('上传失败')
-    }
-    
-    const result = await response.json()
-    
-    if (result.code === 200) {
-      // 用服务器返回的URL替换临时URL
-      agentData.avatar = result.data.avatar
-      ElMessage.success('头像上传成功')
-      // 释放临时URL
-      URL.revokeObjectURL(previewUrl)
-      
-      // 保存到本地存储
-      saveToLocalStorage()
-    } else {
-      throw new Error(result.message || '上传失败')
-    }
-  } catch (error) {
-    console.error('头像上传失败:', error)
-    ElMessage.error(error instanceof Error ? error.message : '头像上传失败')
-  } finally {
-    // 清空文件输入，允许重新选择同一文件
-    target.value = ''
-  }
-}
-
 // 静态输入相关
-interface StaticInput {
-  name: string;
-  value: string;
-}
-
 const staticInputs = ref<StaticInput[]>([])
 
 // 动态输入相关
 const waitingForDynamicInput = ref(false)
 const dynamicInputVars = ref<string[]>([])
-const dynamicInputValue = ref('')
+const dynamicInputName = ref('')
 
 // 在 script setup 部分添加新的接口和状态
 const nodeOutputs = ref<Record<string, any>>({})
 
 // 在 script setup 部分添加新的状态变量
 const currentNodeName = ref('')
-const dynamicInputName = ref('')
 
 // 计算是否有静态输入值
 const hasStaticInputValues = computed(() => {
@@ -908,6 +827,11 @@ const handleInput = async () => {
     
     // 发送消息到dynamicInput
     isGenerating.value = true
+    console.log('发送动态输入:', {
+      input: dynamicInputName.value,
+      variables: inputText
+    })
+    
     const response = await fetch('/agent/dynamicInput', {
       method: 'POST',
       headers: {
@@ -924,9 +848,21 @@ const handleInput = async () => {
       throw new Error('发送消息失败')
     }
     
+    const result = await response.json()
+    console.log('动态输入响应:', result)
+    
+    // 发送成功后重置动态输入状态
+    waitingForDynamicInput.value = false
+    dynamicInputVars.value = []
+    dynamicInputName.value = ''
+    
   } catch (error) {
     console.error('发送消息失败:', error)
     ElMessage.error('发送消息失败')
+    // 发生错误时也重置状态
+    waitingForDynamicInput.value = false
+    dynamicInputVars.value = []
+    dynamicInputName.value = ''
   } finally {
     isGenerating.value = false
   }
@@ -1260,9 +1196,35 @@ onMounted(() => {
   ws.onmessage = (event) => {
     try {
       const data = JSON.parse(event.data)
-      handleNodeOutput(data)
+      console.log('收到WebSocket消息:', data)
+      
+      if (data.type === 'output') {
+        // 处理节点输出
+        handleNodeOutput(data)
+      } else if (data.type === 'request_input') {
+        // 处理动态输入请求
+        console.log('收到动态输入请求:', data)
+        if (data.node_name) {
+          waitingForDynamicInput.value = true
+          // 使用节点名称作为输入名称
+          dynamicInputName.value = data.node_name
+          // 默认需要输入一个变量
+          dynamicInputVars.value = ['输入']
+          console.log('设置动态输入状态:', {
+            waitingForDynamicInput: waitingForDynamicInput.value,
+            dynamicInputVars: dynamicInputVars.value,
+            dynamicInputName: dynamicInputName.value
+          })
+        } else {
+          console.error('动态输入请求缺少节点名称:', data)
+          ElMessage.error('动态输入请求格式错误')
+        }
+      } else {
+        console.warn('未知的WebSocket消息类型:', data.type)
+      }
     } catch (error) {
-      console.error('处理节点输出失败:', error)
+      console.error('处理WebSocket消息失败:', error)
+      ElMessage.error('处理消息失败，请刷新页面重试')
     }
   }
   
@@ -1383,6 +1345,86 @@ onMounted(() => {
     }
   })
 })
+
+// 触发文件选择器
+const triggerAvatarUpload = () => {
+  avatarInput.value?.click()
+}
+
+// 处理头像选择变化
+const handleAvatarChange = async (event: Event) => {
+  const target = event.target as HTMLInputElement
+  const files = target.files
+  
+  if (!files || files.length === 0) return
+  
+  const file = files[0]
+  
+  // 检查文件类型
+  if (!file.type.startsWith('image/')) {
+    ElMessage.error('请上传图片文件')
+    return
+  }
+  
+  // 检查文件大小（限制为2MB）
+  if (file.size > 2 * 1024 * 1024) {
+    ElMessage.error('图片大小不能超过2MB')
+    return
+  }
+  
+  try {
+    // 先创建一个临时预览URL
+    const previewUrl = URL.createObjectURL(file)
+    agentData.avatar = previewUrl
+    
+    const formData = new FormData()
+    formData.append('avatar', file)
+    
+    // 如果agent已有ID，也发送ID
+    if (agentData.id) {
+      formData.append('agent_id', agentData.id)
+    }
+    
+    const token = localStorage.getItem('token')
+    if (!token) {
+      ElMessage.error('请先登录')
+      return
+    }
+    
+    const response = await fetch('/agent/upload_avatar', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      },
+      body: formData
+    })
+    
+    if (!response.ok) {
+      throw new Error('上传失败')
+    }
+    
+    const result = await response.json()
+    
+    if (result.code === 200) {
+      // 用服务器返回的URL替换临时URL
+      agentData.avatar = result.data.avatar
+      ElMessage.success('头像上传成功')
+      // 释放临时URL
+      URL.revokeObjectURL(previewUrl)
+      
+      // 保存到本地存储
+      saveToLocalStorage()
+    } else {
+      throw new Error(result.message || '上传失败')
+    }
+  } catch (error) {
+    console.error('头像上传失败:', error)
+    ElMessage.error(error instanceof Error ? error.message : '头像上传失败')
+  } finally {
+    // 清空文件输入，允许重新选择同一文件
+    target.value = ''
+  }
+}
 </script>
 
 <style scoped>
