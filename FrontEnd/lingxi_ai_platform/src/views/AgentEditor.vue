@@ -1469,15 +1469,6 @@ const startPreview = async () => {
     if (!response.ok) {
       throw new Error('启动预览失败')
     }
-
-    const result = await response.json()
-    if (result.code === 200) {
-      console.log('预览模式已启动')
-      // 重置聊天
-      resetChat()
-    } else {
-      throw new Error(result.message || '启动预览失败')
-    }
   } catch (error) {
     console.error('启动预览失败:', error)
     ElMessage.error('启动预览失败，请稍后重试')
