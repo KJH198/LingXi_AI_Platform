@@ -1,4 +1,4 @@
-from .models import Node,Workflow
+from .models import Node, Workflow
 from agent.llm import chat_with_condition, chat_with_aggregate, call_llm
 import types
 
@@ -12,8 +12,13 @@ from django.views.decorators.csrf import csrf_exempt
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
 
-static_inputs = {} #全局变量，保存所有静态输入
+static_inputs = {}  # 全局变量，保存所有静态输入
 pending_inputs = {}  # 全局变量，存等待中的动态输入
+agent_id = None
+workflow_id = None
+model_id = None
+knowledge_bases = None
+
 
 class BaseNode:
     def __init__(self, node: Node):
@@ -26,6 +31,7 @@ class BaseNode:
 
     async def run(self, inputs, node_dict, results, handle):
         raise NotImplementedError("Each node must implement its own run method.")
+
 
 class InputNode(BaseNode):
     def __init__(self, node: Node):
@@ -52,7 +58,6 @@ def submit_static_inputs(request):
             data = json.loads(request.body)
             inputs = data.get('inputs', [])
             print(inputs)
-            workflow_id = data.get('workflowId')
 
             # 存储静态输入到内存中
             for item in inputs:
@@ -99,6 +104,7 @@ class DynamicInputNode(BaseNode):
         _, value = pending_inputs.pop(self.name)
         print(f"收到前端输入: {value}")
         return value
+
 
 @csrf_exempt
 def submit_dynamic_input(request):
@@ -158,7 +164,8 @@ async def send_output_to_frontend(node_name: str, output: any):
         print(f"成功发送输出到前端: {node_name} : {output}")
     except Exception as e:
         print(f"发送输出到前端失败: {e}")
-        
+
+
 async def send_dynamic_request_to_frontend(node_name: str):
     channel_layer = get_channel_layer()
     payload = {
@@ -210,7 +217,6 @@ class CodeNode(BaseNode):
             return f"执行代码节点时出错：{e}"
 
 
-
 class SelectorNode(BaseNode):
     def __init__(self, node: Node):
         super().__init__(node)
@@ -252,7 +258,7 @@ class SelectorNode(BaseNode):
             if source_handle == matched:
                 results[cache_key] = input_text  # 分支命中，传值
             else:
-                results[cache_key] = ""  # 分支未命中，传空
+                results[cache_key] = None  # 分支未命中，传空
 
         cache_key = (self.id, handle)
         return results[cache_key]
@@ -341,6 +347,7 @@ node_type_map = {
     "monitor": MonitorNode,
 }
 
+
 def build_node_instance(node_model_instance):
     node_type = node_model_instance.node_type
     NodeClass = node_type_map.get(node_type)
@@ -348,6 +355,7 @@ def build_node_instance(node_model_instance):
         raise ValueError(f"未知的节点类型: {node_type}")
 
     return NodeClass(node_model_instance)
+
 
 def execute_node(node_id, node_dict, results, source_handle=None):
     # 判断是否已经执行过该节点（考虑 handle）
@@ -366,7 +374,8 @@ def execute_node(node_id, node_dict, results, source_handle=None):
             pred_id = pred['source']
             pred_node = node_dict[pred_id]
             is_loop = any(
-                succ['target'] == node_id and (succ['targetHandle'] == 'batch-exit' or succ['targetHandle'] == 'loop-exit')
+                succ['target'] == node_id and (
+                            succ['targetHandle'] == 'batch-exit' or succ['targetHandle'] == 'loop-exit')
                 for succ in pred_node.successors
             )
             if is_loop:
@@ -379,9 +388,11 @@ def execute_node(node_id, node_dict, results, source_handle=None):
     for pred in normal_preds:
         pred_id = pred['source']
         pred_handle = pred['sourceHandle']  # 这个 pred 是当前节点的一个输入来源
-        pred_output = execute_node(pred_id, node_dict, results, pred_handle) # 只要其中一个分支的输出
+        pred_output = execute_node(pred_id, node_dict, results, pred_handle)  # 只要其中一个分支的输出
         inputs.append(pred_output)
 
+    if inputs == [None]:
+        return None
     output = node_instance.run(inputs, node_dict, results, source_handle)
 
     if loop_pred and node_instance.type == 'loop':
@@ -390,15 +401,17 @@ def execute_node(node_id, node_dict, results, source_handle=None):
                 output = execute_loop(loop_pred['source'], node_dict, results, output)
         else:
             loop_counter = 0
-            while chat_with_condition(node_instance.loop_condition, output) and loop_counter < 100: # 防止死循环
+            while chat_with_condition(node_instance.loop_condition, output) and loop_counter < 100:  # 防止死循环
                 output = execute_loop(loop_pred['source'], node_dict, results, output)
                 loop_counter += 1
 
     if loop_pred and node_instance.type == 'batch':
+        print(f"output:", output)
         output = execute_batch(loop_pred['source'], node_dict, results, output)
 
     results[cache_key] = output
     return output
+
 
 def execute_batch(current_id, node_dict, results, inputs):
     current_node = node_dict[current_id]
@@ -413,7 +426,10 @@ def execute_batch(current_id, node_dict, results, inputs):
             for single_input in inputs:
                 # print("这是一条输入")
                 # print(single_input)
-                output = current_node.run(single_input, node_dict, results, pred_handle)
+                if single_input is None:
+                    output = None
+                else:
+                    output = current_node.run(single_input, node_dict, results, pred_handle)
                 outputs.append(output)
             cache_key = (current_id, pred_handle)
             results[cache_key] = outputs
@@ -428,13 +444,17 @@ def execute_batch(current_id, node_dict, results, inputs):
             for single_prev_input in prev_output:
                 # print("这是一条输入")
                 # print(single_prev_input)
-                output = current_node.run(single_prev_input, node_dict, results, pred_handle)
+                if single_prev_input is None:
+                    output = None
+                else:
+                    output = current_node.run(single_prev_input, node_dict, results, pred_handle)
                 outputs.append(output)
             cache_key = (current_id, pred_handle)
             results[cache_key] = outputs
             return outputs
 
     return None
+
 
 def execute_loop(current_id, node_dict, results, inputs):
     current_node = node_dict[current_id]
@@ -465,6 +485,7 @@ def execute_loop(current_id, node_dict, results, inputs):
             return output
 
     return None  # fallback：未找到入口
+
 
 def run_workflow_from_output_node(workflow):
     """
@@ -503,3 +524,46 @@ def run_workflow_from_output_node(workflow):
         final_result[output_node_id] = result
 
     return final_result
+
+
+@csrf_exempt
+def start_preview(request):
+    global agent_id, workflow_id, model_id, knowledge_bases
+    if request.method != 'POST':
+        return JsonResponse({
+            'code': 405,
+            'message': '只支持 POST 请求',
+            'data': {}
+        }, status=405)
+
+    try:
+        data = json.loads(request.body)
+        agent_id = data.get('agent_id')
+        workflow_id = data.get('workflow_id')
+        model_id = data.get('model_id')
+        knowledge_bases = data.get('knowledge_bases', [])
+
+        workflow = Workflow.objects.get(id=workflow_id)
+        nodes = Node.objects.filter(workflow=workflow, node_type='input')
+
+        flag = False
+        for node in nodes:
+            node_type = node.node_type
+            if node_type == 'input':
+                flag = True
+                break
+        if flag is False:  # 没有静态输入，直接调工作流
+            run_workflow_from_output_node(workflow)
+
+        return JsonResponse({
+            'code': 200,
+            'message': '预览模式启动成功',
+            'data': {}  # 有具体返回内容可以填进来
+        })
+
+    except Exception as e:
+        return JsonResponse({
+            'code': 500,
+            'message': f'服务器错误: {str(e)}',
+            'data': {}
+        }, status=500)

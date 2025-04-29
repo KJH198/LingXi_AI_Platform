@@ -5,7 +5,7 @@ from .views import (
     WorkflowRetrieveView, GetInputCountView, AgentAvatarUploadView, 
     CleanupTempResourcesView
 )
-from .node import submit_static_inputs,submit_dynamic_input
+from .node import submit_static_inputs,submit_dynamic_input,start_preview
 
 urlpatterns = [
     path('workflowSave/', WorkflowSaveView.as_view(), name='workflow-save'),
@@ -15,7 +15,7 @@ urlpatterns = [
     path('staticInputCount/<int:workflow_id>', GetInputCountView.as_view(), name='input-num'),  # 处理没有参数的情况
     path('staticInput', submit_static_inputs, name='submit-static-input'),
     path('dynamicInput', submit_dynamic_input, name='submit-dynamic-input'),
-    #path('chat', AgentChatView.as_view(), name='agent-chat'),
     path('upload_avatar', AgentAvatarUploadView.as_view(), name='agent-avatar-upload'),
     path('cleanup_temp_resources', CleanupTempResourcesView.as_view(), name='cleanup-temp-resources'),
+    path('start_preview', start_preview, name='start-preview')
 ]
