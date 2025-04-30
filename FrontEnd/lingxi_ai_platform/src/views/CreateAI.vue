@@ -28,7 +28,17 @@
         :nodes-connectable="true"
         :elements-selectable="true"
         @selection-change="onSelectionChange"
-        :default-edge-options="{ type: 'smoothstep', animated: true }"
+        :default-edge-options="{ 
+          type: 'smoothstep', 
+          animated: true,
+          style: { stroke: '#409EFF' },
+          markerEnd: {
+            type: 'arrowclosed',
+            width: 20,
+            height: 20,
+            color: '#409EFF'
+          }
+        }"
         :snap-to-grid="true"
         :snap-grid="[15, 15]"
         :pan-on-drag="true"
