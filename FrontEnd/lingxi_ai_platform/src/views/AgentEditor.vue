@@ -521,6 +521,12 @@ const nodeOutputs = ref<Record<string, any>>({})
 // 在 script setup 部分添加新的状态变量
 const currentNodeName = ref('')
 
+// 在 script setup 部分添加新的状态变量
+const ws = ref<WebSocket | null>(null)
+const wsReconnectAttempts = ref(0)
+const maxReconnectAttempts = 5
+const reconnectDelay = 3000 // 3秒
+
 // 计算是否有静态输入值
 const hasStaticInputValues = computed(() => {
   return staticInputs.value.some(input => input.value.trim() !== '')
@@ -738,13 +744,24 @@ const handleNodeOutput = (data: { node_name: string, output: any }) => {
   nodeOutputs.value[node_name] = output
   currentNodeName.value = node_name
   
-  // 在聊天记录中添加节点输出
-  chatMessages.value.push({
-    role: 'assistant',
-    content: `${output}`,
-    time: new Date().toLocaleTimeString(),
-    nodeName: node_name
-  })
+  // 检查是否已经存在相同节点名称的消息
+  const existingMessageIndex = chatMessages.value.findIndex(
+    msg => msg.role === 'assistant' && msg.nodeName === node_name
+  )
+  
+  if (existingMessageIndex === -1) {
+    // 如果不存在，则添加新消息
+    chatMessages.value.push({
+      role: 'assistant',
+      content: `${output}`,
+      time: new Date().toLocaleTimeString(),
+      nodeName: node_name
+    })
+  } else {
+    // 如果存在，则更新现有消息
+    chatMessages.value[existingMessageIndex].content = `${output}`
+    chatMessages.value[existingMessageIndex].time = new Date().toLocaleTimeString()
+  }
   
   // 滚动到底部
   nextTick(() => {
@@ -763,13 +780,25 @@ const handleResponse = (response: any) => {
     dynamicInputName.value = response.inputName // 记录输入名称
     // 不添加到聊天记录中
   } else {
-    // 普通响应
-    chatMessages.value.push({
-      role: 'assistant',
-      content: response.content,
-      time: new Date().toLocaleTimeString(),
-      nodeName: response.nodeName || currentNodeName.value
-    })
+    // 检查是否已经存在相同节点名称的消息
+    const nodeName = response.nodeName || currentNodeName.value
+    const existingMessageIndex = chatMessages.value.findIndex(
+      msg => msg.role === 'assistant' && msg.nodeName === nodeName
+    )
+    
+    if (existingMessageIndex === -1) {
+      // 如果不存在，则添加新消息
+      chatMessages.value.push({
+        role: 'assistant',
+        content: response.content,
+        time: new Date().toLocaleTimeString(),
+        nodeName: nodeName
+      })
+    } else {
+      // 如果存在，则更新现有消息
+      chatMessages.value[existingMessageIndex].content = response.content
+      chatMessages.value[existingMessageIndex].time = new Date().toLocaleTimeString()
+    }
   }
 }
 
@@ -1196,59 +1225,78 @@ const fetchStaticInputs = async () => {
   }
 }
 
-// 在 AgentEditor.vue 中修改 onMounted 钩子
+// 修改WebSocket连接逻辑
+const connectWebSocket = () => {
+  try {
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+    const host = window.location.host
+    const wsUrl = `${protocol}//${host}/ws/node_output/`
+    
+    console.log('正在连接WebSocket:', wsUrl)
+    
+    ws.value = new WebSocket(wsUrl)
+    
+    ws.value.onopen = () => {
+      console.log('WebSocket连接已建立')
+      wsReconnectAttempts.value = 0 // 重置重连次数
+    }
+    
+    ws.value.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data)
+        console.log('收到WebSocket消息:', data)
+        
+        if (data.type === 'output') {
+          handleNodeOutput(data)
+        } else if (data.type === 'request_input') {
+          console.log('收到动态输入请求:', data)
+          if (data.node_name) {
+            waitingForDynamicInput.value = true
+            dynamicInputName.value = data.node_name
+            dynamicInputVars.value = ['输入']
+            console.log('设置动态输入状态:', {
+              waitingForDynamicInput: waitingForDynamicInput.value,
+              dynamicInputVars: dynamicInputVars.value,
+              dynamicInputName: dynamicInputName.value
+            })
+          } else {
+            console.error('动态输入请求缺少节点名称:', data)
+            ElMessage.error('动态输入请求格式错误')
+          }
+        } else {
+          console.warn('未知的WebSocket消息类型:', data.type)
+        }
+      } catch (error) {
+        console.error('处理WebSocket消息失败:', error)
+        ElMessage.error('处理消息失败，请刷新页面重试')
+      }
+    }
+    
+    ws.value.onerror = (error) => {
+      console.error('WebSocket连接错误:', error)
+      ElMessage.error('WebSocket连接失败，正在尝试重连...')
+    }
+    
+    ws.value.onclose = () => {
+      console.log('WebSocket连接已关闭')
+      if (wsReconnectAttempts.value < maxReconnectAttempts) {
+        wsReconnectAttempts.value++
+        console.log(`尝试重连 (${wsReconnectAttempts.value}/${maxReconnectAttempts})...`)
+        setTimeout(connectWebSocket, reconnectDelay)
+      } else {
+        ElMessage.error('WebSocket连接失败，请刷新页面重试')
+      }
+    }
+  } catch (error) {
+    console.error('创建WebSocket连接失败:', error)
+    ElMessage.error('创建WebSocket连接失败，请刷新页面重试')
+  }
+}
+
+// 在组件挂载时连接WebSocket
 onMounted(() => {
   console.log('AgentEditor 组件已挂载，开始初始化数据')
-  
-  // 建立 WebSocket 连接
-  const ws = new WebSocket('ws://localhost:8000/ws/node_output/')
-  
-  ws.onmessage = (event) => {
-    try {
-      const data = JSON.parse(event.data)
-      console.log('收到WebSocket消息:', data)
-      
-      if (data.type === 'output') {
-        // 处理节点输出
-        handleNodeOutput(data)
-      } else if (data.type === 'request_input') {
-        // 处理动态输入请求
-        console.log('收到动态输入请求:', data)
-        if (data.node_name) {
-          waitingForDynamicInput.value = true
-          // 使用节点名称作为输入名称
-          dynamicInputName.value = data.node_name
-          // 默认需要输入一个变量
-          dynamicInputVars.value = ['输入']
-          console.log('设置动态输入状态:', {
-            waitingForDynamicInput: waitingForDynamicInput.value,
-            dynamicInputVars: dynamicInputVars.value,
-            dynamicInputName: dynamicInputName.value
-          })
-        } else {
-          console.error('动态输入请求缺少节点名称:', data)
-          ElMessage.error('动态输入请求格式错误')
-        }
-      } else {
-        console.warn('未知的WebSocket消息类型:', data.type)
-      }
-    } catch (error) {
-      console.error('处理WebSocket消息失败:', error)
-      ElMessage.error('处理消息失败，请刷新页面重试')
-    }
-  }
-  
-  ws.onerror = (error) => {
-    console.error('WebSocket 连接错误:', error)
-  }
-  
-  ws.onclose = () => {
-    console.log('WebSocket 连接已关闭')
-  }
-  
-  ws.onopen = () => {
-    console.log('WebSocket 连接已建立')
-  }
+  connectWebSocket()
   
   // 检查是否有从 Community 传递过来的初始数据
   const initData = localStorage.getItem('agentInitData')
@@ -1298,40 +1346,12 @@ onMounted(() => {
   })
 })
 
-// 在AgentEditor.vue中添加清理临时资源的方法
-const cleanupTempResources = async () => {
-  try {
-    // 检查是否有临时头像需要清理
-    if (agentData.avatar && agentData.avatar.includes('temp_')) {
-      const token = localStorage.getItem('token')
-      if (!token) return
-      
-
-      const response = await fetch('/agent/cleanup_temp_resources', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          temp_avatar: agentData.avatar,
-          agent_id: agentData.id || null
-        })
-      })
-
-      if (!response.ok || response.status !== 200) {
-        throw new Error('清理临时资源失败')
-      }
-      
-      console.log('清理临时资源成功')
-    }
-  } catch (error) {
-    console.error('清理临时资源失败:', error)
-  }
-}
-
-// 在组件卸载时调用
+// 在组件卸载时关闭WebSocket连接
 onBeforeUnmount(() => {
+  if (ws.value) {
+    ws.value.close()
+    ws.value = null
+  }
   // 如果未发布，则清理临时资源
   if (!isPublished.value) {
     cleanupTempResources()
@@ -1472,6 +1492,145 @@ const startPreview = async () => {
   } catch (error) {
     console.error('启动预览失败:', error)
     ElMessage.error('启动预览失败，请稍后重试')
+  }
+}
+
+// 在 AgentEditor.vue 中修改 onMounted 钩子
+onMounted(() => {
+  console.log('AgentEditor 组件已挂载，开始初始化数据')
+  
+  // 获取当前环境的基础URL
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+  const host = window.location.host
+  const wsUrl = `${protocol}//${host}/ws/node_output/`
+  
+  // 建立 WebSocket 连接
+  const ws = new WebSocket(wsUrl)
+  
+  ws.onmessage = (event) => {
+    try {
+      const data = JSON.parse(event.data)
+      console.log('收到WebSocket消息:', data)
+      
+      if (data.type === 'output') {
+        // 处理节点输出
+        handleNodeOutput(data)
+      } else if (data.type === 'request_input') {
+        // 处理动态输入请求
+        console.log('收到动态输入请求:', data)
+        if (data.node_name) {
+          waitingForDynamicInput.value = true
+          // 使用节点名称作为输入名称
+          dynamicInputName.value = data.node_name
+          // 默认需要输入一个变量
+          dynamicInputVars.value = ['输入']
+          console.log('设置动态输入状态:', {
+            waitingForDynamicInput: waitingForDynamicInput.value,
+            dynamicInputVars: dynamicInputVars.value,
+            dynamicInputName: dynamicInputName.value
+          })
+        } else {
+          console.error('动态输入请求缺少节点名称:', data)
+          ElMessage.error('动态输入请求格式错误')
+        }
+      } else {
+        console.warn('未知的WebSocket消息类型:', data.type)
+      }
+    } catch (error) {
+      console.error('处理WebSocket消息失败:', error)
+      ElMessage.error('处理消息失败，请刷新页面重试')
+    }
+  }
+  
+  ws.onerror = (error) => {
+    console.error('WebSocket 连接错误:', error)
+  }
+  
+  ws.onclose = () => {
+    console.log('WebSocket 连接已关闭')
+  }
+  
+  ws.onopen = () => {
+    console.log('WebSocket 连接已建立')
+  }
+  
+  // 检查是否有从 Community 传递过来的初始数据
+  const initData = localStorage.getItem('agentInitData')
+  
+  if (initData) {
+    try {
+      // 有初始数据，说明是新建智能体
+      const parsedInitData = JSON.parse(initData)
+      
+      // 清除之前可能存在的所有数据
+      clearLocalStorage()
+      
+      // 只使用初始传入的数据
+      if (parsedInitData.name) agentData.name = parsedInitData.name
+      if (parsedInitData.description) agentData.description = parsedInitData.description
+      
+      // 清除 initData，防止下次进入页面时重复使用
+      localStorage.removeItem('agentInitData')
+      
+      // 重置步骤
+      activeStep.value = 0
+    } catch (e) {
+      console.error('解析初始数据失败:', e)
+    }
+  } else {
+    // 没有初始数据，可能是编辑现有智能体或从其他页面返回
+    // 从本地存储恢复所有数据
+    restoreFromLocalStorage()
+  }
+  
+  // 添加初始消息
+  resetChat()
+  
+  // 监听页面刷新或关闭事件，保存数据
+  window.addEventListener('beforeunload', () => {
+    saveToLocalStorage()
+  })
+  
+  // 监听步骤变化，当切换到预览与调试步骤时获取静态输入配置
+  watch(activeStep, async (newStep) => {
+    if (newStep === 4) { // 4是预览与调试的步骤索引
+      // 获取静态输入配置
+      await fetchStaticInputs()
+      // 启动预览模式
+      await startPreview()
+    }
+  })
+})
+
+// 在AgentEditor.vue中添加清理临时资源的方法
+const cleanupTempResources = async () => {
+  try {
+    // 检查是否有临时头像需要清理
+    if (agentData.avatar && agentData.avatar.includes('temp_')) {
+      const token = localStorage.getItem('token')
+      if (!token) return
+      
+
+      const response = await fetch('/agent/cleanup_temp_resources', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          temp_avatar: agentData.avatar,
+          agent_id: agentData.id || null
+        })
+      })
+
+      if (!response.ok || response.status !== 200) {
+        throw new Error('清理临时资源失败')
+      }
+      
+      console.log('清理临时资源成功')
+    }
+  } catch (error) {
+    console.error('清理临时资源失败:', error)
   }
 }
 </script>

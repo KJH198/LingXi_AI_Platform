@@ -56,7 +56,9 @@ CORS_ORIGIN_WHITELIST = (
     'http://localhost:3000',   # 添加前端开发服务器地址
     'http://122.9.37.3:8000',   # 添加云服务器地址
     'ws://localhost:8000',     # 添加WebSocket连接
-    'ws://127.0.0.1:8000'      # 添加WebSocket连接
+    'ws://127.0.0.1:8000',     # 添加WebSocket连接
+    'wss://122.9.37.3:8000',   # 添加云服务器WebSocket连接
+    'wss://www.lingxiai.cloud' # 添加域名WebSocket连接
 )
 
 # 允许所有跨域请求（仅用于开发环境）
@@ -86,6 +88,10 @@ CORS_ALLOW_HEADERS = [
     'user-agent',
     'x-csrftoken',
     'x-requested-with',
+    'sec-websocket-protocol',  # 添加WebSocket相关头部
+    'sec-websocket-extensions',
+    'sec-websocket-key',
+    'sec-websocket-version',
 ]
 
 # 允许不带斜杠的 URL
@@ -224,27 +230,8 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:8000",
     "ws://localhost:8000",
     "ws://127.0.0.1:8000",
-]
-
-CORS_ALLOW_METHODS = [
-    'DELETE',
-    'GET',
-    'OPTIONS',
-    'PATCH',
-    'POST',
-    'PUT',
-]
-
-CORS_ALLOW_HEADERS = [
-    'accept',
-    'accept-encoding',
-    'authorization',
-    'content-type',
-    'dnt',
-    'origin',
-    'user-agent',
-    'x-csrftoken',
-    'x-requested-with',
+    "wss://122.9.37.3:8000",
+    "wss://www.lingxiai.cloud"
 ]
 
 # 日志配置
