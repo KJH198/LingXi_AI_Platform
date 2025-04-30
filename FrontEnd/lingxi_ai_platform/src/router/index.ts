@@ -85,7 +85,15 @@ const routes: RouteRecordRaw[] = [
     path: '/chat',
     name: 'Chat',
     component: () => import('../views/Chat.vue')
-  }
+  },
+  {
+    path: '/search',
+    name: 'Search',
+    component: () => import('../views/Search.vue'),
+    meta: {
+      title: '搜索结果 - 灵犀AI社区'
+    }
+  },
 ]
 
 const router = createRouter({
