@@ -1,4 +1,4 @@
-from .models import Node,Workflow
+from .models import Node, Workflow
 from agent.llm import chat_with_condition, chat_with_aggregate, call_llm
 import types
 
@@ -14,6 +14,7 @@ from asgiref.sync import async_to_sync
 
 static_inputs = {}  # 全局变量，保存所有静态输入
 pending_inputs = {}  # 全局变量，存等待中的动态输入
+global_count = 0
 agent_id = None
 workflow_id = None
 model_id = None
@@ -162,7 +163,8 @@ async def send_output_to_frontend(node_name: str, output: any):
         print(f"成功发送输出到前端: {node_name} : {output}")
     except Exception as e:
         print(f"发送输出到前端失败: {e}")
-        
+
+
 async def send_dynamic_request_to_frontend(node_name: str):
     channel_layer = get_channel_layer()
     payload = {
@@ -212,7 +214,6 @@ class CodeNode(BaseNode):
 
         except Exception as e:
             return f"执行代码节点时出错：{e}"
-
 
 
 class SelectorNode(BaseNode):
@@ -274,7 +275,6 @@ class IntentNode(BaseNode):
         super().__init__(node)
 
     def run(self, inputs, node_dict, handle):
-        print("意图识别")
         # print(inputs)
         return inputs
 
@@ -341,6 +341,7 @@ node_type_map = {
     "monitor": MonitorNode,
 }
 
+
 def build_node_instance(node_model_instance):
     node_type = node_model_instance.node_type
     NodeClass = node_type_map.get(node_type)
@@ -349,8 +350,12 @@ def build_node_instance(node_model_instance):
 
     return NodeClass(node_model_instance)
 
-def execute_node(node_id, node_dict, source_handle=None):
-    # 判断是否已经执行过该节点（考虑 handle）
+
+def execute_node(node_id, node_dict, count, source_handle=None):
+    if count != global_count:
+        print(f"count:", count)
+        print(f"global_count:", global_count)
+        return
 
     node_instance = node_dict[node_id]
     inputs = []
@@ -363,7 +368,8 @@ def execute_node(node_id, node_dict, source_handle=None):
             pred_id = pred['source']
             pred_node = node_dict[pred_id]
             is_loop = any(
-                succ['target'] == node_id and (succ['targetHandle'] == 'batch-exit' or succ['targetHandle'] == 'loop-exit')
+                succ['target'] == node_id and (
+                            succ['targetHandle'] == 'batch-exit' or succ['targetHandle'] == 'loop-exit')
                 for succ in pred_node.successors
             )
             if is_loop:
@@ -376,7 +382,7 @@ def execute_node(node_id, node_dict, source_handle=None):
     for pred in normal_preds:
         pred_id = pred['source']
         pred_handle = pred['sourceHandle']  # 这个 pred 是当前节点的一个输入来源
-        pred_output = execute_node(pred_id, node_dict, pred_handle) # 只要其中一个分支的输出
+        pred_output = execute_node(pred_id, node_dict, count, pred_handle)  # 只要其中一个分支的输出
         inputs.append(pred_output)
 
     if inputs == [None]:
@@ -386,19 +392,24 @@ def execute_node(node_id, node_dict, source_handle=None):
     if loop_pred and node_instance.type == 'loop':
         if node_instance.loop_type == 'fixed':
             for i in range(node_instance.loop_count):
-                output = execute_loop(loop_pred['source'], node_dict, output)
+                output = execute_loop(loop_pred['source'], node_dict, output, count)
         else:
             loop_counter = 0
-            while chat_with_condition(node_instance.loop_condition, output) and loop_counter < 100: # 防止死循环
-                output = execute_loop(loop_pred['source'], node_dict, output)
+            while chat_with_condition(node_instance.loop_condition, output) and loop_counter < 100:  # 防止死循环
+                output = execute_loop(loop_pred['source'], node_dict, output, count)
                 loop_counter += 1
 
     if loop_pred and node_instance.type == 'batch':
-        output = execute_batch(loop_pred['source'], node_dict, output)
+        output = execute_batch(loop_pred['source'], node_dict, output, count)
 
     return output
 
-def execute_batch(current_id, node_dict, inputs):
+
+def execute_batch(current_id, node_dict, inputs, count):
+    if count != global_count:
+        print(f"count:", count)
+        print(f"global_count:", global_count)
+        return
     current_node = node_dict[current_id]
 
     for pred in current_node.predecessors:
@@ -420,7 +431,7 @@ def execute_batch(current_id, node_dict, inputs):
 
         else:
             # 先递归执行上一个节点（一路向上）
-            prev_output = execute_batch(pred_id, node_dict, inputs)
+            prev_output = execute_batch(pred_id, node_dict, inputs, count)
             # 再用上一个节点的输出执行当前节点
             # print(f"[Loop Step] 执行 {current_node.type} {current_id}")
             outputs = []
@@ -436,7 +447,12 @@ def execute_batch(current_id, node_dict, inputs):
 
     return None
 
-def execute_loop(current_id, node_dict, inputs):
+
+def execute_loop(current_id, node_dict, inputs, count):
+    if count != global_count:
+        print(f"count:", count)
+        print(f"global_count:", global_count)
+        return
     current_node = node_dict[current_id]
 
     for pred in current_node.predecessors:
@@ -447,21 +463,21 @@ def execute_loop(current_id, node_dict, inputs):
             # 找到批处理入口，使用 inputs 执行该入口节点
             print(f"[Entry] 执行 {current_node.type} {current_id}")
             output = current_node.run(inputs, node_dict, pred_handle)
-            if len(current_node.predecessors) > 1: #有不止一个前驱
+            if len(current_node.predecessors) > 1:  # 有不止一个前驱
                 normal_inputs = []
                 for normal_pred in current_node.predecessors:
                     normal_pred_id = normal_pred['source']
                     normal_pred_handle = normal_pred['sourceHandle']
-                    if normal_pred_handle != 'loop-entry': #遍历其余前驱
+                    if normal_pred_handle != 'loop-entry':  # 遍历其余前驱
                         print(f"normal_pred:", normal_pred)
-                        normal_pred_output = execute_node(normal_pred_id, node_dict, normal_pred_handle)
+                        normal_pred_output = execute_node(normal_pred_id, node_dict, count, normal_pred_handle)
                         normal_inputs.append(normal_pred_output)
                         output = current_node.run(normal_inputs, node_dict, normal_pred_handle)
             print(output)
             return output
         else:
             # 先递归执行上一个节点（一路向上）
-            prev_output = execute_loop(pred_id, node_dict, inputs)
+            prev_output = execute_loop(pred_id, node_dict, inputs, count)
 
             # 再用上一个节点的输出执行当前节点
             print(f"[Loop Step] 执行 {current_node.type} {current_id}")
@@ -471,6 +487,7 @@ def execute_loop(current_id, node_dict, inputs):
 
     return None  # fallback：未找到入口
 
+
 def run_workflow_from_output_node(workflow):
     """
     从输出节点开始执行整个工作流
@@ -478,6 +495,8 @@ def run_workflow_from_output_node(workflow):
     :param node_list: 所有 BaseNode 实例的列表
     :return: 最终输出节点的运行结果
     """
+    global global_count
+    global_count += 1
     # 加载所有节点，并创建实例
     node_dict = {
         node.node_id: build_node_instance(node)
@@ -501,12 +520,13 @@ def run_workflow_from_output_node(workflow):
         source_handle = output_node.predecessors[0].get('sourceHandle')
 
         # 递归执行
-        result = execute_node(output_node_id, node_dict, source_handle)
+        result = execute_node(output_node_id, node_dict, global_count, source_handle)
 
         # 保存结果
         final_result[output_node_id] = result
 
     return final_result
+
 
 @csrf_exempt
 def check_next_input(request):
@@ -557,6 +577,7 @@ def start_preview(request):
                 flag = True
                 break
         if flag is False:  # 没有静态输入，直接调工作流
+            print("reset")
             run_workflow_from_output_node(workflow)
 
         return JsonResponse({

@@ -1384,7 +1384,7 @@ onMounted(() => {
       // 获取静态输入配置
       await fetchStaticInputs()
       // 启动预览模式
-      await startPreview()
+      // await startPreview()
     }
   })
 })
