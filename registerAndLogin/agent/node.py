@@ -557,6 +557,7 @@ def start_preview(request):
                 flag = True
                 break
         if flag is False:  # 没有静态输入，直接调工作流
+            print("reset")
             run_workflow_from_output_node(workflow)
 
         return JsonResponse({
