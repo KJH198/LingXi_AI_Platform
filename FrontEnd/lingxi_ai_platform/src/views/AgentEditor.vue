@@ -1200,8 +1200,13 @@ const fetchStaticInputs = async () => {
 onMounted(() => {
   console.log('AgentEditor 组件已挂载，开始初始化数据')
   
+  // 获取当前环境的基础URL
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+  const host = window.location.host
+  const wsUrl = `${protocol}//${host}/ws/node_output/`
+  
   // 建立 WebSocket 连接
-  const ws = new WebSocket('ws://localhost:8000/ws/node_output/')
+  const ws = new WebSocket(wsUrl)
   
   ws.onmessage = (event) => {
     try {
