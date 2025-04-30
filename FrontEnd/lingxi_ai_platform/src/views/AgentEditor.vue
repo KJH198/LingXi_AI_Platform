@@ -753,7 +753,7 @@ const handleNodeOutput = (data: { node_name: string, output: any }) => {
   }
 }
 
-// 添加处理输出缓冲区的方法
+// 修改处理输出缓冲区的方法
 const processOutputBuffer = () => {
   if (outputBuffer.value.length === 0 || isProcessingOutput.value) return
   
@@ -762,24 +762,13 @@ const processOutputBuffer = () => {
   while (outputBuffer.value.length > 0) {
     const { node_name, output } = outputBuffer.value.shift()!
     
-    // 检查是否已经存在相同节点名称的消息
-    const existingMessageIndex = chatMessages.value.findIndex(
-      msg => msg.role === 'assistant' && msg.nodeName === node_name
-    )
-    
-    if (existingMessageIndex === -1) {
-      // 如果不存在，则添加新消息
-      chatMessages.value.push({
-        role: 'assistant',
-        content: `${output}`,
-        time: new Date().toLocaleTimeString(),
-        nodeName: node_name
-      })
-    } else {
-      // 如果存在，则更新现有消息
-      chatMessages.value[existingMessageIndex].content = `${output}`
-      chatMessages.value[existingMessageIndex].time = new Date().toLocaleTimeString()
-    }
+    // 直接添加新消息，不再检查是否存在相同节点名称的消息
+    chatMessages.value.push({
+      role: 'assistant',
+      content: `${output}`,
+      time: new Date().toLocaleTimeString(),
+      nodeName: node_name
+    })
   }
   
   // 滚动到底部
@@ -1627,7 +1616,7 @@ onMounted(() => {
   }
   
   // 添加初始消息
-  resetChat()
+  // resetChat()
   
   // 监听页面刷新或关闭事件，保存数据
   window.addEventListener('beforeunload', () => {
