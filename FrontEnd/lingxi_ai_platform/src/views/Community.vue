@@ -7,8 +7,8 @@
           <h2>灵犀AI社区</h2>
           <el-menu mode="horizontal" :default-active="activeMenu" @select="handleMenuSelect">
             <el-menu-item index="1">首页</el-menu-item>
-            <el-menu-item index="2">热门</el-menu-item>
-            <el-menu-item index="3">最新</el-menu-item>
+            <el-menu-item index="2">热门智能体</el-menu-item>
+            <el-menu-item index="3">热门知识库</el-menu-item>
             <el-menu-item index="4" @click="showAnnouncementList">公告</el-menu-item>
           </el-menu>
         </div>
