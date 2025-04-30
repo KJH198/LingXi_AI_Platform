@@ -744,23 +744,42 @@ const handleNodeOutput = (data: { node_name: string, output: any }) => {
   nodeOutputs.value[node_name] = output
   currentNodeName.value = node_name
   
-  // 检查是否已经存在相同节点名称的消息
-  const existingMessageIndex = chatMessages.value.findIndex(
-    msg => msg.role === 'assistant' && msg.nodeName === node_name
-  )
+  // 将输出添加到缓冲区
+  outputBuffer.value.push({ node_name, output })
   
-  if (existingMessageIndex === -1) {
-    // 如果不存在，则添加新消息
-    chatMessages.value.push({
-      role: 'assistant',
-      content: `${output}`,
-      time: new Date().toLocaleTimeString(),
-      nodeName: node_name
-    })
-  } else {
-    // 如果存在，则更新现有消息
-    chatMessages.value[existingMessageIndex].content = `${output}`
-    chatMessages.value[existingMessageIndex].time = new Date().toLocaleTimeString()
+  // 如果没有正在处理动态输入，则处理缓冲区中的输出
+  if (!waitingForDynamicInput.value && !isProcessingOutput.value) {
+    processOutputBuffer()
+  }
+}
+
+// 添加处理输出缓冲区的方法
+const processOutputBuffer = () => {
+  if (outputBuffer.value.length === 0 || isProcessingOutput.value) return
+  
+  isProcessingOutput.value = true
+  
+  while (outputBuffer.value.length > 0) {
+    const { node_name, output } = outputBuffer.value.shift()!
+    
+    // 检查是否已经存在相同节点名称的消息
+    const existingMessageIndex = chatMessages.value.findIndex(
+      msg => msg.role === 'assistant' && msg.nodeName === node_name
+    )
+    
+    if (existingMessageIndex === -1) {
+      // 如果不存在，则添加新消息
+      chatMessages.value.push({
+        role: 'assistant',
+        content: `${output}`,
+        time: new Date().toLocaleTimeString(),
+        nodeName: node_name
+      })
+    } else {
+      // 如果存在，则更新现有消息
+      chatMessages.value[existingMessageIndex].content = `${output}`
+      chatMessages.value[existingMessageIndex].time = new Date().toLocaleTimeString()
+    }
   }
   
   // 滚动到底部
@@ -769,6 +788,8 @@ const handleNodeOutput = (data: { node_name: string, output: any }) => {
       chatMessagesRef.value.scrollTop = chatMessagesRef.value.scrollHeight
     }
   })
+  
+  isProcessingOutput.value = false
 }
 
 // 修改 handleResponse 方法
@@ -876,6 +897,9 @@ const handleInput = async () => {
     dynamicInputVars.value = []
     dynamicInputName.value = ''
     
+    // 处理缓冲区中的输出
+    processOutputBuffer()
+    
     // 检查是否还有其他待处理的动态输入
     const checkNextInputResponse = await fetch('/agent/checkNextInput', {
       method: 'GET',
@@ -902,6 +926,8 @@ const handleInput = async () => {
     waitingForDynamicInput.value = false
     dynamicInputVars.value = []
     dynamicInputName.value = ''
+    // 处理缓冲区中的输出
+    processOutputBuffer()
   } finally {
     isGenerating.value = false
   }
@@ -925,7 +951,7 @@ const addLog = (type: string, message: string): void => {
 }
 
 // 重置聊天
-const resetChat = (): void => {
+const resetChat = async (): Promise<void> => {
   chatMessages.value = [
     {
       role: 'assistant',
@@ -936,7 +962,24 @@ const resetChat = (): void => {
   lastRequest.value = {}
   lastResponse.value = {}
   modelLogs.value = []
-  ElMessage.success('聊天记录已重置')
+  
+  // 清空输出缓冲区
+  outputBuffer.value = []
+  isProcessingOutput.value = false
+  
+  // 重置动态输入状态
+  waitingForDynamicInput.value = false
+  dynamicInputVars.value = []
+  dynamicInputName.value = ''
+  
+  // 重新启动预览
+  try {
+    await startPreview()
+    ElMessage.success('聊天记录已重置')
+  } catch (error) {
+    console.error('重置预览失败:', error)
+    ElMessage.error('重置预览失败，请稍后重试')
+  }
 }
 
 // 预览文件
@@ -1633,6 +1676,10 @@ const cleanupTempResources = async () => {
     console.error('清理临时资源失败:', error)
   }
 }
+
+// 在 script setup 部分添加新的状态变量
+const outputBuffer = ref<Array<{ node_name: string, output: any }>>([])
+const isProcessingOutput = ref(false)
 </script>
 
 <style scoped>
