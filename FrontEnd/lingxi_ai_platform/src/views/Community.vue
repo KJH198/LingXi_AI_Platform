@@ -792,7 +792,7 @@ const fetchUserAgents = async () => {
     }
 
     // 实际API请求
-    const response = await fetch('/user/agents/list/', {
+    const response = await fetch('/user/agents/list', {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`,
