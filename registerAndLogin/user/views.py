@@ -17,7 +17,7 @@ from django.conf import settings
 import time
 from .models import PublishedAgent
 from knowledge_base.models import KnowledgeBase
-from community.models import Post
+# from community.models import Post
 
 @csrf_exempt
 def register(request):
