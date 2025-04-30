@@ -68,7 +68,7 @@ urlpatterns = [
     path('api/admin/user/behavior_logs/<str:user_id>/', UserBehaviorLogsView.as_view(), name='admin_behavior_logs'),
     
     # 智能体和知识库相关路由
-    path('agents/list/', UserAgentListView.as_view(), name='user_agent_list'),
+    path('agents/list', UserAgentListView.as_view(), name='user_agent_list'),
     path('knowledge-bases/list/', UserKnowledgeBaseListView.as_view(), name='user_knowledge_base_list'),
     
     # 帖子相关路由
