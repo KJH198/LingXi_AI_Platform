@@ -26,6 +26,10 @@ from .views import (
     UserBehaviorLogsView,
     AnnouncementView,
     AgentPublishView,
+    UserAgentListView,
+    UserKnowledgeBaseListView,
+    PostCreateView,
+    PostImageUploadView,
 )
 
 urlpatterns = [
@@ -62,4 +66,12 @@ urlpatterns = [
     path('admin/abnormal_behaviors', UserAbnormalBehaviorsView.as_view(), name='admin_abnormal_behaviors'),
     path('api/admin/user/behavior_stats/', UserBehaviorStatsView.as_view(), name='admin_behavior_stats'),
     path('api/admin/user/behavior_logs/<str:user_id>/', UserBehaviorLogsView.as_view(), name='admin_behavior_logs'),
+    
+    # 智能体和知识库相关路由
+    path('agents/list/', UserAgentListView.as_view(), name='user_agent_list'),
+    path('knowledge-bases/list/', UserKnowledgeBaseListView.as_view(), name='user_knowledge_base_list'),
+    
+    # 帖子相关路由
+    path('post/create/', PostCreateView.as_view(), name='post_create'),
+    path('post/upload-images/', PostImageUploadView.as_view(), name='post_upload_images'),
 ]

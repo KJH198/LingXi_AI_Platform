@@ -16,6 +16,8 @@ import os
 from django.conf import settings
 import time
 from .models import PublishedAgent
+from knowledge_base.models import KnowledgeBase
+from community.models import Post
 
 @csrf_exempt
 def register(request):
@@ -1473,4 +1475,222 @@ class AgentPublishView(APIView):
                 'code': 500,
                 'message': f'发布失败：{str(e)}',
                 'data': None
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class UserAgentListView(APIView):
+    """获取用户智能体列表接口"""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            # 获取当前用户创建的智能体列表
+            agents = PublishedAgent.objects.filter(creator=request.user)
+            
+            # 构建响应数据
+            agent_list = []
+            for agent in agents:
+                # 获取关注数量
+                follow_count = agent.followers.count() if hasattr(agent, 'followers') else 0
+                
+                # 检查当前用户是否已关注该智能体
+                is_followed = False
+                if hasattr(agent, 'followers'):
+                    is_followed = agent.followers.filter(id=request.user.id).exists()
+                
+                agent_data = {
+                    'id': str(agent.id),
+                    'name': agent.name,
+                    'description': agent.description,
+                    'avatar': agent.avatar,
+                    'creator': {
+                        'id': agent.creator.id,
+                        'username': agent.creator.username,
+                        'avatar': agent.creator.avatar
+                    },
+                    'followCount': follow_count,
+                    'isFollowed': is_followed
+                }
+                agent_list.append(agent_data)
+            
+            return Response({
+                'code': 200,
+                'message': '获取成功',
+                'data': agent_list
+            })
+            
+        except Exception as e:
+            return Response({
+                'code': 500,
+                'message': f'获取智能体列表失败: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class UserKnowledgeBaseListView(APIView):
+    """获取用户知识库列表接口"""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            # 获取当前用户创建的知识库列表
+            knowledge_bases = KnowledgeBase.objects.filter(user=request.user)
+            
+            # 构建响应数据
+            kb_list = []
+            for kb in knowledge_bases:
+                kb_data = {
+                    'id': str(kb.id),
+                    'name': kb.name,
+                    'description': kb.description,
+                    'creator': {
+                        'id': kb.user.id,
+                        'username': kb.user.username,
+                        'avatar': kb.user.avatar
+                    },
+                    'fileCount': kb.files.count(),
+                    'followCount': 0,  # 知识库模型中没有关注功能
+                    'isFollowed': False  # 知识库模型中没有关注功能
+                }
+                kb_list.append(kb_data)
+            
+            return Response({
+                'code': 200,
+                'message': '获取成功',
+                'data': kb_list
+            })
+            
+        except Exception as e:
+            return Response({
+                'code': 500,
+                'message': f'获取知识库列表失败: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class PostCreateView(APIView):
+    """创建帖子视图"""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        try:
+            # 获取请求数据
+            title = request.data.get('title')
+            content = request.data.get('content')
+            images = request.data.get('images', [])
+            agents = request.data.get('agents', [])
+            knowledge_bases = request.data.get('knowledgeBases', [])
+
+            # 验证必填字段
+            if not title or not content:
+                return Response({
+                    'code': 400,
+                    'message': '标题和内容不能为空'
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            # 验证标题长度
+            if len(title) > 100:
+                return Response({
+                    'code': 400,
+                    'message': '标题长度不能超过100个字符'
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            # 验证内容长度
+            if len(content) > 2000:
+                return Response({
+                    'code': 400,
+                    'message': '内容长度不能超过2000个字符'
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            # 创建帖子
+            post = Post.objects.create(
+                title=title,
+                content=content,
+                creator=request.user,
+                images=images
+            )
+
+            # 添加关联的智能体
+            if agents:
+                post.agents.set(agents)
+
+            # 添加关联的知识库
+            if knowledge_bases:
+                post.knowledge_bases.set(knowledge_bases)
+
+            return Response({
+                'code': 200,
+                'message': '发布成功',
+                'data': {
+                    'postId': post.id
+                }
+            })
+
+        except Exception as e:
+            return Response({
+                'code': 500,
+                'message': f'发布失败：{str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class PostImageUploadView(APIView):
+    """上传帖子图片视图"""
+    permission_classes = [IsAuthenticated]
+    parser_classes = (MultiPartParser, FormParser)
+
+    def post(self, request):
+        try:
+            # 获取上传的文件
+            files = request.FILES.getlist('files')
+
+            # 验证文件数量
+            if len(files) > 9:
+                return Response({
+                    'code': 400,
+                    'message': '最多只能上传9张图片'
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            # 验证文件大小和类型
+            allowed_types = ['image/jpeg', 'image/png', 'image/gif']
+            max_size = 5 * 1024 * 1024  # 5MB
+
+            uploaded_urls = []
+            for file in files:
+                # 验证文件类型
+                if file.content_type not in allowed_types:
+                    return Response({
+                        'code': 400,
+                        'message': '只支持jpg、png、gif格式的图片'
+                    }, status=status.HTTP_400_BAD_REQUEST)
+
+                # 验证文件大小
+                if file.size > max_size:
+                    return Response({
+                        'code': 400,
+                        'message': '图片大小不能超过5MB'
+                    }, status=status.HTTP_400_BAD_REQUEST)
+
+                # 生成文件名
+                file_extension = file.name.split('.')[-1]
+                file_name = f'post_images/{request.user.id}_{int(time.time())}_{len(uploaded_urls)}.{file_extension}'
+
+                # 确保目录存在
+                image_dir = os.path.join(settings.MEDIA_ROOT, 'post_images')
+                if not os.path.exists(image_dir):
+                    os.makedirs(image_dir)
+
+                # 保存文件
+                file_path = os.path.join(settings.MEDIA_ROOT, file_name)
+                with open(file_path, 'wb+') as destination:
+                    for chunk in file.chunks():
+                        destination.write(chunk)
+
+                # 添加文件URL到列表
+                file_url = f'{settings.MEDIA_URL}{file_name}'
+                uploaded_urls.append(file_url)
+
+            return Response({
+                'code': 200,
+                'message': '上传成功',
+                'data': uploaded_urls
+            })
+
+        except Exception as e:
+            return Response({
+                'code': 500,
+                'message': f'上传失败：{str(e)}'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
