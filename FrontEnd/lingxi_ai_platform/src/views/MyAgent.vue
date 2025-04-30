@@ -83,8 +83,57 @@ const total = ref(0)
 // 获取用户智能体列表
 const fetchAgents = async () => {
   try {
-    // TODO: 调用后端API获取用户智能体列表
-    // 这里先使用模拟数据
+    const token = localStorage.getItem('token')
+    if (!token) {
+      ElMessage.error('请先登录')
+      router.push('/login')
+      return
+    }
+
+    // 构建请求参数
+    const params = new URLSearchParams({
+      page: currentPage.value.toString(),
+      size: pageSize.value.toString()
+    })
+    
+    // 发送请求 - 使用与Community.vue相同的API路径
+    const response = await fetch(`/user/agents/list/`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    })
+    
+    if (!response.ok) {
+      throw new Error('获取智能体列表失败')
+    }
+    
+    const result = await response.json()
+    console.log('获取智能体列表成功:', result)
+    
+    if (result.code === 200) {
+      agents.value = (result.data || []).map(item => ({
+      id: item.id,
+      name: item.name || '未命名智能体',
+      description: item.description || '暂无描述',
+      // API返回的coverImage可能位于不同路径，需要适配
+      coverImage: item.avatar || 'https://picsum.photos/300/200',
+      // 统计数据适配
+      views: item.viewCount || item.views || 0,
+      likes: item.likeCount || item.likes || 0,
+      comments: item.commentCount || item.comments || 0
+      }))
+      console.log('智能体列表:', agents.value)
+      total.value = Math.ceil(agents.value.length / pageSize.value) || 0
+    } else {
+      throw new Error(result.message || '获取智能体列表失败')
+    }
+  } catch (error) {
+    console.error('获取智能体列表失败:', error)
+    ElMessage.error('获取智能体列表失败，请稍后重试')
+    
+    // 模拟数据（开发阶段使用）
     agents.value = [
       {
         id: 1,
@@ -142,8 +191,6 @@ const fetchAgents = async () => {
       }
     ]
     total.value = agents.value.length
-  } catch (error) {
-    ElMessage.error('获取智能体列表失败')
   }
 }
 
