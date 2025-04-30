@@ -1627,7 +1627,7 @@ onMounted(() => {
   }
   
   // 添加初始消息
-  resetChat()
+  //resetChat()
   
   // 监听页面刷新或关闭事件，保存数据
   window.addEventListener('beforeunload', () => {

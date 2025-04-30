@@ -58,7 +58,7 @@ def chat_with_aggregate(aggregate_type: str, aggregate_field: str, input_text: s
     print(aggregate_type)
     print(aggregate_field)
     print(reply)
-    return aggregate_field + aggregate_type + "是" + reply
+    return reply
 
 def call_llm(model_type: str, system_prompt: str, input_text: str) -> str:
     if model_type == 'claude-3':
