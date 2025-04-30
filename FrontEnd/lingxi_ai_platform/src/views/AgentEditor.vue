@@ -744,13 +744,24 @@ const handleNodeOutput = (data: { node_name: string, output: any }) => {
   nodeOutputs.value[node_name] = output
   currentNodeName.value = node_name
   
-  // 在聊天记录中添加节点输出
-  chatMessages.value.push({
-    role: 'assistant',
-    content: `${output}`,
-    time: new Date().toLocaleTimeString(),
-    nodeName: node_name
-  })
+  // 检查是否已经存在相同节点名称的消息
+  const existingMessageIndex = chatMessages.value.findIndex(
+    msg => msg.role === 'assistant' && msg.nodeName === node_name
+  )
+  
+  if (existingMessageIndex === -1) {
+    // 如果不存在，则添加新消息
+    chatMessages.value.push({
+      role: 'assistant',
+      content: `${output}`,
+      time: new Date().toLocaleTimeString(),
+      nodeName: node_name
+    })
+  } else {
+    // 如果存在，则更新现有消息
+    chatMessages.value[existingMessageIndex].content = `${output}`
+    chatMessages.value[existingMessageIndex].time = new Date().toLocaleTimeString()
+  }
   
   // 滚动到底部
   nextTick(() => {
@@ -769,13 +780,25 @@ const handleResponse = (response: any) => {
     dynamicInputName.value = response.inputName // 记录输入名称
     // 不添加到聊天记录中
   } else {
-    // 普通响应
-    chatMessages.value.push({
-      role: 'assistant',
-      content: response.content,
-      time: new Date().toLocaleTimeString(),
-      nodeName: response.nodeName || currentNodeName.value
-    })
+    // 检查是否已经存在相同节点名称的消息
+    const nodeName = response.nodeName || currentNodeName.value
+    const existingMessageIndex = chatMessages.value.findIndex(
+      msg => msg.role === 'assistant' && msg.nodeName === nodeName
+    )
+    
+    if (existingMessageIndex === -1) {
+      // 如果不存在，则添加新消息
+      chatMessages.value.push({
+        role: 'assistant',
+        content: response.content,
+        time: new Date().toLocaleTimeString(),
+        nodeName: nodeName
+      })
+    } else {
+      // 如果存在，则更新现有消息
+      chatMessages.value[existingMessageIndex].content = response.content
+      chatMessages.value[existingMessageIndex].time = new Date().toLocaleTimeString()
+    }
   }
 }
 
