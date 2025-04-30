@@ -97,7 +97,7 @@ const fetchAgents = async () => {
     })
     
     // 发送请求 - 使用与Community.vue相同的API路径
-    const response = await fetch(`/user/agents/list/`, {
+    const response = await fetch(`/user/agents/list`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`,

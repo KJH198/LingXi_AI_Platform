@@ -7,12 +7,27 @@
           <h2>灵犀AI社区</h2>
           <el-menu mode="horizontal" :default-active="activeMenu" @select="handleMenuSelect">
             <el-menu-item index="1">首页</el-menu-item>
-            <el-menu-item index="2">热门</el-menu-item>
-            <el-menu-item index="3">最新</el-menu-item>
+            <el-menu-item index="2">热门智能体</el-menu-item>
+            <el-menu-item index="3">热门知识库</el-menu-item>
             <el-menu-item index="4" @click="showAnnouncementList">公告</el-menu-item>
           </el-menu>
         </div>
         <div class="header-right">
+          <div class="search-container">
+            <el-input 
+              v-model="searchQuery"
+              placeholder="搜索帖子、用户、智能体..."
+              @keyup.enter="handleSearch"
+              clearable
+            >
+              <template #prefix>
+          <el-icon><Search /></el-icon>
+              </template>
+              <template #append>
+          <el-button @click="handleSearch">搜索</el-button>
+              </template>
+            </el-input>
+          </div>
           <el-button type="primary" @click="showCreateAgentDialog">构建智能体</el-button>
           <el-button type="primary" @click="showPostDialog">发布帖子</el-button>
           <el-dropdown>
@@ -497,6 +512,29 @@ const fetchUserInfo = async () => {
   }
 }
 
+// 添加搜索图标导入
+import { Search } from '@element-plus/icons-vue'
+
+// 添加搜索相关状态
+const searchQuery = ref('')
+
+// 添加搜索处理函数
+const handleSearch = () => {
+  if (!searchQuery.value.trim()) {
+    ElMessage.warning('请输入搜索内容')
+    return
+  }
+  
+  // 跳转到搜索页面，带上查询参数
+  router.push({
+    path: '/search',
+    query: {
+      q: searchQuery.value,
+      type: 'all'
+    }
+  })
+}
+
 // 获取帖子列表的新方法
 const fetchPosts = async () => {
   loading.value = true
@@ -792,7 +830,7 @@ const fetchUserAgents = async () => {
     }
 
     // 实际API请求
-    const response = await fetch('/user/agents/list/', {
+    const response = await fetch('/user/agents/list', {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -1721,5 +1759,10 @@ fetchPosts()
 
 .post-card:hover {
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+}
+
+.search-container {
+  width: 300px;
+  margin-right: 15px;
 }
 </style>
