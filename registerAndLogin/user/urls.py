@@ -4,7 +4,6 @@ from .views import (
     AdminBanView,
     AdminUnbanView,
     CreateAnnouncement,
-    CreateAnnouncementView,
     DeleteAnnouncement,
     EditAnnouncement,
     GetAnnouncements,
@@ -30,7 +29,6 @@ from .views import (
     UserAbnormalBehaviorsView,
     UserBehaviorStatsView,
     UserBehaviorLogsView,
-    AnnouncementView,
     AgentPublishView,
     UserAgentListView,
     UserKnowledgeBaseListView,
@@ -61,8 +59,8 @@ urlpatterns = [
     path('admin/operation_records', UserOperationRecordsView.as_view(), name='admin_operation_records'),
     path('search/', UserSearchView.as_view(), name='user_search'),
     path('admin/login_records/', UserLoginRecordView.as_view(), name='login_records'),
-    path('admin/announcements/', AnnouncementView.as_view(), name='announcements'),
-    path('admin/announcements/<int:announcement_id>/', AnnouncementView.as_view(), name='announcement_detail'),
+    # path('admin/announcements/', AnnouncementView.as_view(), name='announcements'),
+    # path('admin/announcements/<int:announcement_id>/', AnnouncementView.as_view(), name='announcement_detail'),
     
     path('agent/publish', AgentPublishView.as_view(), name='agent-publish'),
     # 新增管理员接口路由
