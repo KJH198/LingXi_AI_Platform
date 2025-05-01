@@ -3,6 +3,11 @@ from django.urls import path
 from .views import (
     AdminBanView,
     AdminUnbanView,
+    CreateAnnouncement,
+    CreateAnnouncementView,
+    DeleteAnnouncement,
+    EditAnnouncement,
+    GetAnnouncements,
     register,
     user_login,
     update_user_info,
@@ -61,15 +66,23 @@ urlpatterns = [
     
     path('agent/publish', AgentPublishView.as_view(), name='agent-publish'),
     # 新增管理员接口路由
-    path('api/admin/user/list/', UserListAPIView.as_view(), name='admin_user_list'),
+    # path('api/admin/user/list/', UserListAPIView.as_view(), name='admin_user_list'),
     path('api/admin/user/<str:user_id>/', UserDetailAPIView.as_view(), name='admin_user_detail'),
     path('admin/abnormal_behaviors', UserAbnormalBehaviorsView.as_view(), name='admin_abnormal_behaviors'),
     path('api/admin/user/behavior_stats/', UserBehaviorStatsView.as_view(), name='admin_behavior_stats'),
     path('api/admin/user/behavior_logs/<str:user_id>/', UserBehaviorLogsView.as_view(), name='admin_behavior_logs'),
+  
+  
     
     # 管理员封禁与解封用户
     path('admin/banUser/<int:user_id>', AdminBanView.as_view(), name='ban'),
     path('admin/unbanUser/<int:user_id>', AdminUnbanView.as_view(), name='unban'),
+    
+    # 管理员发布、修改和删除公告
+    path('admin/GetAnnouncements', GetAnnouncements.as_view(), name='announcement_list'), # 获取公告列表
+    path('admin/CreateAnnouncement', CreateAnnouncement.as_view(), name='create_announcement'),    # 创建公告
+    path('admin/EditAnnouncement/<int:announcement_id>', EditAnnouncement.as_view(), name='update_announcement'),    # 更新公告
+    path('admin/DeleteAnnouncement/<int:announcement_id>', DeleteAnnouncement.as_view(), name='delete_announcement'),    # 删除公告
     
     # 智能体和知识库相关路由
     path('agents/list', UserAgentListView.as_view(), name='user_agent_list'),

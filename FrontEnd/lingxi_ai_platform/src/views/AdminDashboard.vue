@@ -1467,10 +1467,11 @@ const announcementApi = {
   // 创建公告
   async createAnnouncement(data) {
     try {
-      const response = await fetch('/announcement/create', {
+      const response = await fetch('/user/admin/CreateAnnouncement', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
         },
         body: JSON.stringify(data)
       })
@@ -1607,20 +1608,12 @@ const handleSaveAnnouncement = async () => {
         }
       }
       ElMessage.success('更新成功')
-      // TODO: 实际API调用
-      // await announcementApi.updateAnnouncement(currentAnnouncement.value.id, announcementForm)
     } else {
-      // 使用模拟数据
-      const newAnnouncement = {
-        id: `A${String(announcements.value.length + 1).padStart(3, '0')}`,
-        ...announcementForm,
-        publishTime: announcementForm.status === 'published' ? new Date().toLocaleString() : '-'
-      }
+      const newAnnouncement = await announcementApi.createAnnouncement(announcementForm)
+      console.log('新公告:', newAnnouncement.announcement)
       announcements.value.unshift(newAnnouncement)
       totalAnnouncements.value++
       ElMessage.success('发布成功')
-      // TODO: 实际API调用
-      // await announcementApi.createAnnouncement(announcementForm)
     }
     
     announcementDialogVisible.value = false
