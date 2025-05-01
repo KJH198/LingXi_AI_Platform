@@ -1,6 +1,8 @@
 # LingXi_AI_Platform/registerAndLogin/user/urls.py
 from django.urls import path
 from .views import (
+    AdminBanView,
+    AdminUnbanView,
     register,
     user_login,
     update_user_info,
@@ -15,7 +17,6 @@ from .views import (
     UploadAvatarView,
     AgentManagementView,
     UserActionLogView,
-    SimpleBanView,
     UserSearchView,
     UserLoginRecordView,
     UserListAPIView,
@@ -51,7 +52,6 @@ urlpatterns = [
     path('admin/agent_rating/', AgentRatingView.as_view(), name='agent_rating'),
     path('admin/knowledge_base/', KnowledgeBaseView.as_view(), name='knowledge_base'),
     path('admin/knowledge_base/<int:kb_id>/', KnowledgeBaseView.as_view(), name='knowledge_base_detail'),
-    path('admin/ban/<int:user_id>/', SimpleBanView.as_view(), name='simple_ban'),
     path('admin/behavior_logs/', UserActionLogView.as_view(), name='behavior_logs'),
     path('admin/operation_records', UserOperationRecordsView.as_view(), name='admin_operation_records'),
     path('search/', UserSearchView.as_view(), name='user_search'),
@@ -66,6 +66,10 @@ urlpatterns = [
     path('admin/abnormal_behaviors', UserAbnormalBehaviorsView.as_view(), name='admin_abnormal_behaviors'),
     path('api/admin/user/behavior_stats/', UserBehaviorStatsView.as_view(), name='admin_behavior_stats'),
     path('api/admin/user/behavior_logs/<str:user_id>/', UserBehaviorLogsView.as_view(), name='admin_behavior_logs'),
+    
+    # 管理员封禁与解封用户
+    path('admin/banUser/<int:user_id>', AdminBanView.as_view(), name='ban'),
+    path('admin/unbanUser/<int:user_id>', AdminUnbanView.as_view(), name='unban'),
     
     # 智能体和知识库相关路由
     path('agents/list', UserAgentListView.as_view(), name='user_agent_list'),

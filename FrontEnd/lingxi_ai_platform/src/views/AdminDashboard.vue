@@ -912,7 +912,7 @@ const api = {
   // 封禁用户
   async banUser(userId) {
     try {
-      const response = await fetch(`/user/adminGetUsersDetail/${userId}/`, {
+      const response = await fetch(`/user/admin/banUser/${userId}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -921,7 +921,8 @@ const api = {
         body: JSON.stringify({
           user_id: userId,
           reason: banForm.reason,
-          type: banForm.type
+          type: banForm.type,
+          duration: banForm.type === 'permanent' ? null : banForm.duration
         })
       });
       if (!response.ok) throw new Error('封禁用户失败')
@@ -944,8 +945,8 @@ const api = {
   // 解封用户
   async unbanUser(userId) {
     try {
-      const response = await fetch(`/user/adminGetUsersDetail/${userId}/`, {
-        method: 'DELETE',
+      const response = await fetch(`/user/admin/unbanUser/${userId}`, {
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
@@ -1083,15 +1084,6 @@ const handleUserSearch = async () => {
   } finally {
     loading.value = false
   }
-}
-
-// 添加从封禁原因获取违规类型的辅助函数
-const getViolationTypeFromReason = (reason) => {
-  if (reason.includes('light违规')) return 'light'
-  if (reason.includes('medium违规')) return 'medium'
-  if (reason.includes('severe违规')) return 'severe'
-  if (reason.includes('permanent违规')) return 'permanent'
-  return 'severe' // 默认返回严重违规
 }
 
 // 修改封禁处理函数
