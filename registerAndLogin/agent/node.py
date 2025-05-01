@@ -20,6 +20,7 @@ agent_id = None
 workflow_id = None
 general_model = None
 knowledge_bases = None
+results = {}
 
 
 class BaseNode:
@@ -244,7 +245,6 @@ class SelectorNode(BaseNode):
             input_text = str(inputs)  # 直接转换字符串
 
         matched = False
-        print(f"general_model:", general_model)
         if chat_with_condition(self.if_condition, input_text, general_model):
             matched = 'if'
         elif self.else_if_conditions:
@@ -255,10 +255,19 @@ class SelectorNode(BaseNode):
         if not matched:
             matched = 'else'
 
-        if handle == matched:
-            return input_text  # 分支命中，传值
-        else:
-            return None  # 分支未命中，传空
+        for suc in self.successors:
+            target_id = suc['target']
+            source_handle = self.get_source_handle(self.id, node_dict[target_id])
+            # print(source_handle)
+
+            cache_key = (self.id, source_handle)
+            if source_handle == matched:
+                results[cache_key] = input_text  # 分支命中，传值
+            else:
+                results[cache_key] = None  # 分支未命中，传空
+
+        cache_key = (self.id, handle)
+        return results[cache_key]
 
 
 class LoopNode(BaseNode):
@@ -363,7 +372,13 @@ def build_node_instance(node_model_instance):
     return NodeClass(node_model_instance)
 
 
-def execute_node(node_id, node_dict, count, source_handle=None):
+def execute_node(node_id, node_dict, count, source_handle=None, is_loop=False):
+    cache_key = (node_id, source_handle)
+    if cache_key in results:
+        print("在result里")
+        print(results[cache_key])
+        return results[cache_key]
+
     if count != global_count:
         # print(f"count:", count)
         # print(f"global_count:", global_count)
@@ -394,7 +409,7 @@ def execute_node(node_id, node_dict, count, source_handle=None):
     for pred in normal_preds:
         pred_id = pred['source']
         pred_handle = pred['sourceHandle']  # 这个 pred 是当前节点的一个输入来源
-        pred_output = execute_node(pred_id, node_dict, count, pred_handle)  # 只要其中一个分支的输出
+        pred_output = execute_node(pred_id, node_dict, count, pred_handle, is_loop)  # 只要其中一个分支的输出
         inputs.append(pred_output)
 
     if inputs == [None]:
@@ -414,6 +429,8 @@ def execute_node(node_id, node_dict, count, source_handle=None):
     if loop_pred and node_instance.type == 'batch':
         output = execute_batch(loop_pred['source'], node_dict, output, count)
 
+    if not is_loop:
+        results[cache_key] = output
     return output
 
 
@@ -482,7 +499,7 @@ def execute_loop(current_id, node_dict, inputs, count):
                     normal_pred_handle = normal_pred['sourceHandle']
                     if normal_pred_handle != 'loop-entry':  # 遍历其余前驱
                         print(f"normal_pred:", normal_pred)
-                        normal_pred_output = execute_node(normal_pred_id, node_dict, count, normal_pred_handle)
+                        normal_pred_output = execute_node(normal_pred_id, node_dict, count, normal_pred_handle, True)
                         normal_inputs.append(normal_pred_output)
                         output = current_node.run(normal_inputs, node_dict, normal_pred_handle, count)
             print(output)
@@ -518,6 +535,8 @@ def run_workflow_from_output_node(workflow):
     # print(node_dict)
 
     # 初始化一个结果缓存字典
+    global results
+    results = {}
 
     # 找到类型为 output 的节点
     output_nodes = Node.objects.filter(workflow=workflow, node_type='output')
@@ -532,7 +551,7 @@ def run_workflow_from_output_node(workflow):
         source_handle = output_node.predecessors[0].get('sourceHandle')
 
         # 递归执行
-        result = execute_node(output_node_id, node_dict, global_count, source_handle)
+        result = execute_node(output_node_id, node_dict, global_count, source_handle, False)
 
         # 保存结果
         final_result[output_node_id] = result
