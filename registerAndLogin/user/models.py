@@ -159,11 +159,12 @@ class UserActionLog(models.Model):
     """用户行为日志"""
     ACTION_CHOICES = [
         ('login', '登录'),
-        ('logout', '登出'),
+        ('login_failed', '登录失败'),
+        ('publish_agent', '发布智能体'),
         ('create_agent', '创建智能体'),
         ('edit_agent', '编辑智能体'),
         ('delete_agent', '删除智能体'),
-        ('post', '发帖'),
+        ('create_post', '发帖'),
         ('delete_post', '删除帖'),
         ('edit_agent', '编辑智能体'),
         ('delete_agent', '删除智能体'),
@@ -171,10 +172,19 @@ class UserActionLog(models.Model):
         ('unfollow', '取消关注'),
     ]
     
+    Type_CHOICES = [
+        ('agent', '智能体'),
+        ('post', '帖子'),
+        ('comment', '评论'),
+        ('knowledge_base', '知识库'),
+        ('user', '用户'),
+        ('other', '其他')
+    ]
+    
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='action_logs', verbose_name='用户')
     action = models.CharField(max_length=50, choices=ACTION_CHOICES, verbose_name='行为类型')
     target_id = models.IntegerField(blank=True, null=True, verbose_name='目标ID')
-    target_type = models.CharField(max_length=50, blank=True, null=True, verbose_name='目标类型')
+    target_type = models.CharField(max_length=50, blank=True, choices=Type_CHOICES, null=True, verbose_name='目标类型')
     ip_address = models.GenericIPAddressField(blank=True, null=True, verbose_name='IP地址')
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')
 

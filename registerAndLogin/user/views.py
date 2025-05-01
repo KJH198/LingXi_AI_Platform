@@ -98,6 +98,13 @@ def user_login(request):
 
             # 验证密码
             if not user.check_password(password):
+                UserActionLog.objects.create(
+                    user=user,
+                    action='login_failed',
+                    ip_address=request.META.get('REMOTE_ADDR'),
+                    target_id=user.id,
+                    target_type='user'
+                )
                 return JsonResponse({
                     'success': False,
                     'message': '密码错误'
@@ -105,6 +112,13 @@ def user_login(request):
                 
             # 验证封禁
             if user.is_banned():
+                UserActionLog.objects.create(
+                    user=user,
+                    action='login_failed',
+                    ip_address=request.META.get('REMOTE_ADDR'),
+                    target_id=user.id,
+                    target_type='user'
+                )
                 ban_type_mapping = {
                 'light': '轻度违规',
                 'medium': '中度违规',
@@ -125,7 +139,7 @@ def user_login(request):
             login(request, user)
             
             # 生成登录日志信息
-            log = UserActionLog(
+            UserActionLog.objects.create(
                 user=user,
                 action='login',
                 ip_address=request.META.get('REMOTE_ADDR'),
@@ -1142,8 +1156,6 @@ class AgentManagementView(APIView):
 
             return Response({'error': '智能体不存在'}, status=status.HTTP_404_NOT_FOUND)
 
-
-
 class UserActionLogView(APIView):
 
     """用户行为日志视图"""
@@ -1406,6 +1418,14 @@ class AgentPublishView(APIView):
                 print("添加知识库关联")
                 agent.knowledge_bases.set(knowledge_bases)
             
+            UserActionLog.objects.create(
+                user=request.user,
+                action='publish_agent',
+                target_id=agent.id,
+                target_type='agent',
+                ip_address=request.META.get('REMOTE_ADDR'),
+            )
+            
             # 返回成功响应
             response_data = {
                 'code': 200,
@@ -1563,6 +1583,14 @@ class PostCreateView(APIView):
             # 添加关联的知识库
             if knowledge_bases:
                 post.knowledge_bases.set(knowledge_bases)
+                
+            UserActionLog.objects.create(
+                user=request.user,
+                action='create_post',
+                target_id=post.id,
+                target_type='post',
+                ip_address=request.META.get('REMOTE_ADDR'),
+            )
 
             return Response({
                 'code': 200,
