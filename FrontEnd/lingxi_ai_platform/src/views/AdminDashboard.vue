@@ -912,7 +912,7 @@ const api = {
   // 封禁用户
   async banUser(userId) {
     try {
-      const response = await fetch(`/user/adminGetUsersDetail/${userId}/`, {
+      const response = await fetch(`/user/admin/banUser/${userId}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -921,7 +921,8 @@ const api = {
         body: JSON.stringify({
           user_id: userId,
           reason: banForm.reason,
-          type: banForm.type
+          type: banForm.type,
+          duration: banForm.type === 'permanent' ? null : banForm.duration
         })
       });
       if (!response.ok) throw new Error('封禁用户失败')
@@ -944,8 +945,8 @@ const api = {
   // 解封用户
   async unbanUser(userId) {
     try {
-      const response = await fetch(`/user/adminGetUsersDetail/${userId}/`, {
-        method: 'DELETE',
+      const response = await fetch(`/user/admin/unbanUser/${userId}`, {
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
@@ -1083,15 +1084,6 @@ const handleUserSearch = async () => {
   } finally {
     loading.value = false
   }
-}
-
-// 添加从封禁原因获取违规类型的辅助函数
-const getViolationTypeFromReason = (reason) => {
-  if (reason.includes('light违规')) return 'light'
-  if (reason.includes('medium违规')) return 'medium'
-  if (reason.includes('severe违规')) return 'severe'
-  if (reason.includes('permanent违规')) return 'permanent'
-  return 'severe' // 默认返回严重违规
 }
 
 // 修改封禁处理函数
@@ -1475,10 +1467,11 @@ const announcementApi = {
   // 创建公告
   async createAnnouncement(data) {
     try {
-      const response = await fetch('/announcement/create', {
+      const response = await fetch('/user/admin/CreateAnnouncement', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
         },
         body: JSON.stringify(data)
       })
@@ -1615,20 +1608,12 @@ const handleSaveAnnouncement = async () => {
         }
       }
       ElMessage.success('更新成功')
-      // TODO: 实际API调用
-      // await announcementApi.updateAnnouncement(currentAnnouncement.value.id, announcementForm)
     } else {
-      // 使用模拟数据
-      const newAnnouncement = {
-        id: `A${String(announcements.value.length + 1).padStart(3, '0')}`,
-        ...announcementForm,
-        publishTime: announcementForm.status === 'published' ? new Date().toLocaleString() : '-'
-      }
+      const newAnnouncement = await announcementApi.createAnnouncement(announcementForm)
+      console.log('新公告:', newAnnouncement.announcement)
       announcements.value.unshift(newAnnouncement)
       totalAnnouncements.value++
       ElMessage.success('发布成功')
-      // TODO: 实际API调用
-      // await announcementApi.createAnnouncement(announcementForm)
     }
     
     announcementDialogVisible.value = false

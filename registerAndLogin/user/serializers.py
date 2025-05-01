@@ -40,19 +40,3 @@ class UserBanSerializer(serializers.Serializer):
     reason = serializers.CharField(max_length=500, required=True)
 
     is_permanent = serializers.BooleanField(default=False)
-
-class AnnouncementSerializer(serializers.ModelSerializer):
-    """系统公告序列化器"""
-    creator = UserSerializer(read_only=True)
-
-    class Meta:
-        model = Announcement
-        fields = ('id', 'title', 'content', 'creator', 'is_pinned',
-                 'status', 'created_at', 'updated_at')
-        read_only_fields = ('id', 'creator', 'created_at', 'updated_at')
-
-class AnnouncementCreateSerializer(serializers.ModelSerializer):
-    """公告创建序列化器"""
-    class Meta:
-        model = Announcement
-        fields = ('title', 'content', 'is_pinned', 'status')

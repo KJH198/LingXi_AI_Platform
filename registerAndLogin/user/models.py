@@ -35,13 +35,25 @@ class User(AbstractBaseUser):
     email = models.EmailField(max_length=255, blank=True, null=True, verbose_name='邮箱地址')
     bio = models.TextField(max_length=500, blank=True, null=True, verbose_name='个人简介')
     avatar = models.URLField(max_length=255, blank=True, null=True, verbose_name='头像URL')
-    is_active = models.BooleanField(default=True, verbose_name='是否激活')
+    is_active = models.BooleanField(default=True, verbose_name='是否活跃')
     is_admin = models.BooleanField(default=False, verbose_name='是否为管理员')
     following = models.ManyToManyField('self', symmetrical=False, related_name='followers', blank=True,
                                        verbose_name='关注')
     created_at = models.DateTimeField(default=timezone.now, verbose_name='创建时间')
-    updated_at = models.DateTimeField(auto_now=True, verbose_name='更新时间')
+    updated_at = models.DateTimeField(default=timezone.now, verbose_name='最后一次看公告的时间')
     last_login = models.DateTimeField(null=True, blank=True, verbose_name='最后登录时间')
+    ban_type = models.CharField(
+        max_length=20,
+        choices=[
+            ('light', '轻度违规'),
+            ('medium', '中度违规'),
+            ('severe', '严重违规'),
+            ('permanent', '永久封禁')
+        ],
+        blank=True,
+        null=True,
+        verbose_name='封禁类型'
+    )
     ban_reason = models.TextField(max_length=500, blank=True, null=True, verbose_name='封禁原因')
     ban_until = models.DateTimeField(null=True, blank=True, verbose_name='封禁截止时间')
 
@@ -62,10 +74,6 @@ class User(AbstractBaseUser):
 
     def has_module_perms(self, app_label):
         return True
-
-    @property
-    def is_staff(self):
-        return self.is_admin
 
     def follow(self, user):
         """关注用户"""
@@ -93,8 +101,6 @@ class User(AbstractBaseUser):
 
     def is_banned(self):
         """检查用户是否被封禁"""
-        if not self.is_active:
-            return True
         if self.ban_until and self.ban_until > timezone.now():
             return True
         return False
@@ -153,20 +159,33 @@ class UserActionLog(models.Model):
     """用户行为日志"""
     ACTION_CHOICES = [
         ('login', '登录'),
-        ('logout', '登出'),
+        ('login_failed', '登录失败'),
+        ('publish_agent', '发布智能体'),
         ('create_agent', '创建智能体'),
+        ('edit_agent', '编辑智能体'),
+        ('delete_agent', '删除智能体'),
+        ('create_post', '发帖'),
+        ('delete_post', '删除帖'),
         ('edit_agent', '编辑智能体'),
         ('delete_agent', '删除智能体'),
         ('follow', '关注用户'),
         ('unfollow', '取消关注'),
     ]
     
+    Type_CHOICES = [
+        ('agent', '智能体'),
+        ('post', '帖子'),
+        ('comment', '评论'),
+        ('knowledge_base', '知识库'),
+        ('user', '用户'),
+        ('other', '其他')
+    ]
+    
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='action_logs', verbose_name='用户')
     action = models.CharField(max_length=50, choices=ACTION_CHOICES, verbose_name='行为类型')
     target_id = models.IntegerField(blank=True, null=True, verbose_name='目标ID')
-    target_type = models.CharField(max_length=50, blank=True, null=True, verbose_name='目标类型')
+    target_type = models.CharField(max_length=50, blank=True, choices=Type_CHOICES, null=True, verbose_name='目标类型')
     ip_address = models.GenericIPAddressField(blank=True, null=True, verbose_name='IP地址')
-    user_agent = models.CharField(max_length=255, blank=True, null=True, verbose_name='用户代理')
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')
 
     class Meta:
@@ -216,16 +235,13 @@ class Announcement(models.Model):
     
     title = models.CharField(max_length=200, verbose_name='公告标题')
     content = models.TextField(verbose_name='公告内容')
-    creator = models.ForeignKey(User, on_delete=models.CASCADE, related_name='created_announcements', verbose_name='发布者')
-    is_pinned = models.BooleanField(default=False, verbose_name='是否置顶')
+    publishTime = models.DateTimeField(default=timezone.now, verbose_name='发布时间')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft', verbose_name='状态')
-    created_at = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')
-    updated_at = models.DateTimeField(auto_now=True, verbose_name='更新时间')
 
     class Meta:
         verbose_name = '系统公告'
         verbose_name_plural = '系统公告'
-        ordering = ['-is_pinned', '-created_at']
+        ordering = ['-publishTime']
 
     def __str__(self):
         return f'{self.title} ({self.get_status_display()})'

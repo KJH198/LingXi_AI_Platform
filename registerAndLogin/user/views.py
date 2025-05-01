@@ -2,7 +2,7 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth import authenticate, login
 import json
-from .models import User
+from .models import Announcement, User
 from django.shortcuts import render
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -14,8 +14,9 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.parsers import MultiPartParser, FormParser
 import os
 from django.conf import settings
+from django.utils import timezone
 import time
-from .models import PublishedAgent
+from .models import PublishedAgent, UserActionLog
 from knowledge_base.models import KnowledgeBase
 # from community.models import Post
 
@@ -47,7 +48,7 @@ def register(request):
         if User.objects.filter(phone_number=phone_number).exists():
             return JsonResponse({'error': 'Phone number already exists'}, status=400)
 
-        user = User.objects.create_user(
+        User.objects.create_user(
             username=username,
             password=password,
             phone_number=phone_number,
@@ -97,9 +98,37 @@ def user_login(request):
 
             # 验证密码
             if not user.check_password(password):
+                UserActionLog.objects.create(
+                    user=user,
+                    action='login_failed',
+                    ip_address=request.META.get('REMOTE_ADDR'),
+                    target_id=user.id,
+                    target_type='user'
+                )
                 return JsonResponse({
                     'success': False,
                     'message': '密码错误'
+                })
+                
+            # 验证封禁
+            if user.is_banned():
+                UserActionLog.objects.create(
+                    user=user,
+                    action='login_failed',
+                    ip_address=request.META.get('REMOTE_ADDR'),
+                    target_id=user.id,
+                    target_type='user'
+                )
+                ban_type_mapping = {
+                'light': '轻度违规',
+                'medium': '中度违规',
+                'severe': '严重违规',
+                'permanent': '永久封禁'
+                }
+                reason = f"{ban_type_mapping.get(user.ban_type, '未知类型')}（{user.ban_reason}）"
+                return JsonResponse({
+                    'success': False,
+                    'message': '账号封禁中：' + reason
                 })
 
             # 生成 JWT token
@@ -108,6 +137,15 @@ def user_login(request):
 
             # 登录用户
             login(request, user)
+            
+            # 生成登录日志信息
+            UserActionLog.objects.create(
+                user=user,
+                action='login',
+                ip_address=request.META.get('REMOTE_ADDR'),
+                target_id=user.id,
+                target_type='user'
+            )
 
             return JsonResponse({
                 'success': True,
@@ -191,14 +229,14 @@ class AdminDashboardView(APIView):
     """管理员操作台视图"""
     def get(self, request):
         # 验证管理员权限
-        if not request.user.is_staff:
+        if not request.user.is_admin:
             return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
         
         # 返回操作台基本信息
         data = {
             'total_users': User.objects.count(),
             'active_users': User.objects.filter(is_active=True).count(),
-            'banned_users': User.objects.filter(is_active=False).count()
+            'banned_users': User.objects.filter(is_banned=True).count()
         }
         return Response(data)
 
@@ -206,12 +244,10 @@ class UserManagementView(APIView):
     """用户管理视图，提供以下功能：
     1. 获取用户列表及统计信息
     2. 获取单个用户详情
-    3. 封禁用户
-    4. 解封用户
     """
     def get(self, request, user_id=None):
         # 验证管理员权限
-        if not request.user.is_staff:
+        if not request.user.is_admin:
             return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
         
         # 获取单个用户详情
@@ -235,53 +271,46 @@ class UserManagementView(APIView):
                 'username': user.username,
                 'registerTime': user.created_at.strftime('%Y-%m-%d %H:%M:%S'),
                 'lastLoginTime': user.last_login.strftime('%Y-%m-%d %H:%M:%S') if user.last_login else None,
-                'status': 'normal' if user.is_active else 'banned',
-                'violationType': None
+                'status': 'banned' if user.is_banned() else 'normal',
+                'violationType': user.ban_type if user.ban_type else None,
             }
-            # 根据封禁原因设置违规类型
-            if not user.is_active and user.ban_reason:
-                # 从封禁类型中提取违规类型
-                ban_type_mapping = {
-                    'light': 'light',
-                    'medium': 'medium',
-                    'severe': 'severe',
-                    'permanent': 'permanent'
-                }
-                for ban_type, violation_type in ban_type_mapping.items():
-                    if ban_type in user.ban_reason:
-                        user_dict['violationType'] = violation_type
-                        break
-                else:
-                    user_dict['violationType'] = 'severe'  # 默认设置为严重违规
             user_data.append(user_dict)
         
         return Response({
             'users': user_data,
             'total': User.objects.count(),
             'active_users': User.objects.filter(is_active=True).count(),
-            'banned_users': User.objects.filter(is_active=False).count(),
+            'banned_users': User.objects.filter(ban_until__gt=timezone.now()).count(),
             'message': '获取用户列表成功'
         })
 
+class AdminBanView(APIView):
+    """管理员封禁用户"""
     def post(self, request, user_id=None):
         """封禁用户"""
         # 验证管理员权限
-        if not request.user.is_staff:
+        if not request.user.is_admin:
             return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
         
         if not user_id:
             return Response({'error': '用户ID不能为空'}, status=status.HTTP_400_BAD_REQUEST)
             
-        ban_type = request.data.get('type', 'severe')  # 获取封禁类型，默认为严重违规
-        reason = request.data.get('reason', '违反社区规定')
-        
-        # 根据封禁类型设置封禁原因
-        ban_reason = f"{ban_type}违规：{reason}"
+        ban_type = request.data.get('type')  # 获取封禁类型，默认为严重违规
+        ban_reason = request.data.get('reason')  # 获取封禁原因
+        duration = request.data.get('duration')  # 获取封禁时长
         
         try:
             user = User.objects.get(id=user_id)
-            user.is_active = False
             user.ban_reason = ban_reason
+            user.ban_type = ban_type
+            if (ban_type == 'permanent'):
+                user.ban_until = datetime.now() + timedelta(days=365*100)  # 永久封禁
+            else:
+                # 将时间戳转换为datetime对象
+                from datetime import datetime, timedelta
+                user.ban_until = datetime.now() + timedelta(days=duration)
+                
+            user.is_active = False # 用户显然不应该再活跃了
             user.save()
             
             return Response({
@@ -292,10 +321,12 @@ class UserManagementView(APIView):
         except User.DoesNotExist:
             return Response({'error': '用户不存在'}, status=status.HTTP_404_NOT_FOUND)
 
-    def delete(self, request, user_id=None):
+class AdminUnbanView(APIView):
+    """管理员解封用户"""
+    def post(self, request, user_id=None):
         """解封用户"""
         # 验证管理员权限
-        if not request.user.is_staff:
+        if not request.user.is_admin:
             return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
         
         if not user_id:
@@ -303,9 +334,9 @@ class UserManagementView(APIView):
         
         try:
             user = User.objects.get(id=user_id)
-            user.is_active = True
             user.ban_reason = None
             user.ban_until = None
+            user.ban_type = None
             user.save()
             
             return Response({
@@ -315,6 +346,7 @@ class UserManagementView(APIView):
             
         except User.DoesNotExist:
             return Response({'error': '用户不存在'}, status=status.HTTP_404_NOT_FOUND)
+
 
 class AgentRatingView(APIView):
     """智能体评分与评价"""
@@ -351,7 +383,7 @@ class AgentRatingView(APIView):
         """获取智能体列表"""
         try:
             # 验证管理员权限
-            if not request.user.is_staff:
+            if not request.user.is_admin:
                 return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
 
             from .models import AIAgent
@@ -388,7 +420,7 @@ class UserListAPIView(APIView):
     """获取用户列表接口"""
     def get(self, request):
         # 验证管理员权限
-        if not request.user.is_staff:
+        if not request.user.is_admin:
             return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
         
         users = User.objects.all()
@@ -411,7 +443,7 @@ class UserDetailAPIView(APIView):
     """获取用户详情接口"""
     def get(self, request, user_id):
         # 验证管理员权限
-        if not request.user.is_staff:
+        if not request.user.is_admin:
             return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
         
         try:
@@ -433,7 +465,7 @@ class UserOperationRecordsView(APIView):
     """获取用户操作记录接口"""
     def get(self, request):
         # 验证管理员权限
-        if not request.user.is_staff:
+        if not request.user.is_admin:
             return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
         
         from django.core.paginator import Paginator
@@ -483,7 +515,7 @@ class UserAbnormalBehaviorsView(APIView):
     """获取用户异常行为接口"""
     def get(self, request):
         # 验证管理员权限
-        if not request.user.is_staff:
+        if not request.user.is_admin:
             return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
         
         from django.core.paginator import Paginator
@@ -540,7 +572,7 @@ class UserBehaviorStatsView(APIView):
     """获取用户行为统计数据接口"""
     def get(self, request):
         # 验证管理员权限
-        if not request.user.is_staff:
+        if not request.user.is_admin:
             return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
         
         # 模拟统计数据
@@ -554,7 +586,7 @@ class UserBehaviorLogsView(APIView):
     """获取用户行为日志接口"""
     def get(self, request, user_id):
         # 验证管理员权限
-        if not request.user.is_staff:
+        if not request.user.is_admin:
             return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
         
         # 模拟行为日志数据
@@ -576,7 +608,7 @@ class KnowledgeBaseView(APIView):
     """知识库管理"""
     def post(self, request):
         # 验证管理员权限
-        if not request.user.is_staff:
+        if not request.user.is_admin:
             return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
         
         title = request.data.get('title')
@@ -587,7 +619,7 @@ class KnowledgeBaseView(APIView):
 
     def delete(self, request, kb_id):
         # 验证管理员权限
-        if not request.user.is_staff:
+        if not request.user.is_admin:
             return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
         
         # 实际项目中应该删除知识库记录
@@ -595,7 +627,7 @@ class KnowledgeBaseView(APIView):
 
     def put(self, request, kb_id):
         # 验证管理员权限
-        if not request.user.is_staff:
+        if not request.user.is_admin:
             return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
         
         content = request.data.get('content')
@@ -996,7 +1028,7 @@ class AgentManagementView(APIView):
 
         # 验证管理员权限
 
-        if not request.user.is_staff:
+        if not request.user.is_admin:
 
             return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
 
@@ -1054,7 +1086,7 @@ class AgentManagementView(APIView):
 
         # 验证管理员权限
 
-        if not request.user.is_staff:
+        if not request.user.is_admin:
 
             return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
 
@@ -1124,8 +1156,6 @@ class AgentManagementView(APIView):
 
             return Response({'error': '智能体不存在'}, status=status.HTTP_404_NOT_FOUND)
 
-
-
 class UserActionLogView(APIView):
 
     """用户行为日志视图"""
@@ -1134,7 +1164,7 @@ class UserActionLogView(APIView):
         """用户行为日志视图"""
         try:
             # 验证管理员权限
-            if not request.user.is_staff:
+            if not request.user.is_admin:
                 return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
 
             from .models import UserActionLog
@@ -1181,60 +1211,6 @@ class UserActionLogView(APIView):
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-
-
-class SimpleBanView(APIView):
-
-    """简化封禁接口"""
-
-    permission_classes = [IsAuthenticated]
-
-    
-
-    def post(self, request, user_id):
-
-        # 验证管理员权限
-
-        if not request.user.is_staff:
-
-            return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
-
-            
-
-        serializer = UserBanSerializer(data=request.data)
-
-        if not serializer.is_valid():
-
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-            
-
-        try:
-
-            user = User.objects.get(id=user_id)
-
-            user.ban(
-
-                reason=serializer.validated_data['reason'],
-
-                is_permanent=serializer.validated_data['is_permanent']
-
-            )
-
-            return Response({
-
-                'success': True,
-
-                'message': '用户封禁成功'
-
-            })
-
-        except User.DoesNotExist:
-
-            return Response({'error': '用户不存在'}, status=status.HTTP_404_NOT_FOUND)
-
-
-
 class UserSearchView(APIView):
 
     """用户搜索视图，返回完整用户信息"""
@@ -1265,7 +1241,7 @@ class UserLoginRecordView(APIView):
     def get(self, request):
         try:
             # 验证管理员权限
-            if not request.user.is_staff:
+            if not request.user.is_admin:
                 return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
 
             from .models import User
@@ -1294,100 +1270,87 @@ class UserLoginRecordView(APIView):
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-class AnnouncementView(APIView):
-    """系统公告管理视图"""
-    permission_classes = [IsAuthenticated]
-
+class GetAnnouncements(APIView):
+    """获取公告列表"""
     def get(self, request):
-        """获取公告列表"""
         # 验证管理员权限
-        if not request.user.is_staff:
+        if not request.user.is_admin:
             return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
-
-        from django.core.paginator import Paginator
-        from .models import Announcement
-
-        # 获取查询参数
-        status_filter = request.query_params.get('status')
-        is_pinned = request.query_params.get('is_pinned')
-        page = request.query_params.get('page', 1)
-        page_size = request.query_params.get('page_size', 10)
-
-        # 构建查询条件
-        queryset = Announcement.objects.all().order_by('-is_pinned', '-created_at')
-        if status_filter:
-            queryset = queryset.filter(status=status_filter)
-        if is_pinned:
-            queryset = queryset.filter(is_pinned=(is_pinned.lower() == 'true'))
-
-        # 分页处理
-        paginator = Paginator(queryset, page_size)
-        try:
-            announcements_page = paginator.page(page)
-        except:
-            announcements_page = paginator.page(1)
-
-        # 序列化数据
-        from .serializers import AnnouncementSerializer
-        serializer = AnnouncementSerializer(announcements_page, many=True)
-
+        announcements = Announcement.objects.all()
+        data = [
+            {
+                'id': announcement.id,
+                'title': announcement.title,
+                'content': announcement.content,
+                'status': announcement.status,
+                'publish_time': announcement.publish_time.strftime('%Y-%m-%d %H:%M:%S') if announcement.publish_time else None
+            }
+            for announcement in announcements
+        ]
         return Response({
-            'announcements': serializer.data,
-            'total': paginator.count,
-            'page': announcements_page.number,
-            'page_size': int(page_size),
-            'page_count': paginator.num_pages
+            'code': 200,
+            'announcements': data,
         })
 
+class CreateAnnouncement(APIView):
+    """创建公告"""
     def post(self, request):
-        """创建新公告"""
         # 验证管理员权限
-        if not request.user.is_staff:
+        if not request.user.is_admin:
+            return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
+        announcement = Announcement.objects.create(
+            title=request.data.get('title'),
+            content=request.data.get('content'),
+            status=request.data.get('status'),
+            publishTime=request.data.get('publishTime')
+        )
+        return Response({
+            'code': 200,
+            'announcement': {
+                'id': announcement.id,
+                'title': announcement.title,
+                'content': announcement.content,
+                'status': announcement.status,
+                'publishTime': announcement.publishTime.strftime('%Y-%m-%d %H:%M:%S') if announcement.publishTime else None
+            }
+        })
+
+class EditAnnouncement(APIView):
+    """更新公告"""
+    def post(self, request, announcement_id):
+        # 验证管理员权限
+        if not request.user.is_admin:
             return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
 
-        from .serializers import AnnouncementCreateSerializer
-        serializer = AnnouncementCreateSerializer(data=request.data)
-        if serializer.is_valid():
-            announcement = serializer.save(creator=request.user)
-            return Response({
-                'message': '公告创建成功',
-                'id': announcement.id
-            }, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    def put(self, request, announcement_id):
-        """更新公告"""
-        # 验证管理员权限
-        if not request.user.is_staff:
-            return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
-
-        from .models import Announcement
         try:
             announcement = Announcement.objects.get(id=announcement_id)
         except Announcement.DoesNotExist:
             return Response({'error': '公告不存在'}, status=status.HTTP_404_NOT_FOUND)
 
-        from .serializers import AnnouncementCreateSerializer
-        serializer = AnnouncementCreateSerializer(announcement, data=request.data, partial=True)
-        if serializer.is_valid():
-            serializer.save()
-            return Response({'message': '公告更新成功'})
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        data = request.data
+        announcement.title = data.get('title', announcement.title)
+        announcement.content = data.get('content', announcement.content)
+        announcement.status = data.get('status', announcement.status)
+        announcement.publish_time = data.get('publishTime', announcement.publish_time)
+        return Response({
+            'code': 200,
+            'message': '公告更新成功'
+        })
 
-    def delete(self, request, announcement_id):
-        """删除公告"""
+class DeleteAnnouncement(APIView):
+    """删除公告"""
+    def post(self, request, announcement_id):
         # 验证管理员权限
-        if not request.user.is_staff:
+        if not request.user.is_admin:
             return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
 
-        from .models import Announcement
         try:
             announcement = Announcement.objects.get(id=announcement_id)
             announcement.delete()
-            return Response({'message': '公告删除成功'})
+            return Response({'code': 200,'message': '公告删除成功'})
         except Announcement.DoesNotExist:
             return Response({'error': '公告不存在'}, status=status.HTTP_404_NOT_FOUND)
-        
+
 class AgentPublishView(APIView):
     """智能体发布视图"""
     
@@ -1454,6 +1417,14 @@ class AgentPublishView(APIView):
             if knowledge_bases:
                 print("添加知识库关联")
                 agent.knowledge_bases.set(knowledge_bases)
+            
+            UserActionLog.objects.create(
+                user=request.user,
+                action='publish_agent',
+                target_id=agent.id,
+                target_type='agent',
+                ip_address=request.META.get('REMOTE_ADDR'),
+            )
             
             # 返回成功响应
             response_data = {
@@ -1612,6 +1583,14 @@ class PostCreateView(APIView):
             # 添加关联的知识库
             if knowledge_bases:
                 post.knowledge_bases.set(knowledge_bases)
+                
+            UserActionLog.objects.create(
+                user=request.user,
+                action='create_post',
+                target_id=post.id,
+                target_type='post',
+                ip_address=request.META.get('REMOTE_ADDR'),
+            )
 
             return Response({
                 'code': 200,

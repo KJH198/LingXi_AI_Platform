@@ -1,6 +1,12 @@
 # LingXi_AI_Platform/registerAndLogin/user/urls.py
 from django.urls import path
 from .views import (
+    AdminBanView,
+    AdminUnbanView,
+    CreateAnnouncement,
+    DeleteAnnouncement,
+    EditAnnouncement,
+    GetAnnouncements,
     register,
     user_login,
     update_user_info,
@@ -15,7 +21,6 @@ from .views import (
     UploadAvatarView,
     AgentManagementView,
     UserActionLogView,
-    SimpleBanView,
     UserSearchView,
     UserLoginRecordView,
     UserListAPIView,
@@ -24,7 +29,6 @@ from .views import (
     UserAbnormalBehaviorsView,
     UserBehaviorStatsView,
     UserBehaviorLogsView,
-    AnnouncementView,
     AgentPublishView,
     UserAgentListView,
     UserKnowledgeBaseListView,
@@ -51,21 +55,32 @@ urlpatterns = [
     path('admin/agent_rating/', AgentRatingView.as_view(), name='agent_rating'),
     path('admin/knowledge_base/', KnowledgeBaseView.as_view(), name='knowledge_base'),
     path('admin/knowledge_base/<int:kb_id>/', KnowledgeBaseView.as_view(), name='knowledge_base_detail'),
-    path('admin/ban/<int:user_id>/', SimpleBanView.as_view(), name='simple_ban'),
     path('admin/behavior_logs/', UserActionLogView.as_view(), name='behavior_logs'),
     path('admin/operation_records', UserOperationRecordsView.as_view(), name='admin_operation_records'),
     path('search/', UserSearchView.as_view(), name='user_search'),
     path('admin/login_records/', UserLoginRecordView.as_view(), name='login_records'),
-    path('admin/announcements/', AnnouncementView.as_view(), name='announcements'),
-    path('admin/announcements/<int:announcement_id>/', AnnouncementView.as_view(), name='announcement_detail'),
+    # path('admin/announcements/', AnnouncementView.as_view(), name='announcements'),
+    # path('admin/announcements/<int:announcement_id>/', AnnouncementView.as_view(), name='announcement_detail'),
     
     path('agent/publish', AgentPublishView.as_view(), name='agent-publish'),
     # 新增管理员接口路由
-    path('api/admin/user/list/', UserListAPIView.as_view(), name='admin_user_list'),
+    # path('api/admin/user/list/', UserListAPIView.as_view(), name='admin_user_list'),
     path('api/admin/user/<str:user_id>/', UserDetailAPIView.as_view(), name='admin_user_detail'),
     path('admin/abnormal_behaviors', UserAbnormalBehaviorsView.as_view(), name='admin_abnormal_behaviors'),
     path('api/admin/user/behavior_stats/', UserBehaviorStatsView.as_view(), name='admin_behavior_stats'),
     path('api/admin/user/behavior_logs/<str:user_id>/', UserBehaviorLogsView.as_view(), name='admin_behavior_logs'),
+  
+  
+    
+    # 管理员封禁与解封用户
+    path('admin/banUser/<int:user_id>', AdminBanView.as_view(), name='ban'),
+    path('admin/unbanUser/<int:user_id>', AdminUnbanView.as_view(), name='unban'),
+    
+    # 管理员发布、修改和删除公告
+    path('admin/GetAnnouncements', GetAnnouncements.as_view(), name='announcement_list'), # 获取公告列表
+    path('admin/CreateAnnouncement', CreateAnnouncement.as_view(), name='create_announcement'),    # 创建公告
+    path('admin/EditAnnouncement/<int:announcement_id>', EditAnnouncement.as_view(), name='update_announcement'),    # 更新公告
+    path('admin/DeleteAnnouncement/<int:announcement_id>', DeleteAnnouncement.as_view(), name='delete_announcement'),    # 删除公告
     
     # 智能体和知识库相关路由
     path('agents/list', UserAgentListView.as_view(), name='user_agent_list'),
