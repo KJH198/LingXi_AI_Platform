@@ -1,4 +1,5 @@
 from .models import Node, Workflow
+from knowledge_base.models import KnowledgeBaseFile
 from agent.llm import chat_with_condition, chat_with_aggregate, call_llm
 import types
 
@@ -17,7 +18,7 @@ pending_inputs = {}  # 全局变量，存等待中的动态输入
 global_count = 0
 agent_id = None
 workflow_id = None
-model_id = None
+general_model = None
 knowledge_bases = None
 
 
@@ -30,7 +31,7 @@ class BaseNode:
         self.predecessors = node.predecessors
         self.successors = node.successors
 
-    async def run(self, inputs, node_dict, handle):
+    async def run(self, inputs, node_dict, handle, count):
         raise NotImplementedError("Each node must implement its own run method.")
 
 class InputNode(BaseNode):
@@ -38,7 +39,7 @@ class InputNode(BaseNode):
         super().__init__(node)
         self.name = node.node_data.get('name', 'input')
 
-    def run(self, inputs, node_dict, handle):
+    def run(self, inputs, node_dict, handle, count):
         print(f"读取静态输入: {self.name}")
 
         # 从全局 static_inputs 字典取出对应输入
@@ -84,7 +85,7 @@ class DynamicInputNode(BaseNode):
         super().__init__(node)
         self.name = node.node_data.get('name', 'dynamic-input')
 
-    def run(self, inputs, node_dict, handle):
+    def run(self, inputs, node_dict, handle, count):
         print(f"等待前端输入: {self.name}")
 
         # 第一步：通知前端需要输入
@@ -129,9 +130,9 @@ class OutputNode(BaseNode):
         super().__init__(node)
         self.name = node.node_data.get('name', 'output')
 
-    def run(self, inputs, node_dict, handle):
+    def run(self, inputs, node_dict, handle, count):
         print(inputs)
-        asyncio.run(send_output_to_frontend(self.name, inputs))
+        asyncio.run(send_output_to_frontend(self.name, inputs, count))
         return inputs
 
 
@@ -140,29 +141,34 @@ class MonitorNode(BaseNode):
         super().__init__(node)
         self.name = node.node_data.get('name', 'monitor')
 
-    def run(self, inputs, node_dict, handle):
-        asyncio.run(send_output_to_frontend(self.name, inputs))
+    def run(self, inputs, node_dict, handle, count):
+        asyncio.run(send_output_to_frontend(self.name, inputs, count))
         return inputs
 
 
-async def send_output_to_frontend(node_name: str, output: any):
+async def send_output_to_frontend(node_name: str, output: any, count):
     channel_layer = get_channel_layer()
     payload = {
         "type": "output",
         "node_name": node_name,
         "output": output
     }
-    try:
-        await channel_layer.group_send(
-            "node_output",
-            {
-                "type": "node.output",
-                "message": payload
-            }
-        )
-        print(f"成功发送输出到前端: {node_name} : {output}")
-    except Exception as e:
-        print(f"发送输出到前端失败: {e}")
+    # print(f"是否传往前端？")
+    # print(f"golbal_count:", global_count)
+    # print(f"count", count)
+    if count == global_count:
+        try:
+            await channel_layer.group_send(
+                "node_output",
+                {
+                    "type": "node.output",
+                    "message": payload
+                }
+            )
+            print(f"成功发送输出到前端: {node_name} : {output}")
+        except Exception as e:
+            print(f"发送输出到前端失败: {e}")
+
 
 
 async def send_dynamic_request_to_frontend(node_name: str):
@@ -189,7 +195,7 @@ class CodeNode(BaseNode):
         super().__init__(node)
         self.code_content = node.node_data.get('codeContent', '')
 
-    def run(self, inputs, node_dict, handle):
+    def run(self, inputs, node_dict, handle, count):
         print(inputs)
         try:
             # 准备执行环境
@@ -230,7 +236,7 @@ class SelectorNode(BaseNode):
                 return pred.get('sourceHandle')
         return None  # fallback
 
-    def run(self, inputs, node_dict, handle):
+    def run(self, inputs, node_dict, handle, count):
         # print(handle)
         if isinstance(inputs, list):
             input_text = "\n".join(map(str, inputs))  # 将列表转换为字符串，每个元素换行
@@ -238,25 +244,21 @@ class SelectorNode(BaseNode):
             input_text = str(inputs)  # 直接转换字符串
 
         matched = False
-        if chat_with_condition(self.if_condition, input_text):
+        print(f"general_model:", general_model)
+        if chat_with_condition(self.if_condition, input_text, general_model):
             matched = 'if'
         elif self.else_if_conditions:
             for idx, cond in enumerate(self.else_if_conditions):
-                if chat_with_condition(cond, input_text):
+                if chat_with_condition(cond, input_text, general_model):
                     matched = f'elseif-{idx}'
                     break
         if not matched:
             matched = 'else'
 
-        for suc in self.successors:
-            target_id = suc['target']
-            source_handle = self.get_source_handle(self.id, node_dict[target_id])
-            # print(source_handle)
-
-            if source_handle == matched:
-                return input_text  # 分支命中，传值
-            else:
-                return None  # 分支未命中，传空
+        if handle == matched:
+            return input_text  # 分支命中，传值
+        else:
+            return None  # 分支未命中，传空
 
 
 class LoopNode(BaseNode):
@@ -266,7 +268,7 @@ class LoopNode(BaseNode):
         self.loop_count = node.node_data.get('loopCount', '')
         self.loop_condition = node.node_data.get('loopCondition', '')
 
-    def run(self, inputs, node_dict, handle):
+    def run(self, inputs, node_dict, handle, count):
         return inputs
 
 
@@ -274,7 +276,7 @@ class IntentNode(BaseNode):
     def __init__(self, node: Node):
         super().__init__(node)
 
-    def run(self, inputs, node_dict, handle):
+    def run(self, inputs, node_dict, handle, count):
         # print(inputs)
         return inputs
 
@@ -286,7 +288,7 @@ class BatchNode(BaseNode):
         self.loop_count = 1
         self.inputs = ''
 
-    def run(self, inputs, node_dict, handle):
+    def run(self, inputs, node_dict, handle, count):
         self.inputs = inputs
         # print("批处理")
         # print(inputs)
@@ -300,12 +302,12 @@ class AggregateNode(BaseNode):
         self.aggregate_type = node.node_data.get('aggregateType', '')
         self.aggregate_field = node.node_data.get('aggregateField', '')
 
-    def run(self, inputs, node_dict, handle):
+    def run(self, inputs, node_dict, handle, count):
         if isinstance(inputs, list):
             input_text = "\n".join(map(str, inputs))  # 将列表转换为字符串，每个元素换行
         else:
             input_text = str(inputs)  # 直接转换字符串
-        return chat_with_aggregate(self.aggregate_type, self.aggregate_field, input_text)
+        return chat_with_aggregate(self.aggregate_type, self.aggregate_field, input_text, general_model)
 
 
 class LLMNode(BaseNode):
@@ -313,16 +315,26 @@ class LLMNode(BaseNode):
         super().__init__(node)
         self.llm_model = node.node_data.get('llmModel', '')
         self.llm_prompt = node.node_data.get('llmPrompt', '')
+        self.llm_knowledge = send_kb_files_to_llm(knowledge_bases) if knowledge_bases else ""
+        self.llm_messages = [
+            {"role": "system", "content": self.llm_prompt + self.llm_knowledge},
+        ]
 
-    def run(self, inputs, node_dict, handle):
-        return call_llm(self.llm_model, self.llm_prompt, inputs)
+    def run(self, inputs, node_dict, handle, count):
+        input_text = inputs
+        if isinstance(input_text, list):
+            input_text = "\n".join(map(str, input_text))
+        self.llm_messages.append({"role": "user", "content": input_text})
+        reply = call_llm(self.llm_model, self.llm_messages)
+        self.llm_messages.append({"role": "assistant", "content": reply})
+        return reply
 
 
 class WorkflowNode(BaseNode):
     def __init__(self, node: Node):
         super().__init__(node)
 
-    def run(self, inputs, node_dict, handle):
+    def run(self, inputs, node_dict, handle, count):
         return inputs
 
 
@@ -353,8 +365,8 @@ def build_node_instance(node_model_instance):
 
 def execute_node(node_id, node_dict, count, source_handle=None):
     if count != global_count:
-        print(f"count:", count)
-        print(f"global_count:", global_count)
+        # print(f"count:", count)
+        # print(f"global_count:", global_count)
         return
 
     node_instance = node_dict[node_id]
@@ -387,7 +399,7 @@ def execute_node(node_id, node_dict, count, source_handle=None):
 
     if inputs == [None]:
         return None
-    output = node_instance.run(inputs, node_dict, source_handle)
+    output = node_instance.run(inputs, node_dict, source_handle, count)
 
     if loop_pred and node_instance.type == 'loop':
         if node_instance.loop_type == 'fixed':
@@ -395,7 +407,7 @@ def execute_node(node_id, node_dict, count, source_handle=None):
                 output = execute_loop(loop_pred['source'], node_dict, output, count)
         else:
             loop_counter = 0
-            while chat_with_condition(node_instance.loop_condition, output) and loop_counter < 100:  # 防止死循环
+            while chat_with_condition(node_instance.loop_condition, output, general_model) and loop_counter < 100:  # 防止死循环
                 output = execute_loop(loop_pred['source'], node_dict, output, count)
                 loop_counter += 1
 
@@ -407,8 +419,8 @@ def execute_node(node_id, node_dict, count, source_handle=None):
 
 def execute_batch(current_id, node_dict, inputs, count):
     if count != global_count:
-        print(f"count:", count)
-        print(f"global_count:", global_count)
+        # print(f"count:", count)
+        # print(f"global_count:", global_count)
         return
     current_node = node_dict[current_id]
 
@@ -425,7 +437,7 @@ def execute_batch(current_id, node_dict, inputs, count):
                 if single_input is None:
                     output = None
                 else:
-                    output = current_node.run(single_input, node_dict, pred_handle)
+                    output = current_node.run(single_input, node_dict, pred_handle, count)
                 outputs.append(output)
             return outputs
 
@@ -441,7 +453,7 @@ def execute_batch(current_id, node_dict, inputs, count):
                 if single_prev_input is None:
                     output = None
                 else:
-                    output = current_node.run(single_prev_input, node_dict, pred_handle)
+                    output = current_node.run(single_prev_input, node_dict, pred_handle, count)
                 outputs.append(output)
             return outputs
 
@@ -450,8 +462,8 @@ def execute_batch(current_id, node_dict, inputs, count):
 
 def execute_loop(current_id, node_dict, inputs, count):
     if count != global_count:
-        print(f"count:", count)
-        print(f"global_count:", global_count)
+        # print(f"count:", count)
+        # print(f"global_count:", global_count)
         return
     current_node = node_dict[current_id]
 
@@ -462,7 +474,7 @@ def execute_loop(current_id, node_dict, inputs, count):
         if pred_handle == 'loop-entry':
             # 找到批处理入口，使用 inputs 执行该入口节点
             print(f"[Entry] 执行 {current_node.type} {current_id}")
-            output = current_node.run(inputs, node_dict, pred_handle)
+            output = current_node.run(inputs, node_dict, pred_handle, count)
             if len(current_node.predecessors) > 1:  # 有不止一个前驱
                 normal_inputs = []
                 for normal_pred in current_node.predecessors:
@@ -472,7 +484,7 @@ def execute_loop(current_id, node_dict, inputs, count):
                         print(f"normal_pred:", normal_pred)
                         normal_pred_output = execute_node(normal_pred_id, node_dict, count, normal_pred_handle)
                         normal_inputs.append(normal_pred_output)
-                        output = current_node.run(normal_inputs, node_dict, normal_pred_handle)
+                        output = current_node.run(normal_inputs, node_dict, normal_pred_handle, count)
             print(output)
             return output
         else:
@@ -481,7 +493,7 @@ def execute_loop(current_id, node_dict, inputs, count):
 
             # 再用上一个节点的输出执行当前节点
             print(f"[Loop Step] 执行 {current_node.type} {current_id}")
-            output = current_node.run(prev_output, node_dict, pred_handle)
+            output = current_node.run(prev_output, node_dict, pred_handle, count)
             print(output)
             return output
 
@@ -552,7 +564,7 @@ def check_next_input(request):
 
 @csrf_exempt
 def start_preview(request):
-    global agent_id, workflow_id, model_id, knowledge_bases
+    global agent_id, workflow_id, general_model, knowledge_bases
     if request.method != 'POST':
         return JsonResponse({
             'code': 405,
@@ -569,6 +581,7 @@ def start_preview(request):
 
         workflow = Workflow.objects.get(id=workflow_id)
         nodes = Node.objects.filter(workflow=workflow, node_type='input')
+        general_model = select_model(model_id)
 
         flag = False
         for node in nodes:
@@ -592,3 +605,30 @@ def start_preview(request):
             'message': f'服务器错误: {str(e)}',
             'data': {}
         }, status=500)
+
+def send_kb_files_to_llm(knowledge_bases):
+    # 取出这些知识库下的所有文件
+    # print(f"knowledge_base:", knowledge_bases)
+    files = KnowledgeBaseFile.objects.filter(knowledge_base_id__in=knowledge_bases)
+    # print(f"files:",files)
+    # 读取文件内容
+    all_text = ''
+    for f in files:
+        file_path = f.file.path
+        # print(f"filepath:",file_path)
+        with open(file_path, 'r', encoding='utf-8') as file_obj:
+            content = file_obj.read()
+            all_text += f"\n--- 文件: {f.filename} ---\n" + content
+    # print(f"all_text:", all_text)
+    return all_text
+
+def select_model(model_id):
+    if model_id == 'claude-3':
+        model = "claude-3-5-haiku-20241022"
+
+    elif model_id == 'gpt-4':
+        model = "gpt-4o"
+
+    else:
+        model = "qwen-turbo"
+    return model
