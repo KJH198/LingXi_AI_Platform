@@ -160,6 +160,9 @@ class UserActionLog(models.Model):
     ACTION_CHOICES = [
         ('login', '登录'),
         ('login_failed', '登录失败'),
+        ('logout', '登出'),
+        ('register', '注册'),
+        ('update_profile', '更新个人信息'),
         ('publish_agent', '发布智能体'),
         ('create_agent', '创建智能体'),
         ('edit_agent', '编辑智能体'),

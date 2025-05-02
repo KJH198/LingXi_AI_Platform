@@ -1162,7 +1162,7 @@ const handleCurrentChange = (val) => {
 const fetchLoginRecords = async () => {
   loading.value = true;
   try {
-    const response = await fetch('/user/admin/login_records/', {
+    const response = await fetch('/user/admin/login_records', {
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
       }

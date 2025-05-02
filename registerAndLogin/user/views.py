@@ -170,6 +170,36 @@ def user_login(request):
     }, status=405)
 
 @csrf_exempt
+def user_logout(request, user_id=None):
+    """
+    用户登出接口
+
+    返回格式:
+    {
+        "success": true/false,
+        "message": "错误信息"  // 登出失败时返回
+    }
+    """
+    if request.method == 'POST':
+        if not request.user.is_authenticated:
+            return JsonResponse({'error': 'Not authenticated'}, status=401)
+        UserActionLog.objects.create(
+                user=request.user,
+                action='logout',
+                ip_address=request.META.get('REMOTE_ADDR'),
+                target_id=request.user.id,
+                target_type='user'
+            )
+        try:
+            return JsonResponse({
+                'code': 200
+            })
+        except Exception as e:
+            return JsonResponse({
+                'code': 500
+            })
+
+@csrf_exempt
 def update_user_info(request):
     """
     Update user information.
@@ -1237,37 +1267,34 @@ class UserSearchView(APIView):
 
 class UserLoginRecordView(APIView):
     """用户登录记录视图"""
-
     def get(self, request):
         try:
             # 验证管理员权限
             if not request.user.is_admin:
                 return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
 
-            from .models import User
-
-            # 查询所有用户信息
-            users = User.objects.all()
+            # 查询所有用户登录信息
+            userActionLogs = UserActionLog.objects.all()
 
             # 构造返回数据
             data = [
                 {
-                    'id': user.id,
-                    'username': user.username,
-                    'last_login': user.last_login.strftime('%Y-%m-%d %H:%M:%S') if user.last_login else None,
-                    'is_active': user.is_active,
-                    'email': user.email,
-                    'phone_number': user.phone_number,
-                    'created_at': user.created_at.strftime('%Y-%m-%d %H:%M:%S') if user.created_at else None
+                    'user_id':userActionLog.user.id,
+                    'user_name':userActionLog.user.username,
+                    'time':userActionLog.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                    'user_isactive':userActionLog.user.is_active,
+                    'user_email':userActionLog.user.email,
+                    'user_phone_number':userActionLog.user.phone_number
                 }
-                for user in users
+                for userActionLog in userActionLogs if userActionLog.action == 'login' or userActionLog.action == 'logout' or userActionLog.action == 'failed_login'
             ]
 
             return Response({
                 'records': data,
-                'total': users.count()
+                'total': len(data)
             })
         except Exception as e:
+            print("获取用户登录记录时发生错误:", str(e))
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class GetAnnouncements(APIView):

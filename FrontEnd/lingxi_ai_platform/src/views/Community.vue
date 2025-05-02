@@ -1440,15 +1440,34 @@ const handleLogout = () => {
     confirmButtonText: '确定',
     cancelButtonText: '取消',
     type: 'warning'
-  }).then(() => {
-    // 清除登录状态
-    localStorage.removeItem('token')
-    localStorage.removeItem('userInfo')
-    
-    // 跳转到登录页
-    router.push('/login')
-    
-    ElMessage.success('已退出登录')
+  }).then(async () => {
+    // 通过向后端发送用户id来注销登录
+    try {
+      const userId = localStorage.getItem('userId')
+      if (!userId) {
+        ElMessage.error('用户ID不存在，请重新登录')
+        return
+      }
+      const response = await fetch(`/user/logout/${userId}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error('注销登录失败')
+      } else {
+        // 清除登录状态
+        localStorage.removeItem('token');
+        localStorage.removeItem('userInfo');
+        router.push('/login');
+        ElMessage.success('已退出登录');
+      }
+    } catch (error) {
+      ElMessage.error('注销失败，请稍后重试');
+    }
   }).catch(() => {})
 }
 

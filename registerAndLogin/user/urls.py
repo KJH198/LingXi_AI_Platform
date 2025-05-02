@@ -34,6 +34,7 @@ from .views import (
     UserKnowledgeBaseListView,
     PostCreateView,
     PostImageUploadView,
+    user_logout,
 )
 
 urlpatterns = [
@@ -58,7 +59,6 @@ urlpatterns = [
     path('admin/behavior_logs/', UserActionLogView.as_view(), name='behavior_logs'),
     path('admin/operation_records', UserOperationRecordsView.as_view(), name='admin_operation_records'),
     path('search/', UserSearchView.as_view(), name='user_search'),
-    path('admin/login_records/', UserLoginRecordView.as_view(), name='login_records'),
     # path('admin/announcements/', AnnouncementView.as_view(), name='announcements'),
     # path('admin/announcements/<int:announcement_id>/', AnnouncementView.as_view(), name='announcement_detail'),
     
@@ -81,6 +81,10 @@ urlpatterns = [
     path('admin/CreateAnnouncement', CreateAnnouncement.as_view(), name='create_announcement'),    # 创建公告
     path('admin/EditAnnouncement/<int:announcement_id>', EditAnnouncement.as_view(), name='update_announcement'),    # 更新公告
     path('admin/DeleteAnnouncement/<int:announcement_id>', DeleteAnnouncement.as_view(), name='delete_announcement'),    # 删除公告
+    
+    # 统计用户登录时长以及登录数据列表
+    path('logout/<str:user_id>', user_logout, name='user_logout'),
+    path('admin/login_records', UserLoginRecordView.as_view(), name='login_records'),
     
     # 智能体和知识库相关路由
     path('agents/list', UserAgentListView.as_view(), name='user_agent_list'),
