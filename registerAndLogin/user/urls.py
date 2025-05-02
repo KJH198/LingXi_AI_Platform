@@ -2,6 +2,8 @@
 from django.urls import path
 from .views import (
     AdminBanView,
+    AdminChangeAgentSataus,
+    AdminGetAgents,
     AdminUnbanView,
     CreateAnnouncement,
     DeleteAnnouncement,
@@ -92,6 +94,9 @@ urlpatterns = [
     path('admin/operation_records/<int:user_id>', UserOperationRecordsView.as_view(), name='admin_operation_records'),
     path('admin/abnormal_behaviors/<int:user_id>', UserAbnormalBehaviorsView.as_view(), name='admin_abnormal_behaviors'),
     
+    # 获取智能体列表和搜索、审核智能体
+    path('admin/agents/list/<int:agent_id>', AdminGetAgents.as_view(), name='agent_list'),  # 获取智能体列表和搜索
+    path('admin/changeAgentSataus/<int:agent_id>', AdminChangeAgentSataus.as_view(), name='agent_list'),   # 审核智能体
     
     # 智能体和知识库相关路由
     path('agents/list', UserAgentListView.as_view(), name='user_agent_list'),

@@ -590,7 +590,7 @@
                 <el-table-column prop="agentId" label="智能体ID" width="120" />
                 <el-table-column prop="agentName" label="智能体名称" width="150" />
                 <el-table-column prop="submitTime" label="提交时间" width="180" />
-                <el-table-column prop="functionType" label="功能类型" width="150">
+                <el-table-column prop="functionType" label="发布者ID" width="150">
                   <template #default="scope">
                     <el-tag :type="getFunctionTypeTag(scope.row.functionType)">
                       {{ getFunctionTypeText(scope.row.functionType) }}

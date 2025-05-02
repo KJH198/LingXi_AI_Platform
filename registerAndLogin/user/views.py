@@ -378,7 +378,6 @@ class AdminUnbanView(APIView):
         except User.DoesNotExist:
             return Response({'error': '用户不存在'}, status=status.HTTP_404_NOT_FOUND)
 
-
 class AgentRatingView(APIView):
     """智能体评分与评价"""
     def post(self, request):
@@ -591,6 +590,70 @@ class UserAbnormalBehaviorsView(APIView):
             'page_size': int(page_size),
             'page_count': paginator.num_pages
         })
+
+class AdminGetAgents(APIView):
+    """获取智能体列表接口"""
+    def get(self, request, agent_id=None):
+        # 验证管理员权限
+        if not request.user.is_admin:
+            return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
+        
+        # 获取查询参数
+        page = request.query_params.get('page', 1)
+        page_size = request.query_params.get('page_size', 20)
+        
+        if agent_id:
+            agent = PublishedAgent.objects.filter(id=agent_id).first()
+        else:
+            agents = PublishedAgent.objects.all().order_by('-created_at')
+
+        # 构造返回数据
+        agent_data = [
+            {
+                'agentID':agent.id,
+                'name':agent.name,
+                'description':agent.description,
+                'time':agent.created_at.strftime('%Y-%m-%dT%H:%M:%SZ'),
+                'creatorID':agent.creator.id,
+                'status':agent.status,
+            } for agent in agents
+        ]
+    
+        # 分页处理
+        paginator = Paginator(agent_data, page_size)
+        try:
+            agents_page = paginator.page(page)
+        except:
+            agents_page = paginator.page(1)
+        
+        return Response({
+            'agents': agent_data,
+            'total': paginator.count,
+            'page': agents_page.number,
+            'page_size': int(page_size),
+            'page_count': paginator.num_pages
+        })
+
+class AdminChangeAgentSataus(APIView):
+    def post(self, request, agent_id=None):
+        # 验证管理员权限
+        if not request.user.is_admin:
+            return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
+        
+        if not agent_id:
+            return Response({'error': '智能体ID不能为空'}, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            enable = request.data.get('enable')
+            agent = PublishedAgent.objects.filter(id=agent_id).first()
+            if enable:
+                agent.status = 'approved'
+            else:
+                agent.status = 'rejected'
+            agent.save()
+            return Response({
+                'success': True,
+                'message': '智能体状态更新成功'
+            })
 
 class UserBehaviorStatsView(APIView):
     """获取用户行为统计数据接口"""
@@ -919,7 +982,6 @@ class UserFollowingView(APIView):
                 'message': '服务器内部错误'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-
 class UserInfoView(APIView):
     """获取用户信息接口"""
     permission_classes = [IsAuthenticated]
@@ -938,7 +1000,6 @@ class UserInfoView(APIView):
             'following': user.get_following_count()
         }
         return Response(data)
-
 
 class UpdateUserInfoView(APIView):
     """更新用户信息接口"""
@@ -1370,7 +1431,9 @@ class EditAnnouncement(APIView):
         announcement.title = data.get('title', announcement.title)
         announcement.content = data.get('content', announcement.content)
         announcement.status = data.get('status', announcement.status)
-        announcement.publish_time = data.get('publishTime', announcement.publish_time)
+        announcement.publishTime = data.get('publishTime', announcement.publishTime)
+        announcement.save()
+        
         return Response({
             'code': 200,
             'message': '公告更新成功'
