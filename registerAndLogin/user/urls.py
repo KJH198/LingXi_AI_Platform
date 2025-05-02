@@ -57,7 +57,6 @@ urlpatterns = [
     path('admin/knowledge_base/', KnowledgeBaseView.as_view(), name='knowledge_base'),
     path('admin/knowledge_base/<int:kb_id>/', KnowledgeBaseView.as_view(), name='knowledge_base_detail'),
     path('admin/behavior_logs/', UserActionLogView.as_view(), name='behavior_logs'),
-    path('admin/operation_records', UserOperationRecordsView.as_view(), name='admin_operation_records'),
     path('search/', UserSearchView.as_view(), name='user_search'),
     # path('admin/announcements/', AnnouncementView.as_view(), name='announcements'),
     # path('admin/announcements/<int:announcement_id>/', AnnouncementView.as_view(), name='announcement_detail'),
@@ -66,7 +65,6 @@ urlpatterns = [
     # 新增管理员接口路由
     # path('api/admin/user/list/', UserListAPIView.as_view(), name='admin_user_list'),
     path('api/admin/user/<str:user_id>/', UserDetailAPIView.as_view(), name='admin_user_detail'),
-    path('admin/abnormal_behaviors', UserAbnormalBehaviorsView.as_view(), name='admin_abnormal_behaviors'),
     path('api/admin/user/behavior_stats/', UserBehaviorStatsView.as_view(), name='admin_behavior_stats'),
     path('api/admin/user/behavior_logs/<str:user_id>/', UserBehaviorLogsView.as_view(), name='admin_behavior_logs'),
   
@@ -82,9 +80,18 @@ urlpatterns = [
     path('admin/EditAnnouncement/<int:announcement_id>', EditAnnouncement.as_view(), name='update_announcement'),    # 更新公告
     path('admin/DeleteAnnouncement/<int:announcement_id>', DeleteAnnouncement.as_view(), name='delete_announcement'),    # 删除公告
     
-    # 统计用户登录时长以及登录数据列表
+    # 统计用户登录时长
     path('logout/<str:user_id>', user_logout, name='user_logout'),
+    
+    # 登录数据列表和搜索、操作记录数据列表和搜索、异常行为数据列表和搜索
     path('admin/login_records', UserLoginRecordView.as_view(), name='login_records'),
+    path('admin/operation_records', UserOperationRecordsView.as_view(), name='admin_operation_records'),
+    path('admin/abnormal_behaviors', UserAbnormalBehaviorsView.as_view(), name='admin_abnormal_behaviors'),
+    
+    path('admin/login_records/<int:user_id>', UserLoginRecordView.as_view(), name='login_records'),
+    path('admin/operation_records/<int:user_id>', UserOperationRecordsView.as_view(), name='admin_operation_records'),
+    path('admin/abnormal_behaviors/<int:user_id>', UserAbnormalBehaviorsView.as_view(), name='admin_abnormal_behaviors'),
+    
     
     # 智能体和知识库相关路由
     path('agents/list', UserAgentListView.as_view(), name='user_agent_list'),

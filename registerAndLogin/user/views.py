@@ -18,6 +18,7 @@ from django.utils import timezone
 import time
 from .models import PublishedAgent, UserActionLog
 from knowledge_base.models import KnowledgeBase
+from django.core.paginator import Paginator
 # from community.models import Post
 
 @csrf_exempt
@@ -497,9 +498,6 @@ class UserOperationRecordsView(APIView):
         # 验证管理员权限
         if not request.user.is_admin:
             return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
-        
-        from django.core.paginator import Paginator
-        from .models import UserActionLog
         
         # 获取查询参数
         user_id = request.query_params.get('user_id')
@@ -1267,14 +1265,22 @@ class UserSearchView(APIView):
 
 class UserLoginRecordView(APIView):
     """用户登录记录视图"""
-    def get(self, request):
+    def get(self, request, user_id=None):
         try:
             # 验证管理员权限
             if not request.user.is_admin:
                 return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
+            
+            # 获取查询参数(没有用默认值)
+            page = request.query_params.get('page', 1)
+            page_size = request.query_params.get('page_size', 20)
 
-            # 查询所有用户登录信息
-            userActionLogs = UserActionLog.objects.all()
+            if user_id:
+                # 查询特定用户的登录信息
+                userActionLogs = UserActionLog.objects.filter(user_id=user_id).order_by('-created_at')
+            else:
+                # 查询所有用户登录信息
+                userActionLogs = UserActionLog.objects.all().order_by('-created_at')
 
             # 构造返回数据
             data = [
@@ -1288,10 +1294,20 @@ class UserLoginRecordView(APIView):
                 }
                 for userActionLog in userActionLogs if userActionLog.action == 'login' or userActionLog.action == 'logout' or userActionLog.action == 'failed_login'
             ]
+            
+            # 分页处理
+            paginator = Paginator(data, page_size)
+            try:
+                records_page = paginator.page(page)
+            except:
+                records_page = paginator.page(1)
 
             return Response({
                 'records': data,
-                'total': len(data)
+                'total': len(data),
+                'page': records_page.number,
+                'page_size': int(page_size),
+                'page_count': paginator.num_pages
             })
         except Exception as e:
             print("获取用户登录记录时发生错误:", str(e))
