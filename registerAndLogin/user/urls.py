@@ -90,12 +90,13 @@ urlpatterns = [
     path('admin/operation_records', UserOperationRecordsView.as_view(), name='admin_operation_records'),
     path('admin/abnormal_behaviors', UserAbnormalBehaviorsView.as_view(), name='admin_abnormal_behaviors'),
     
-    path('admin/login_records/<int:user_id>', UserLoginRecordView.as_view(), name='login_records'),
-    path('admin/operation_records/<int:user_id>', UserOperationRecordsView.as_view(), name='admin_operation_records'),
-    path('admin/abnormal_behaviors/<int:user_id>', UserAbnormalBehaviorsView.as_view(), name='admin_abnormal_behaviors'),
+    path('admin/login_records/<int:user_id>', UserLoginRecordView.as_view(), name='login_records2'),
+    path('admin/operation_records/<int:user_id>', UserOperationRecordsView.as_view(), name='admin_operation_records2'),
+    path('admin/abnormal_behaviors/<int:user_id>', UserAbnormalBehaviorsView.as_view(), name='admin_abnormal_behaviors2'),
     
     # 获取智能体列表和搜索、审核智能体
-    path('admin/agents/list/<int:agent_id>', AdminGetAgents.as_view(), name='agent_list'),  # 获取智能体列表和搜索
+    path('admin/agents/list', AdminGetAgents.as_view(), name='agent_list'),  # 获取智能体列表
+    path('admin/agents/list/<int:agent_id>', AdminGetAgents.as_view(), name='agent_search'),  # 智能体搜索
     path('admin/changeAgentSataus/<int:agent_id>', AdminChangeAgentSataus.as_view(), name='agent_list'),   # 审核智能体
     
     # 智能体和知识库相关路由
