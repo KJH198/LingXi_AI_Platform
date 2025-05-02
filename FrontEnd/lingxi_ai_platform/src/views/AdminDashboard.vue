@@ -408,7 +408,7 @@
                         </el-tag>
                       </template>
                     </el-table-column>
-                    <el-table-column prop="operationContent" label="操作内容" />
+                    <el-table-column prop="operationContent" label="操作对象" />
                     <el-table-column label="操作" width="120">
                       <template #default="scope">
                         <el-button 

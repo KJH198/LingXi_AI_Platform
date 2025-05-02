@@ -494,42 +494,38 @@ class UserDetailAPIView(APIView):
 
 class UserOperationRecordsView(APIView):
     """获取用户操作记录接口"""
-    def get(self, request):
+    def get(self, request, user_id=None):
         # 验证管理员权限
         if not request.user.is_admin:
             return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
         
         # 获取查询参数
-        user_id = request.query_params.get('user_id')
         page = request.query_params.get('page', 1)
         page_size = request.query_params.get('page_size', 20)
         
-        # 构建查询条件
-        queryset = UserActionLog.objects.all().order_by('-created_at')
         if user_id:
-            queryset = queryset.filter(user_id=user_id)
+            userActionLogs = UserActionLog.objects.filter(user_id=user_id).order_by('-created_at')
+        else:
+            userActionLogs = UserActionLog.objects.all().order_by('-created_at')
         
-        # 分页处理
-        paginator = Paginator(queryset, page_size)
+        
+        # 构造返回数据
+        records = [
+            {
+                'user_id':log.user.id,
+                'user_name':log.user.username,
+                'time':log.created_at.strftime('%Y-%m-%dT%H:%M:%SZ'),
+                'action':log.action,
+                'target_id':log.target_id,
+                'target_type':log.target_type
+            }for log in userActionLogs if log.action != 'login_failed' and log.action != 'logout' and log.action != 'login'
+        ]
+        
+        paginator = Paginator(records, page_size)
         try:
             records_page = paginator.page(page)
         except:
             records_page = paginator.page(1)
-        
-        # 构造返回数据
-        records = []
-        for log in records_page:
-            records.append({
-                'id': log.id,
-                'user_id': log.user.id,
-                'username': log.user.username,
-                'operation_time': log.created_at.strftime('%Y-%m-%dT%H:%M:%SZ'),
-                'operation_type': log.get_action_display(),
-                'operation_content': f"{log.user.username} {log.get_action_display()}",
-                'ip_address': log.ip_address,
-                'target_id': log.target_id,
-                'target_type': log.target_type
-            })
         
         return Response({
             'records': records,
@@ -1283,7 +1279,7 @@ class UserLoginRecordView(APIView):
                 userActionLogs = UserActionLog.objects.all().order_by('-created_at')
 
             # 构造返回数据
-            data = [
+            records = [
                 {
                     'user_id':userActionLog.user.id,
                     'user_name':userActionLog.user.username,
@@ -1296,15 +1292,15 @@ class UserLoginRecordView(APIView):
             ]
             
             # 分页处理
-            paginator = Paginator(data, page_size)
+            paginator = Paginator(records, page_size)
             try:
                 records_page = paginator.page(page)
             except:
                 records_page = paginator.page(1)
 
             return Response({
-                'records': data,
-                'total': len(data),
+                'records': records,
+                'total': paginator.count,
                 'page': records_page.number,
                 'page_size': int(page_size),
                 'page_count': paginator.num_pages
