@@ -241,12 +241,12 @@ class AgentAvatarUploadView(APIView):
             # 确保上传目录存在
             avatar_dir = os.path.join(settings.MEDIA_ROOT, 'agent_avatars')
             os.makedirs(avatar_dir, exist_ok=True)
-            
+
             # 生成唯一文件名
             ext = os.path.splitext(avatar_file.name)[1]
             timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
             filename = f"temp_{uuid.uuid4().hex[:8]}_{timestamp}{ext}"
-            
+
             # 保存文件
             filepath = os.path.join(avatar_dir, filename)
             with open(filepath, 'wb+') as destination:
@@ -255,11 +255,13 @@ class AgentAvatarUploadView(APIView):
             
             # 生成URL
             avatar_url = f"/media/agent_avatars/{filename}"
+
+            print('生成的头像URL:', avatar_url)
             
             # 如果agent_id已存在，更新对应记录的头像URL
-            agent_id = request.POST.get('agent_id')
+            agent_id = request.POST.get('agent_id')            
             if agent_id:
-                agent = PublishedAgent.objects.filter(agent_id=agent_id, creator=request.user).first()
+                agent = PublishedAgent.objects.filter(id=agent_id).first()
                 if agent:
                     # 如果有旧头像，可以考虑删除
                     if agent.avatar and os.path.exists(os.path.join(settings.MEDIA_ROOT, agent.avatar.lstrip('/'))):
