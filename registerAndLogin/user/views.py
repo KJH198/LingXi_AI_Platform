@@ -1487,6 +1487,36 @@ class DeleteAnnouncement(APIView):
         except Announcement.DoesNotExist:
             return Response({'error': '公告不存在'}, status=status.HTTP_404_NOT_FOUND)
 
+class CheckAnnouncements(APIView):
+    """检查公告是否更新"""
+    def get(self, request):
+        # 验证用户权限
+        if not request.user.is_authenticated:
+            return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
+        
+        user = User.objects.get(id=request.user.id)
+        # 获取最新公告的发布时间
+        latest_announcement = Announcement.objects.filter(status='published').order_by('-publish_time').first()
+        if latest_announcement and latest_announcement.publish_time > user.last_announcement_check:
+            return Response({
+                'code': 200,
+                'has_new_announcements': True,
+                'latest_announcement_time': latest_announcement.publish_time.strftime('%Y-%m-%d %H:%M:%S')
+            })
+        else :
+            return Response({
+                'code': 200,
+                'has_new_announcements': False
+            })
+
+class Update(APIView):
+    """更新最后一次看公告时间"""
+    def post(self, request):
+        # 验证用户权限
+        if not request.user.is_authenticated:
+            return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
+        User.objects.filter(id=request.user.id).update(updated_at=timezone.now())
+
 class AgentPublishView(APIView):
     """智能体发布视图"""
     
