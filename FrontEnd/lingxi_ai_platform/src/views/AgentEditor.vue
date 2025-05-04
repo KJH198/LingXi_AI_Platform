@@ -4,7 +4,7 @@
     <header class="editor-header">
       <div class="header-left">
         <el-button icon="ArrowLeft" @click="goBack" plain>返回</el-button>
-        <h2>{{ agentData.name || '新建智能体' }}</h2>
+        <h2>{{ isPublished ? '编辑智能体' : '新建智能体' }}: {{ agentData.name || '未命名' }}</h2>
         <el-tag v-if="!isPublished" type="info">未发布</el-tag>
         <el-tag v-else type="success">已发布</el-tag>
       </div>
@@ -1177,9 +1177,13 @@ const handlePublish = async (): Promise<void> => {
     }
     
     // 确认发布
+    let confirmMessage = isPublished.value 
+      ? '确定要更新智能体吗？' 
+      : '确定要发布智能体吗？发布后，其他用户将可以访问您的智能体。';
+    
     await ElMessageBox.confirm(
-      '确定要发布智能体吗？发布后，其他用户将可以访问您的智能体。',
-      '发布智能体',
+      confirmMessage,
+      isPublished.value ? '更新智能体' : '发布智能体',
       { confirmButtonText: '确定', cancelButtonText: '取消', type: 'info' }
     )
     
@@ -1198,12 +1202,21 @@ const handlePublish = async (): Promise<void> => {
       modelId: agentData.modelId,
       avatar: agentData.avatar,
       knowledgeBases: agentData.knowledgeBases,
-      workflowId: agentData.workflowId
+      workflowId: agentData.workflowId,
+      modelParams: agentData.modelParams
     }
     
-    // 这里实现真正的发布逻辑
-    const response = await fetch('user/agent/publish', {
-      method: 'POST',
+    // 根据是否已发布选择API端点
+    const apiUrl = isPublished.value 
+      ? `/user/agent/${agentData.id}/update/` 
+      : '/user/agent/publish';
+    
+    // 选择HTTP方法
+    const httpMethod = isPublished.value ? 'PUT' : 'POST';
+    
+    // 发送请求
+    const response = await fetch(apiUrl, {
+      method: httpMethod,
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`
@@ -1211,19 +1224,25 @@ const handlePublish = async (): Promise<void> => {
       body: JSON.stringify(publishData)
     })
     
-    if (!response.ok || response.status !== 200) {
-      throw new Error('发布智能体失败')
+    if (!response.ok) {
+      throw new Error(`${isPublished.value ? '更新' : '发布'}智能体失败`)
     }
-
-    ElMessage.success(`智能体"${agentData.name}"发布成功！`)
-    clearLocalStorage() // 发布成功后清除本地存储中的临时数据
-    router.push('/community')
+    
+    const result = await response.json()
+    
+    if (result.code === 200) {
+      ElMessage.success(`智能体"${agentData.name}"${isPublished.value ? '更新' : '发布'}成功！`)
+      clearLocalStorage() // 发布成功后清除本地存储中的临时数据
+      router.push('/my-agents')
+    } else {
+      throw new Error(result.message || `${isPublished.value ? '更新' : '发布'}智能体失败`)
+    }
 
   } catch (error) {
     if (error === 'cancel') return
     
-    console.error('发布智能体失败:', error)
-    ElMessage.error('发布智能体失败，请稍后重试')
+    console.error(`${isPublished.value ? '更新' : '发布'}智能体失败:`, error)
+    ElMessage.error(`${isPublished.value ? '更新' : '发布'}智能体失败，请稍后重试`)
   }
 }
 
@@ -1325,38 +1344,62 @@ const connectWebSocket = () => {
   }
 }
 
-// 在组件挂载时连接WebSocket
-onMounted(() => {
+// 修改 onMounted 函数的部分代码
+onMounted(async () => {
   console.log('AgentEditor 组件已挂载，开始初始化数据')
   connectWebSocket()
   
-  // 检查是否有从 Community 传递过来的初始数据
-  const initData = localStorage.getItem('agentInitData')
+  // 检查路由参数，判断是否是编辑模式
+  const agentId = route.params.id
   
-  if (initData) {
+  if (agentId) {
+    // 编辑现有智能体
+    console.log('编辑模式，智能体ID:', agentId)
     try {
-      // 有初始数据，说明是新建智能体
-      const parsedInitData = JSON.parse(initData)
-      
-      // 清除之前可能存在的所有数据
+      // 清除本地可能存在的旧数据
       clearLocalStorage()
       
-      // 只使用初始传入的数据
-      if (parsedInitData.name) agentData.name = parsedInitData.name
-      if (parsedInitData.description) agentData.description = parsedInitData.description
+      // 从API加载智能体数据
+      await loadAgentData(agentId)
       
-      // 清除 initData，防止下次进入页面时重复使用
-      localStorage.removeItem('agentInitData')
-      
-      // 重置步骤
-      activeStep.value = 0
-    } catch (e) {
-      console.error('解析初始数据失败:', e)
+      // 设置编辑模式
+      isPublished.value = true
+    } catch (error) {
+      console.error('加载智能体数据失败:', error)
+      ElMessage.error('加载智能体数据失败，请重试')
+      // 加载失败时跳回列表页
+      router.push('/my-agents')
+      return
     }
   } else {
-    // 没有初始数据，可能是编辑现有智能体或从其他页面返回
-    // 从本地存储恢复所有数据
-    restoreFromLocalStorage()
+    // 检查是否有从 Community 传递过来的初始数据
+    const initData = localStorage.getItem('agentInitData')
+    
+    if (initData) {
+      try {
+        // 有初始数据，说明是新建智能体
+        const parsedInitData = JSON.parse(initData)
+        
+        // 清除之前可能存在的所有数据
+        clearLocalStorage()
+        
+        // 只使用初始传入的数据
+        if (parsedInitData.name) agentData.name = parsedInitData.name
+        if (parsedInitData.description) agentData.description = parsedInitData.description
+        
+        // 清除 initData，防止下次进入页面时重复使用
+        localStorage.removeItem('agentInitData')
+        
+        // 重置步骤
+        activeStep.value = 0
+      } catch (e) {
+        console.error('解析初始数据失败:', e)
+      }
+    } else {
+      // 没有初始数据，可能是从其他页面返回
+      // 从本地存储恢复所有数据
+      restoreFromLocalStorage()
+    }
   }
   
   // 监听页面刷新或关闭事件，保存数据
@@ -1375,15 +1418,77 @@ onMounted(() => {
   })
 })
 
+// 添加 loadAgentData 函数
+const loadAgentData = async (agentId) => {
+  const token = localStorage.getItem('token')
+  if (!token) {
+    throw new Error('请先登录')
+  }
+
+  const response = await fetch(`/user/agent/${agentId}/edit-detail/`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  })
+
+  if (!response.ok) {
+    throw new Error(`获取智能体数据失败: ${response.status}`)
+  }
+
+  const result = await response.json()
+
+  if (result.code !== 200 || !result.data) {
+    throw new Error(result.message || '获取智能体数据失败')
+  }
+
+  // 更新状态
+  const data = result.data
+  
+  // 设置基本信息
+  agentData.id = data.id
+  agentData.name = data.name || ''
+  agentData.description = data.description || ''
+  agentData.avatar = data.avatar || ''
+  
+  // 设置模型信息
+  agentData.modelId = data.modelId || ''
+  
+  // 设置模型参数
+  if (data.modelParams) {
+    agentData.modelParams.temperature = data.modelParams.temperature ?? 0.7
+    agentData.modelParams.maxTokens = data.modelParams.maxTokens ?? 1024
+    agentData.modelParams.topP = data.modelParams.topP ?? 0.95
+  }
+  
+  // 设置知识库
+  agentData.knowledgeBases = data.knowledgeBases || []
+  
+  // 设置工作流
+  agentData.workflowId = data.workflowId || ''
+  
+  // 确保加载工作流ID后打印日志，便于调试
+  console.log('从API加载的工作流ID:', data.workflowId)
+  console.log('设置后的工作流ID:', agentData.workflowId)
+  
+  // 如果从API获取的工作流ID为空，尝试从localStorage获取
+  if (!agentData.workflowId) {
+    const savedWorkflowId = localStorage.getItem('selectedWorkflowId')
+    if (savedWorkflowId) {
+      agentData.workflowId = savedWorkflowId
+      console.log('从localStorage恢复工作流ID:', savedWorkflowId)
+    }
+  }
+  
+  console.log('智能体数据加载成功:', agentData)
+}
+
 // 在组件卸载时关闭WebSocket连接
 onBeforeUnmount(() => {
   if (ws.value) {
     ws.value.close()
     ws.value = null
-  }
-  // 如果未发布，则清理临时资源
-  if (!isPublished.value) {
-    cleanupTempResources()
   }
 })
 
@@ -1392,7 +1497,7 @@ onBeforeRouteLeave((to, from, next) => {
   console.log("页面离开");
   if (to.path !== '/create-ai' && agentData.avatar && agentData.avatar.includes('temp_') && !isPublished.value) {
     console.log("to.path :", to.path);
-    cleanupTempResources();
+    //cleanupTempResources();
   }
   else {
     console.log("to.path :", to.path);
@@ -1404,7 +1509,7 @@ onBeforeRouteLeave((to, from, next) => {
 onMounted(() => {
   window.addEventListener('beforeunload', (event) => {
     if (!isPublished.value && agentData.avatar) {
-      cleanupTempResources()
+      //cleanupTempResources()
       // 现代浏览器通常需要返回值来显示确认对话框
       event.preventDefault()
       event.returnValue = ''

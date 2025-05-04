@@ -748,7 +748,7 @@ const handleFollow = async () => {
     const isFollowed = kbData.isFollowed
     
     // 关注/取消关注请求
-    const response = await fetch(`/knowledge-base/${kbId.value}/follow/`, {
+    const response = await fetch(`/user/follow/knowledge-base/${kbId.value}/`, {
       method: isFollowed ? 'DELETE' : 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,

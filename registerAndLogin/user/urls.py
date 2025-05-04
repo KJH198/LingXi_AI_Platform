@@ -44,13 +44,15 @@ from .views import (
     KnowledgeBaseFollowView,
     AgentDetailView,
     KnowledgeBaseDetailView,
+    AgentEditDetailView,
+    AgentUpdateView,
 )
 
 urlpatterns = [
     path('register', register, name='register'),
     path('login', user_login, name='login_no_slash'),
     path('update_info/', update_user_info, name='update_user_info'),
-    path('users/<int:user_id>/following/', UserFollowingView.as_view(), name='user_following'),
+    path('follow/<int:user_id>/', UserFollowingView.as_view(), name='user_following'),
 
     # 个人信息相关路由
     path('user_info/', UserInfoView.as_view(), name='user_info'),
@@ -103,6 +105,8 @@ urlpatterns = [
     # 智能体和知识库相关路由
     path('agents/list', UserAgentListView.as_view(), name='user_agent_list'),
     path('knowledge-bases/list/', UserKnowledgeBaseListView.as_view(), name='user_knowledge_base_list'),
+    path('agent/<str:agent_id>/edit-detail/', AgentEditDetailView.as_view(), name='agent_edit_detail'),
+    path('agent/<str:agent_id>/update/', AgentUpdateView.as_view(), name='agent_update'),
     
     # 帖子相关路由
     path('post/create/', PostCreateView.as_view(), name='post_create'),

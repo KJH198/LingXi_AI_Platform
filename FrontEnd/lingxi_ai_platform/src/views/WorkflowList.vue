@@ -25,7 +25,7 @@
             <el-tag 
               size="small" 
               type="success" 
-              v-if="scope.row.id === currentSelectedWorkflowId"
+              v-if="String(scope.row.id) === String(currentSelectedWorkflowId)"
             >
               当前使用
             </el-tag>
@@ -36,11 +36,11 @@
         <el-table-column label="操作" width="250" fixed="right">
           <template #default="scope">
             <el-button 
-              :type="scope.row.id === currentSelectedWorkflowId ? 'success' : 'primary'" 
+              :type="String(scope.row.id) === String(currentSelectedWorkflowId) ? 'success' : 'primary'" 
               size="small" 
               @click="selectWorkflow(scope.row)"
             >
-              {{ scope.row.id === currentSelectedWorkflowId ? '已选择' : '使用' }}
+              {{ String(scope.row.id) === String(currentSelectedWorkflowId) ? '已选择' : '使用' }}
             </el-button>
             <el-button 
               type="success" 
@@ -189,9 +189,7 @@ const restoreWorkflow = (workflow) => {
 
 // 创建新工作流
 const createNewWorkflow = () => {
-  // 清除之前选择的工作流
-  localStorage.removeItem('selectedWorkflowId')
-  localStorage.removeItem('selectedWorkflowName')
+
   
   // 触发父组件的更新事件，传null表示新建
   emit('update:workflowId', null)

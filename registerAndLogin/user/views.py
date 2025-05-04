@@ -21,7 +21,7 @@ from knowledge_base.models import KnowledgeBase
 from django.core.paginator import Paginator
 from community.models import Post, PostImage, PostAgent, PostKnowledgeBase
 from community.models import PostLike, PostFavorite, PostComment
-# from community.models import Post
+from django.shortcuts import get_object_or_404
 
 @csrf_exempt
 def register(request):
@@ -879,15 +879,8 @@ class UserFollowingView(APIView):
                     'message': '请先登录'
                 }, status=status.HTTP_401_UNAUTHORIZED)
 
-            # 验证当前用户ID是否匹配
-            if request.user.id != user_id:
-                return Response({
-                    'success': False,
-                    'message': '无权操作其他用户的关注'
-                }, status=status.HTTP_403_FORBIDDEN)
-
             # 获取目标用户ID
-            target_user_id = request.data.get('target_user_id')
+            target_user_id = user_id
             if not target_user_id:
                 return Response({
                     'success': False,
@@ -940,15 +933,8 @@ class UserFollowingView(APIView):
                     'message': '请先登录'
                 }, status=status.HTTP_401_UNAUTHORIZED)
 
-            # 验证当前用户ID是否匹配
-            if request.user.id != user_id:
-                return Response({
-                    'success': False,
-                    'message': '无权操作其他用户的关注'
-                }, status=status.HTTP_403_FORBIDDEN)
-
             # 获取目标用户ID
-            target_user_id = request.data.get('target_user_id')
+            target_user_id = user_id
             if not target_user_id:
                 return Response({
                     'success': False,
@@ -2365,5 +2351,131 @@ class KnowledgeBaseDetailView(APIView):
             return Response({
                 'code': 500,
                 'message': f'获取知识库详情失败: {str(e)}',
+                'data': None
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class AgentEditDetailView(APIView):
+    """获取待编辑的智能体详情"""
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request, agent_id):
+        try:
+            # 获取智能体
+            agent = get_object_or_404(PublishedAgent, id=agent_id)
+            print(f"获取智能体: {agent.name}")
+            
+            # 检查是否是创建者
+            if request.user != agent.creator:
+                return Response({
+                    'code': 403,
+                    'message': '您没有权限编辑该智能体',
+                    'data': None
+                }, status=status.HTTP_403_FORBIDDEN)
+            
+            print("检查权限通过")
+            # 组装智能体详情数据
+            agent_data = {
+                'id': str(agent.id),
+                'name': agent.name,
+                'description': agent.description,
+                'avatar': agent.avatar,  # 直接使用avatar字符串字段
+                'status': agent.status,
+                'modelId': agent.model_id,
+                'workflowId': agent.workflow_id,
+                'is_active': agent.is_active,
+                'created_at': agent.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                'updated_at': agent.updated_at.strftime('%Y-%m-%d %H:%M:%S'),
+                'knowledgeBases': [str(kb.id) for kb in agent.knowledge_bases.all()],
+                # 添加模型参数字段，如果存在的话
+                'modelParams': {
+                    'temperature': agent.temperature if hasattr(agent, 'temperature') else None,
+                    'max_tokens': agent.max_tokens if hasattr(agent, 'max_tokens') else None,
+                    'top_p': agent.top_p if hasattr(agent, 'top_p') else None
+                }
+            }
+
+            print("组装数据成功")
+            
+            return Response({
+                'code': 200,
+                'message': '获取成功',
+                'data': agent_data
+            })
+            
+        except Exception as e:
+            return Response({
+                'code': 500,
+                'message': f'获取智能体详情失败: {str(e)}',
+                'data': None
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class AgentUpdateView(APIView):
+    """更新智能体"""
+    permission_classes = [IsAuthenticated]
+    
+    def put(self, request, agent_id):
+        try:
+            # 获取智能体
+            agent = get_object_or_404(PublishedAgent, id=agent_id)
+            
+            # 检查权限
+            if request.user != agent.creator:
+                return Response({
+                    'code': 403,
+                    'message': '您没有权限编辑该智能体',
+                    'data': None
+                }, status=status.HTTP_403_FORBIDDEN)
+            
+            # 获取请求数据
+            data = request.data
+            
+            # 更新基本信息
+            if 'name' in data:
+                agent.name = data['name']
+            if 'description' in data:
+                agent.description = data['description']
+            if 'modelId' in data:
+                agent.model_id = data['modelId']
+            
+            # 更新模型参数
+            if 'modelParams' in data:
+                model_params = data['modelParams']
+                if 'temperature' in model_params:
+                    agent.temperature = model_params['temperature']
+                if 'maxTokens' in model_params:
+                    agent.max_tokens = model_params['maxTokens']
+                if 'topP' in model_params:
+                    agent.top_p = model_params['topP']
+            
+            # 更新工作流
+            if 'workflowId' in data:
+                agent.workflow_id = data['workflowId']
+            
+            # 更新知识库（多对多关系）
+            if 'knowledgeBases' in data:
+                from knowledge_base.models import KnowledgeBase
+                # 清空现有关联
+                agent.knowledge_bases.clear()
+                # 添加新关联
+                for kb_id in data['knowledgeBases']:
+                    try:
+                        kb = KnowledgeBase.objects.get(id=kb_id)
+                        agent.knowledge_bases.add(kb)
+                    except KnowledgeBase.DoesNotExist:
+                        continue
+            
+            # 保存更改
+            agent.save()
+            
+            return Response({
+                'code': 200,
+                'message': '智能体更新成功',
+                'data': {'id': str(agent.id)}
+            })
+            
+        except Exception as e:
+            return Response({
+                'code': 500,
+                'message': f'更新智能体失败: {str(e)}',
                 'data': None
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
