@@ -235,29 +235,44 @@
           title="用户详细信息"
           width="600px"
         >
-          <el-descriptions :column="2" border>
-            <el-descriptions-item label="用户ID">{{ selectedUser?.id }}</el-descriptions-item>
-            <el-descriptions-item label="用户名">{{ selectedUser?.username }}</el-descriptions-item>
-            <el-descriptions-item label="注册时间">{{ selectedUser?.registerTime }}</el-descriptions-item>
-            <el-descriptions-item label="最后登录时间">{{ selectedUser?.lastLoginTime || '-' }}</el-descriptions-item>
-            <el-descriptions-item label="违规类型">
-              <el-tag 
-                v-if="selectedUser?.violationType"
-                :type="getViolationTagType(selectedUser.violationType)"
-                effect="plain"
-              >
-                {{ getViolationTypeText(selectedUser.violationType) }}
-              </el-tag>
-              <span v-else>-</span>
-            </el-descriptions-item>
-            <el-descriptions-item label="状态">
-              <el-tag :type="selectedUser?.status === 'normal' ? 'success' : 'danger'">
-                {{ selectedUser?.status === 'normal' ? '正常' : '已封禁' }}
-              </el-tag>
-            </el-descriptions-item>
-            <el-descriptions-item label="IP地址">{{ selectedUser?.ipAddress || '-' }}</el-descriptions-item>
-            <el-descriptions-item label="设备信息">{{ selectedUser?.device || '-' }}</el-descriptions-item>
-          </el-descriptions>
+          <el-card class="profile-card">
+            <div class="profile-header">
+              <div class="avatar-wrapper">
+                <el-avatar
+                  :size="100"
+                  :src="userInfo?.avatar || 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png'"
+                />
+              </div>
+              <div class="basic-info">
+                <h2>{{ userInfo?.username }}</h2>
+                <p>{{ userInfo?.bio || '这个人很懒，什么都没有留下' }}</p>
+              </div>
+            </div>
+            <el-descriptions :column="1" border>
+              <el-descriptions-item label="用户ID">{{ selectedUser?.id }}</el-descriptions-item>
+              <el-descriptions-item label="用户名">{{ selectedUser?.username }}</el-descriptions-item>
+              <el-descriptions-item label="注册时间">{{ selectedUser?.registerTime }}</el-descriptions-item>
+              <el-descriptions-item label="最后登录时间">{{ selectedUser?.lastLoginTime || '-' }}</el-descriptions-item>
+              <el-descriptions-item label="违规类型">
+                <el-tag 
+                  v-if="selectedUser?.violationType"
+                  :type="getViolationTagType(selectedUser.violationType)"
+                  effect="plain"
+                >
+                  {{ getViolationTypeText(selectedUser.violationType) }}
+                </el-tag>
+                <span v-else>-</span>
+              </el-descriptions-item>
+              <el-descriptions-item label="状态">
+                <el-tag :type="selectedUser?.status === 'normal' ? 'success' : 'danger'">
+                  {{ selectedUser?.status === 'normal' ? '正常' : '已封禁' }}
+                </el-tag>
+              </el-descriptions-item>
+              <el-descriptions-item label="IP地址">{{ selectedUser?.ipAddress || '-' }}</el-descriptions-item>
+              <el-descriptions-item label="设备信息">{{ selectedUser?.device || '-' }}</el-descriptions-item>
+            </el-descriptions>
+          </el-card>
+          
           <template #footer>
             <span class="dialog-footer">
               <el-button @click="userInfoDialogVisible = false">关闭</el-button>
@@ -377,38 +392,51 @@
               <el-tab-pane label="登录记录" name="login" @click="fetchLoginRecords">
                 <div class="login-records">
                   <el-table :data="loginRecords" style="width: 100%" border>
-                    <el-table-column prop="id" label="用户ID" width="120" />
-                    <el-table-column prop="username" label="用户名" width="150" />
-                    <el-table-column prop="last_login" label="登录时间" width="180" />
-                    <el-table-column prop="is_active" label="活跃状态" width="100">
+                    <el-table-column prop="user_id" label="用户ID" width="120" />
+                    <el-table-column prop="user_name" label="用户名" width="150" />
+                    <el-table-column prop="time" label="登录时间" width="180" />
+                    <el-table-column prop="user_isactive" label="活跃状态" width="100">
                       <template #default="scope">
                         <el-tag :type="scope.row.is_active ? 'success' : 'danger'">
                           {{ scope.row.is_active ? '活跃' : '未活跃' }}
                         </el-tag>
                       </template>
                     </el-table-column>
-                    <el-table-column prop="email" label="邮箱" width="200" />
-                    <el-table-column prop="phone_number" label="手机号" width="150" />
-                    <el-table-column prop="created_at" label="注册时间" width="180" />
+                    <el-table-column prop="user_email" label="邮箱" width="200" />
+                    <el-table-column prop="user_phone_number" label="手机号" width="150" />
+                    <!-- <el-table-column prop="created_at" label="注册时间" width="180" /> -->
                   </el-table>
                 </div>
+
+                <!-- 分页 -->
+              <div class="pagination">
+                <el-pagination
+                  :model-value="currentPage"
+                  @update:model-value="handleCurrentChange"
+                  :page-size="pageSize"
+                  @update:page-size="handleSizeChange"
+                  :page-sizes="[10, 20, 30, 50]"
+                  layout="total, sizes, prev, pager, next"
+                  :total="totalRecords"
+                />
+              </div>
               </el-tab-pane>
 
               <!-- 操作记录标签页 -->
               <el-tab-pane label="操作记录" name="operation">
                 <div class="operation-records">
                   <el-table :data="operationRecords" style="width: 100%" border>
-                    <el-table-column prop="userId" label="用户ID" width="120" />
-                    <el-table-column prop="username" label="用户名" width="150" />
-                    <el-table-column prop="operationTime" label="操作时间" width="180" />
-                    <el-table-column prop="operationType" label="操作类型" width="150">
+                    <el-table-column prop="user_id" label="用户ID" width="120" />
+                    <el-table-column prop="user_name" label="用户名" width="150" />
+                    <el-table-column prop="time" label="操作时间" width="180" />
+                    <el-table-column prop="action" label="操作类型" width="150">
                       <template #default="scope">
-                        <el-tag :type="getOperationTypeTag(scope.row.operationType)">
-                          {{ getOperationTypeText(scope.row.operationType) }}
+                        <el-tag :type="getOperationTypeTag(scope.row.action)">
+                          {{ getOperationTypeText(scope.row.action) }}
                         </el-tag>
                       </template>
                     </el-table-column>
-                    <el-table-column prop="operationContent" label="操作对象" />
+                    <el-table-column prop="target_type" label="操作对象" />
                     <el-table-column label="操作" width="120">
                       <template #default="scope">
                         <el-button 
@@ -1008,6 +1036,11 @@ const agentApi = {
       const response = await fetch(`/user/admin/agent_rating/?${queryString}`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+        },
+        method: 'POST',
+        data:{
+          page: currentPage.value || 1,
+          page_size: pageSize.value || 10
         }
       });
       if (!response.ok) throw new Error('获取智能体列表失败');
@@ -1165,7 +1198,12 @@ const fetchLoginRecords = async () => {
     const response = await fetch('/user/admin/login_records', {
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
-      }
+      },
+      method: 'POST',
+      body: JSON.stringify({
+        page: currentPage.value || 1,
+        page_size: pageSize.value || 10
+      })
     });
     if (!response.ok) throw new Error('获取登录记录失败');
     const data = await response.json();
@@ -1286,11 +1324,11 @@ const getAbnormalTypeText = (type) => {
 // 查看操作详情
 const handleViewOperationDetail = (record) => {
   ElMessageBox.alert(
-    `用户ID: ${record.userId}
-用户名: ${record.username}
-操作时间: ${record.operationTime}
-操作类型: ${getOperationTypeText(record.operationType)}
-操作内容: ${record.operationContent}`,
+    `用户ID: ${record.user_id}
+用户名: ${record.user_name}
+操作时间: ${record.time}
+操作类型: ${getOperationTypeText(record.action)}
+操作内容: ${record.target_ty}`,
     '操作详情',
     {
       confirmButtonText: '确定',
@@ -1747,6 +1785,11 @@ const fetchOperationRecords = async () => {
     const response = await fetch('/user/admin/operation_records', {
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+      },
+      method: 'POST',
+      data:{
+        page: currentPage.value || 1,
+        page_size: pageSize.value || 10
       }
     });
     if (!response.ok) throw new Error('Failed to fetch operation records');
@@ -1764,6 +1807,11 @@ const fetchAbnormalBehaviors = async () => {
     const response = await fetch('/user/admin/abnormal_behaviors', {
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+      },
+      method: 'POST',
+      data:{
+        page: currentPage.value || 1,
+        page_size: pageSize.value || 10
       }
     });
     if (!response.ok) throw new Error('Failed to fetch abnormal behaviors');
