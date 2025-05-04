@@ -2,6 +2,7 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth import authenticate, login
 import json
+from rest_framework.parsers import JSONParser
 from .models import Announcement, User
 from django.shortcuts import render
 from rest_framework.views import APIView
@@ -515,9 +516,10 @@ class UserOperationRecordsView(APIView):
         if not request.user.is_admin:
             return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
         
-        # 获取查询参数
-        page = request.query_params.get('page', 1)
-        page_size = request.query_params.get('page_size', 20)
+        # 获取查询参数(没有用默认值)
+        data = JSONParser().parse(request)
+        page = data.get('page', 1)
+        page_size = data.get('page_size', 20)
         
         if user_id:
             userActionLogs = UserActionLog.objects.filter(user_id=user_id).order_by('-created_at')
@@ -1332,8 +1334,9 @@ class UserLoginRecordView(APIView):
                 return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
             
             # 获取查询参数(没有用默认值)
-            page = request.query_params.get('page', 1)
-            page_size = request.query_params.get('page_size', 20)
+            data = JSONParser().parse(request)
+            page = data.get('page', 1)
+            page_size = data.get('page_size', 20)
 
             if user_id:
                 # 查询特定用户的登录信息
