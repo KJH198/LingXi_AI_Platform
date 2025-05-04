@@ -1417,7 +1417,7 @@ class GetAnnouncements(APIView):
                 'title': announcement.title,
                 'content': announcement.content,
                 'status': announcement.status,
-                'publish_time': announcement.publish_time.strftime('%Y-%m-%d %H:%M:%S') if announcement.publish_time else None
+                'publish_time': announcement.publishTime.strftime('%Y-%m-%d %H:%M:%S') if announcement.publishTime else None
             }
             for announcement in announcements
         ]
