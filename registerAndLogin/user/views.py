@@ -3232,3 +3232,49 @@ class UserFollowView(APIView):
                 'message': f'取消关注用户失败: {str(e)}',
                 'data': None
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+class AgentDeleteView(APIView):
+    """删除智能体视图"""
+    permission_classes = [IsAuthenticated]
+    
+    def delete(self, request, agent_id):
+        try:
+            # 获取智能体
+            agent = get_object_or_404(PublishedAgent, id=agent_id)
+            
+            # 验证权限（只能删除自己创建的智能体）
+            if agent.creator != request.user:
+                return Response({
+                    'code': 403,
+                    'message': '您没有权限删除此智能体',
+                    'data': None
+                }, status=status.HTTP_403_FORBIDDEN)
+                
+            # 记录删除前的头像路径（如果有的话）
+            avatar_path = None
+            if agent.avatar and agent.avatar.startswith('/media/'):
+                avatar_path = os.path.join(settings.MEDIA_ROOT, agent.avatar.lstrip('/'))
+            
+            # 删除智能体
+            agent_name = agent.name
+            agent.delete()
+            
+            # 如果有头像文件，也一并删除
+            if avatar_path and os.path.exists(avatar_path):
+                try:
+                    os.remove(avatar_path)
+                except Exception as e:
+                    print(f"删除智能体头像文件失败: {e}")
+            
+            return Response({
+                'code': 200,
+                'message': f'智能体 "{agent_name}" 已成功删除',
+                'data': None
+            })
+            
+        except Exception as e:
+            return Response({
+                'code': 500,
+                'message': f'删除智能体失败: {str(e)}',
+                'data': None
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

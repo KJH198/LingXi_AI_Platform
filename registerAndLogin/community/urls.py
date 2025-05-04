@@ -7,4 +7,6 @@ urlpatterns = [
     
     # 添加搜索路由
     path('search', views.SearchView.as_view(), name='search'),
+    path('agents/hot/', views.HotAgentsView.as_view(), name='hot-agents'),
+    path('knowledge-bases/hot/', views.HotKnowledgeBasesView.as_view(), name='hot-knowledge-bases'),
 ]

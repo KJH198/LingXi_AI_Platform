@@ -2,9 +2,17 @@ from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.shortcuts import get_object_or_404
+from django.db.models import Count
+from rest_framework.pagination import PageNumberPagination
 from .models import KnowledgeBase, KnowledgeBaseFile
 from .serializers import KnowledgeBaseSerializer, KnowledgeBaseFileSerializer
 import os
+
+# 添加分页类
+class KnowledgeBasePagination(PageNumberPagination):
+    page_size = 12
+    page_size_query_param = 'size'
+    max_page_size = 100
 
 class KnowledgeBaseListView(generics.ListAPIView):
     serializer_class = KnowledgeBaseSerializer
@@ -161,4 +169,42 @@ class FileDeleteView(APIView):
             return Response(
                 {"error": "File not found"},
                 status=status.HTTP_404_NOT_FOUND
-            ) 
+            )
+
+# 添加用户知识库列表视图
+class MyKnowledgeBaseListView(generics.ListAPIView):
+    serializer_class = KnowledgeBaseSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    pagination_class = KnowledgeBasePagination
+
+    def get_queryset(self):
+        # 获取用户所有知识库，并附加文件数量统计
+        return KnowledgeBase.objects.filter(user=self.request.user).annotate(
+            file_count=Count('files')
+        ).order_by('-created_at')  # 最新创建的排在前面
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        page = self.paginate_queryset(queryset)
+        
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return Response({
+                "code": 200,
+                "message": "成功",
+                "data": {
+                    "items": serializer.data,
+                    "total": self.paginator.page.paginator.count
+                }
+            })
+        
+        serializer = self.get_serializer(queryset, many=True)
+        return Response({
+            "code": 200,
+            "message": "成功",
+            "data": {
+                "items": serializer.data,
+                "total": len(serializer.data)
+            }
+        })
+

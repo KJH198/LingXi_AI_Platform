@@ -54,6 +54,7 @@ from .views import (
     KnowledgeBaseCommentView,
     AgentRestoreView,
     UserFollowView,
+    AgentDeleteView,
 )
 
 urlpatterns = [
@@ -131,4 +132,6 @@ urlpatterns = [
     path('knowledge-base/<int:kbId>/comment/', KnowledgeBaseCommentView.as_view(), name='knowledge_base_comment'),
 
     path('follow/<str:userId>/', UserFollowView.as_view(), name='user_follow'),
+
+    path('agent/<str:agent_id>/delete', AgentDeleteView.as_view(), name='agent_delete'),
 ]

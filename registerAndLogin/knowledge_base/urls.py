@@ -9,4 +9,6 @@ urlpatterns = [
     path('knowledgebase/<str:knowledgeBaseId>/file/<int:fileId>/content/', views.FileContentView.as_view(), name='file-content'),
     path('delete_knowledgebase/<str:knowledgeBaseId>/', views.KnowledgeBaseDeleteView.as_view(), name='knowledge-base-delete'),
     path('knowledgebase/<str:knowledgeBaseId>/delete_file/<int:fileId>/', views.FileDeleteView.as_view(), name='file-delete'),
+    
+    path('my-list', views.MyKnowledgeBaseListView.as_view(), name='my-knowledge-base-list'),
 ] 

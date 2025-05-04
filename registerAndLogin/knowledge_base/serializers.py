@@ -32,8 +32,24 @@ class KnowledgeBaseSerializer(serializers.ModelSerializer):
         'invalid_choice': '知识库类型必须是 text 或 image'
     })
     description = serializers.CharField(required=False, allow_blank=True)
+    fileCount = serializers.SerializerMethodField()
+    lastUpdated = serializers.SerializerMethodField()
+    views = serializers.IntegerField(source='followers.count', read_only=True, default=0)
+    followers = serializers.IntegerField(source='followers.count', read_only=True, default=0)
     
     class Meta:
         model = KnowledgeBase
-        fields = ['id', 'name', 'description', 'type', 'status', 'createdAt', 'files']
-        read_only_fields = ['id', 'createdAt', 'status'] 
+        fields = ['id', 'name', 'description', 'type', 'status', 'createdAt', 'files', 
+                  'fileCount', 'lastUpdated', 'views', 'followers']
+        read_only_fields = ['id', 'createdAt', 'status', 'views', 'followers']
+    
+    def get_fileCount(self, obj):
+        # 如果查询时已经通过 annotate 添加了 file_count
+        if hasattr(obj, 'file_count'):
+            return obj.file_count
+        # 否则手动计算
+        return obj.files.count()
+    
+    def get_lastUpdated(self, obj):
+        # 返回格式化的最后更新时间
+        return obj.created_at.strftime('%Y-%m-%d')  # 可以根据需要调整格式

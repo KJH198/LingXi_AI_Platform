@@ -1,0 +1,962 @@
+<template>
+    <div class="my-kb-container">
+      <el-container>
+        <el-header class="header">
+          <div class="header-left">
+            <el-button 
+              @click="router.push('/community')" 
+              type="primary" 
+              plain
+              size="medium"
+              icon="ArrowLeft"
+            >
+              返回社区
+            </el-button>
+            <h2>我的知识库</h2>
+          </div>
+          <el-button type="primary" @click="createKnowledgeDialogVisible = true">
+            <el-icon class="el-icon--left"><Plus /></el-icon>创建新知识库
+          </el-button>
+        </el-header>
+  
+        <el-main>
+          <!-- 知识库列表 -->
+          <div class="kb-grid" v-if="knowledgeBases.length > 0">
+            <el-card v-for="kb in knowledgeBases" :key="kb.id" class="kb-card" shadow="hover">
+              <div class="kb-content">
+                <!-- 知识库标题和图标 -->
+                <div class="kb-header">
+                  <div class="kb-icon">
+                    <el-icon size="24"><Folder /></el-icon>
+                  </div>
+                  <h3 class="kb-name" @click="viewKnowledgeBase(kb)">{{ kb.name }}</h3>
+                </div>
+                
+                <!-- 知识库描述 -->
+                <p class="kb-description">{{ kb.description }}</p>
+                
+                <!-- 知识库统计 -->
+                <div class="kb-stats">
+                  <div class="kb-stat">
+                    <el-icon><Document /></el-icon>
+                    <span>{{ kb.fileCount }} 个文件</span>
+                  </div>
+                  <div class="kb-stat">
+                    <el-icon><View /></el-icon>
+                    <span>{{ kb.views }} 次浏览</span>
+                  </div>
+                  <div class="kb-stat">
+                    <el-icon><Star /></el-icon>
+                    <span>{{ kb.followers }} 人关注</span>
+                  </div>
+                </div>
+                
+                <!-- 最后更新时间 -->
+                <div class="kb-update-time">
+                  <el-icon><Timer /></el-icon>
+                  <span>更新于 {{ kb.lastUpdated }}</span>
+                </div>
+                
+                <!-- 知识库操作 -->
+                <div class="kb-actions">
+                  <el-button type="primary" size="small" @click="viewKnowledgeBase(kb)">
+                    <el-icon class="el-icon--left"><View /></el-icon>查看
+                  </el-button>
+                  <el-button type="success" size="small" @click="openUploadDialogForKb(kb)">
+                    <el-icon class="el-icon--left"><UploadFilled /></el-icon>上传文件
+                  </el-button>
+                  <el-button type="danger" size="small" @click="deleteKnowledgeBase(kb)">
+                    <el-icon class="el-icon--left"><Delete /></el-icon>删除
+                  </el-button>
+                  <el-button type="info" size="small" @click="shareKnowledgeBase(kb)">
+                    <el-icon class="el-icon--left"><Share /></el-icon>分享
+                  </el-button>
+                </div>
+              </div>
+            </el-card>
+          </div>
+  
+          <!-- 空状态展示 -->
+          <el-empty 
+            v-else 
+            description="暂无知识库" 
+            :image-size="200"
+          >
+            <el-button type="primary" @click="createKnowledgeDialogVisible = true">
+              <el-icon class="el-icon--left"><Plus /></el-icon>创建第一个知识库
+            </el-button>
+          </el-empty>
+  
+          <!-- 分页 -->
+          <div class="pagination" v-if="knowledgeBases.length > 0">
+            <el-pagination
+              v-model:current-page="currentPage"
+              v-model:page-size="pageSize"
+              :page-sizes="[12, 24, 36, 48]"
+              layout="total, sizes, prev, pager, next"
+              :total="total"
+              @size-change="handleSizeChange"
+              @current-change="handleCurrentChange"
+              background
+            />
+          </div>
+        </el-main>
+      </el-container>
+      
+      <!-- 分享知识库对话框 -->
+      <el-dialog
+        v-model="shareDialogVisible"
+        title="分享知识库"
+        width="400px"
+      >
+        <div class="share-dialog-content">
+          <p>将以下链接分享给他人，即可访问该知识库：</p>
+          <el-input
+            v-model="shareUrl"
+            readonly
+            :suffix-icon="Check"
+            @click="copyShareUrl"
+          />
+          <p class="share-tip">点击上方链接即可复制</p>
+        </div>
+        <template #footer>
+          <span class="dialog-footer">
+            <el-button @click="shareDialogVisible = false">关闭</el-button>
+            <el-button type="primary" @click="copyAndClose">复制并关闭</el-button>
+          </span>
+        </template>
+      </el-dialog>
+
+      <!-- 上传文件对话框 -->
+      <el-dialog
+        v-model="uploadDialogVisible"
+        :title="`上传文件到知识库: ${currentKnowledgeBase.name || ''}`"
+        width="550px"
+      >
+        <el-form label-position="top">
+          <el-alert
+            type="info"
+            description="支持上传txt, pdf, docx, md等文本文件，单个文件大小不超过10MB"
+            show-icon
+            :closable="false"
+            style="margin-bottom: 20px"
+          />
+          
+          <el-form-item label="选择文件">
+            <el-upload
+              ref="uploadRef"
+              class="upload-container"
+              action="#"
+              :auto-upload="false"
+              :on-change="handleFileChange"
+              :on-remove="handleFileRemove"
+              :limit="10"
+              multiple
+              :file-list="uploadFileList"
+              drag
+            >
+              <el-icon class="el-icon--upload"><UploadFilled /></el-icon>
+              <div class="el-upload__text">将文件拖到此处，或<em>点击上传</em></div>
+            </el-upload>
+          </el-form-item>
+        </el-form>
+        
+        <template #footer>
+          <span class="dialog-footer">
+            <el-button @click="uploadDialogVisible = false">取消</el-button>
+            <el-button 
+              type="primary" 
+              @click="uploadFiles" 
+              :disabled="!uploadFileList.length"
+              :loading="uploading"
+            >
+              上传
+            </el-button>
+          </span>
+        </template>
+      </el-dialog>
+
+      <!-- 知识库详情对话框 -->
+      <el-dialog
+        v-model="knowledgeBaseDetailVisible"
+        :title="`知识库详情: ${currentKnowledgeBase.name || ''}`"
+        width="650px"
+      >
+        <el-skeleton :rows="6" animated v-if="loadingDetail" />
+        
+        <div v-else class="kb-detail-container">
+          <el-descriptions :column="1" border>
+            <el-descriptions-item label="描述">
+              {{ currentKnowledgeBase.description || '无描述' }}
+            </el-descriptions-item>
+            <el-descriptions-item label="创建时间">
+              {{ currentKnowledgeBase.createdAt }}
+            </el-descriptions-item>
+            <el-descriptions-item label="状态">
+              <el-tag :type="currentKnowledgeBase.status === 'ready' ? 'success' : 'warning'">
+                {{ currentKnowledgeBase.status === 'ready' ? '已就绪' : '处理中' }}
+              </el-tag>
+            </el-descriptions-item>
+          </el-descriptions>
+          
+          <div class="kb-files">
+            <div class="kb-files-header">
+              <h4>文件列表</h4>
+              <el-button type="primary" size="small" @click="openUploadDialog">
+                <el-icon class="el-icon--left"><Plus /></el-icon>上传文件
+              </el-button>
+            </div>
+            
+            <div v-if="knowledgeBaseFiles.length === 0" class="empty-files">
+              <el-empty description="暂无文件" />
+            </div>
+            <el-table v-else :data="knowledgeBaseFiles" style="width: 100%">
+              <el-table-column prop="filename" label="文件名" />
+              <el-table-column label="大小">
+                <template #default="scope">
+                  {{ Math.round(scope.row.size / 1024) }} KB
+                </template>
+              </el-table-column>
+              <el-table-column prop="upload_time" label="上传时间" />
+              <el-table-column label="状态">
+                <template #default="scope">
+                  <el-tag :type="scope.row.status === 'processed' ? 'success' : 'warning'">
+                    {{ scope.row.status === 'processed' ? '已处理' : '处理中' }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column label="操作" width="150">
+                <template #default="scope">
+                  <el-button link type="primary" size="small" @click="previewFile(scope.row)">
+                    预览
+                  </el-button>
+                  <el-button link type="danger" size="small" @click="deleteFile(scope.row)">
+                    删除
+                  </el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+          </div>
+        </div>
+      </el-dialog>
+
+      <!-- 文件预览对话框 -->
+      <el-dialog
+        v-model="filePreviewVisible"
+        :title="`文件预览: ${currentPreviewFile?.filename || ''}`"
+        width="700px"
+      >
+        <el-skeleton :rows="15" animated v-if="previewLoading" />
+        
+        <div v-else-if="previewContent" class="file-preview">
+          <pre>{{ previewContent }}</pre>
+        </div>
+        
+        <div v-else class="empty-preview">
+          <el-empty description="无法预览文件内容" />
+        </div>
+      </el-dialog>
+
+      <!-- 创建知识库对话框 -->
+      <el-dialog
+        v-model="createKnowledgeDialogVisible"
+        title="创建知识库"
+        width="50%"
+      >
+        <el-form :model="newKnowledgeBase" label-width="80px">
+          <el-form-item label="名称" required>
+            <el-input v-model="newKnowledgeBase.name" placeholder="请输入知识库名称"></el-input>
+          </el-form-item>
+          <el-form-item label="类型" required>
+            <el-select v-model="newKnowledgeBase.type" placeholder="请选择知识库类型">
+              <el-option label="文本知识库" value="text"></el-option>
+              <el-option label="图片知识库" value="image"></el-option>
+            </el-select>
+            <div class="el-form-item-description">
+              <small v-if="newKnowledgeBase.type === 'text'">文本知识库支持PDF、TXT、DOCX、MD等格式文件</small>
+              <small v-else-if="newKnowledgeBase.type === 'image'">图片知识库支持JPG、PNG、GIF等图片格式</small>
+            </div>
+          </el-form-item>
+          <el-form-item label="描述">
+            <el-input
+              v-model="newKnowledgeBase.description"
+              type="textarea"
+              :rows="3"
+              placeholder="请输入知识库描述"
+            ></el-input>
+          </el-form-item>
+        </el-form>
+        <template #footer>
+          <span class="dialog-footer">
+            <el-button @click="createKnowledgeDialogVisible = false">取消</el-button>
+            <el-button type="primary" @click="createKnowledgeBase" :loading="creating">创建</el-button>
+          </span>
+        </template>
+      </el-dialog>
+    </div>
+  </template>
+  
+  <script setup>
+  import { ref, reactive, onMounted } from 'vue'
+  import { useRouter } from 'vue-router'
+  import { ElMessage, ElMessageBox } from 'element-plus'
+  import { 
+    ArrowLeft, 
+    Edit, 
+    Delete, 
+    View, 
+    Star, 
+    Share, 
+    Plus, 
+    Document, 
+    Folder, 
+    Timer,
+    Check,
+    UploadFilled
+  } from '@element-plus/icons-vue'
+  
+  const router = useRouter()
+  const knowledgeBases = ref([])
+  const currentPage = ref(1)
+  const pageSize = ref(12)
+  const total = ref(0)
+  
+  // 分享对话框
+  const shareDialogVisible = ref(false)
+  const shareUrl = ref('')
+
+  // 上传文件对话框
+  const uploadDialogVisible = ref(false)
+  const uploadFileList = ref([])
+  const uploading = ref(false)
+  const uploadRef = ref(null)
+
+  // 知识库详情对话框
+  const knowledgeBaseDetailVisible = ref(false)
+  const currentKnowledgeBase = reactive({})
+  const loadingDetail = ref(false)
+  const knowledgeBaseFiles = ref([])
+
+  // 文件预览对话框
+  const filePreviewVisible = ref(false)
+  const currentPreviewFile = ref(null)
+  const previewLoading = ref(false)
+  const previewContent = ref('')
+  
+  // 创建知识库对话框
+  const createKnowledgeDialogVisible = ref(false);
+  const creating = ref(false);
+  const newKnowledgeBase = reactive({
+    name: '',
+    description: '',
+    type: 'text' // 默认为文本类型
+  });
+
+  // 获取用户知识库列表
+  const fetchKnowledgeBases = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      if (!token) {
+        ElMessage.error('请先登录')
+        router.push('/login')
+        return
+      }
+  
+      // 构建请求参数
+      const params = new URLSearchParams({
+        page: currentPage.value.toString(),
+        size: pageSize.value.toString()
+      })
+      
+      // 发送请求
+      const response = await fetch(`/knowledge_base/my-list?${params.toString()}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+      
+      if (!response.ok) {
+        throw new Error('获取知识库列表失败')
+      }
+      
+      const result = await response.json()
+      
+      if (result.code === 200) {
+        knowledgeBases.value = result.data.items.map(item => ({
+          id: item.id,
+          name: item.name,
+          description: item.description,
+          fileCount: item.fileCount,
+          views: item.views || 0,
+          followers: item.followers || 0,
+          lastUpdated: item.lastUpdated
+        }))
+        total.value = result.data.total || 0
+      } else {
+        throw new Error(result.message || '获取知识库列表失败')
+      }
+    } catch (error) {
+      console.error('获取知识库列表失败:', error)
+      ElMessage.error('获取知识库列表失败，请稍后重试')
+      
+      // 开发阶段模拟数据可以保留，但生产环境应移除
+    }
+  }
+  
+  // 查看知识库
+  const viewKnowledgeBase = (kb) => {
+    router.push(`/knowledge-base/${kb.id}`)
+  }
+  
+  // 编辑知识库
+  const editKnowledgeBase = (kb) => {
+    router.push(`/knowledge-base-editor/${kb.id}`)
+  }
+  
+  // 删除知识库
+  const deleteKnowledgeBase = (kb) => {
+    ElMessageBox.confirm(
+      `确定要删除知识库 "${kb.name}" 吗？此操作不可恢复。`,
+      '删除确认',
+      {
+        confirmButtonText: '确定删除',
+        cancelButtonText: '取消',
+        type: 'warning',
+        distinguishCancelAndClose: true,
+        closeOnClickModal: false
+      }
+    ).then(async () => {
+      try {
+        const token = localStorage.getItem('token')
+        if (!token) {
+          ElMessage.error('请先登录')
+          router.push('/login')
+          return
+        }
+  
+        // 调用后端API删除知识库
+        const response = await fetch(`/knowledge_base/delete_knowledgebase/${kb.id}/`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        })
+        
+        if (!response.ok) {
+          throw new Error('删除知识库失败')
+        }
+        
+        const result = await response.json()
+        
+        if (result.code === 200) {
+          ElMessage.success('知识库删除成功')
+          // 重新加载知识库列表
+          fetchKnowledgeBases()
+        } else {
+          throw new Error(result.message || '删除知识库失败')
+        }
+      } catch (error) {
+        console.error('删除知识库失败:', error)
+        ElMessage.error('删除失败，请稍后重试')
+      }
+    }).catch(() => {})
+  }
+  
+  // 分享知识库
+  const shareKnowledgeBase = (kb) => {
+    shareUrl.value = `${window.location.origin}/knowledge-base/${kb.id}`
+    shareDialogVisible.value = true
+  }
+  
+  // 复制分享链接
+  const copyShareUrl = () => {
+    navigator.clipboard.writeText(shareUrl.value)
+      .then(() => {
+        ElMessage({
+          message: '链接已复制到剪贴板',
+          type: 'success',
+          duration: 1500
+        })
+      })
+      .catch(() => {
+        ElMessage.error('复制失败，请手动复制')
+      })
+  }
+  
+  // 复制并关闭对话框
+  const copyAndClose = () => {
+    copyShareUrl()
+    shareDialogVisible.value = false
+  }
+
+  // 打开上传文件对话框
+  const openUploadDialog = () => {
+    uploadDialogVisible.value = true
+  }
+
+  // 从列表直接打开上传对话框
+  const openUploadDialogForKb = (kb) => {
+    // 设置当前知识库
+    Object.assign(currentKnowledgeBase, kb);
+    
+    // 重置上传文件列表
+    uploadFileList.value = [];
+    
+    // 打开上传对话框
+    uploadDialogVisible.value = true;
+  }
+
+  // 处理文件选择
+  const handleFileChange = (file, fileList) => {
+    uploadFileList.value = fileList
+  }
+
+  // 处理文件移除
+  const handleFileRemove = (file, fileList) => {
+    uploadFileList.value = fileList
+  }
+
+  // 上传文件
+  const uploadFiles = async () => {
+    try {
+      uploading.value = true
+      const token = localStorage.getItem('token')
+      if (!token) {
+        ElMessage.error('请先登录')
+        router.push('/login')
+        return
+      }
+
+      const formData = new FormData()
+      uploadFileList.value.forEach(file => {
+        formData.append('files', file.raw)
+      })
+
+      const response = await fetch(`/knowledge_base/knowledgebase/${currentKnowledgeBase.id}/upload/`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData
+      })
+
+      if (!response.ok) {
+        throw new Error('上传文件失败')
+      }
+
+      const result = await response.json()
+
+      if (result.code === 200) {
+        ElMessage.success('文件上传成功')
+        uploadDialogVisible.value = false
+        uploadFileList.value = []
+        fetchKnowledgeBaseDetail(currentKnowledgeBase.id)
+      } else {
+        throw new Error(result.message || '上传文件失败')
+      }
+    } catch (error) {
+      console.error('上传文件失败:', error)
+      ElMessage.error('上传文件失败，请稍后重试')
+    } finally {
+      uploading.value = false
+    }
+  }
+
+  // 获取知识库详情
+  const fetchKnowledgeBaseDetail = async (id) => {
+    try {
+      loadingDetail.value = true
+      const token = localStorage.getItem('token')
+      if (!token) {
+        ElMessage.error('请先登录')
+        router.push('/login')
+        return
+      }
+
+      const response = await fetch(`/knowledge_base/${id}/detail/`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (!response.ok) {
+        throw new Error('获取知识库详情失败')
+      }
+
+      const result = await response.json()
+
+      if (result.code === 200) {
+        Object.assign(currentKnowledgeBase, result.data)
+        knowledgeBaseFiles.value = result.data.files || []
+        knowledgeBaseDetailVisible.value = true
+      } else {
+        throw new Error(result.message || '获取知识库详情失败')
+      }
+    } catch (error) {
+      console.error('获取知识库详情失败:', error)
+      ElMessage.error('获取知识库详情失败，请稍后重试')
+    } finally {
+      loadingDetail.value = false
+    }
+  }
+
+  // 预览文件
+  const previewFile = async (file) => {
+    try {
+      previewLoading.value = true
+      const token = localStorage.getItem('token')
+      if (!token) {
+        ElMessage.error('请先登录')
+        router.push('/login')
+        return
+      }
+
+      const response = await fetch(`/knowledge_base/file/${file.id}/preview/`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (!response.ok) {
+        throw new Error('预览文件失败')
+      }
+
+      const result = await response.json()
+
+      if (result.code === 200) {
+        currentPreviewFile.value = file
+        previewContent.value = result.data.content || ''
+        filePreviewVisible.value = true
+      } else {
+        throw new Error(result.message || '预览文件失败')
+      }
+    } catch (error) {
+      console.error('预览文件失败:', error)
+      ElMessage.error('预览文件失败，请稍后重试')
+    } finally {
+      previewLoading.value = false
+    }
+  }
+
+  // 删除文件
+  const deleteFile = async (file) => {
+    try {
+      const token = localStorage.getItem('token')
+      if (!token) {
+        ElMessage.error('请先登录')
+        router.push('/login')
+        return
+      }
+
+      const response = await fetch(`/knowledge_base/file/${file.id}/delete/`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (!response.ok) {
+        throw new Error('删除文件失败')
+      }
+
+      const result = await response.json()
+
+      if (result.code === 200) {
+        ElMessage.success('文件删除成功')
+        fetchKnowledgeBaseDetail(currentKnowledgeBase.id)
+      } else {
+        throw new Error(result.message || '删除文件失败')
+      }
+    } catch (error) {
+      console.error('删除文件失败:', error)
+      ElMessage.error('删除文件失败，请稍后重试')
+    }
+  }
+  
+  // 创建知识库
+  const createKnowledgeBase = async () => {
+    if (!newKnowledgeBase.name) {
+      ElMessage.warning('请输入知识库名称');
+      return;
+    }
+    
+    if (!newKnowledgeBase.type) {
+      ElMessage.warning('请选择知识库类型');
+      return;
+    }
+    
+    try {
+      creating.value = true;
+      
+      // 获取认证 token
+      const token = localStorage.getItem('token');
+      if (!token) {
+        ElMessage.error('请先登录');
+        router.push('/login');
+        return;
+      }
+      
+      const response = await fetch('/knowledge_base/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          name: newKnowledgeBase.name,
+          description: newKnowledgeBase.description,
+          type: newKnowledgeBase.type
+        })
+      });
+      
+      if (!response.ok) {
+        if (response.status === 401) {
+          ElMessage.error('认证失败，请重新登录');
+          router.push('/login');
+          return;
+        }
+        throw new Error('创建知识库失败');
+      }
+      
+      const result = await response.json();
+      
+      if (result.code === 201) {
+        // 重置表单
+        newKnowledgeBase.name = '';
+        newKnowledgeBase.description = '';
+        newKnowledgeBase.type = 'text';
+        createKnowledgeDialogVisible.value = false;
+        
+        // 刷新知识库列表
+        await fetchKnowledgeBases();
+        
+        ElMessage.success('知识库创建成功');
+      } else {
+        throw new Error(result.message || '创建知识库失败');
+      }
+    } catch (error) {
+      console.error('创建知识库失败:', error);
+      ElMessage.error('创建知识库失败，请稍后重试');
+    } finally {
+      creating.value = false;
+    }
+  };
+
+  // 修改空状态展示的按钮点击事件
+  const createNewKnowledgeBase = () => {
+    createKnowledgeDialogVisible.value = true;
+  };
+
+  // 分页处理
+  const handleSizeChange = (val) => {
+    pageSize.value = val
+    fetchKnowledgeBases()
+  }
+  
+  const handleCurrentChange = (val) => {
+    currentPage.value = val
+    fetchKnowledgeBases()
+  }
+  
+  onMounted(() => {
+    fetchKnowledgeBases()
+  })
+  </script>
+  
+  <style scoped>
+  .my-kb-container {
+    padding: 20px;
+  }
+  
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+  }
+  
+  .header-left {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+  }
+  
+  .kb-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 24px;
+    margin-bottom: 20px;
+  }
+  
+  .kb-card {
+    height: 100%;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+  }
+  
+  .kb-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1) !important;
+  }
+  
+  .kb-content {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  
+  .kb-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  
+  .kb-icon {
+    width: 48px;
+    height: 48px;
+    background-color: #ecf5ff;
+    color: #409eff;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .kb-name {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: #303133;
+    cursor: pointer;
+  }
+  
+  .kb-name:hover {
+    color: #409EFF;
+  }
+  
+  .kb-description {
+    color: #606266;
+    font-size: 14px;
+    line-height: 1.5;
+    margin: 0;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  
+  .kb-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-top: 4px;
+  }
+  
+  .kb-stat {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 13px;
+    color: #606266;
+  }
+  
+  .kb-update-time {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 13px;
+    color: #909399;
+  }
+  
+  .kb-actions {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr); /* 确保两列等宽 */
+    gap: 8px;
+    margin-top: 8px;
+  }
+
+  /* 确保按钮文本居中 */
+  .kb-actions .el-button {
+    width: 100%; /* 让按钮填满单元格 */
+    justify-content: center; /* 按钮内容居中 */
+  }
+  
+  .pagination {
+    display: flex;
+    justify-content: center;
+    margin-top: 30px;
+  }
+  
+  .share-dialog-content {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  
+  .share-tip {
+    font-size: 12px;
+    color: #909399;
+    text-align: center;
+    margin: 0;
+  }
+
+  .kb-detail-container {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .kb-files {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .kb-files-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .empty-files {
+    text-align: center;
+  }
+
+  .file-preview {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    background-color: #f5f5f5;
+    padding: 20px;
+    border-radius: 8px;
+    overflow: auto;
+  }
+
+  .empty-preview {
+    text-align: center;
+  }
+
+  .el-form-item-description {
+    color: #909399;
+    font-size: 12px;
+    margin-top: 4px;
+  }
+  
+  /* 添加媒体查询，在小屏幕上调整布局 */
+  @media screen and (max-width: 768px) {
+    .kb-grid {
+      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    }
+    
+    .kb-actions {
+      grid-template-columns: 1fr;
+    }
+  }
+  </style>

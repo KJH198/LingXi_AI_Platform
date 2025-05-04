@@ -100,6 +100,11 @@ const routes: RouteRecordRaw[] = [
     component: () => import('../views/AgentEditor.vue'),
     meta: { requiresAuth: true }
   },
+  {
+    path: '/my-knowledgebases',
+    name: 'MyKnowledgebases',
+    component: () => import('../views/MyKnowledgeBase.vue'),
+  }
 ]
 
 const router = createRouter({

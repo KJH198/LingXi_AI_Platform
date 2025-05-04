@@ -1,16 +1,19 @@
 from django.shortcuts import render
 from django.http import JsonResponse
 from django.core.paginator import Paginator
-from django.db.models import Q
+from django.db.models import Q, Count, F
 from django.utils import timezone
+from django.contrib.auth import get_user_model
 from datetime import timedelta
-from .models import Post, PostImage, PostLike, PostFavorite, PostComment, PostAgent, PostKnowledgeBase
-from user.models import User
+
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework import status
-from django.contrib.auth import get_user_model
-from user.models import PublishedAgent
+from rest_framework import generics, permissions, status
+from rest_framework.pagination import PageNumberPagination
+
+from .models import Post, PostImage, PostLike, PostFavorite, PostComment, PostAgent, PostKnowledgeBase
+from .serializers import HotAgentSerializer, HotKnowledgeBaseSerializer
+from user.models import User, PublishedAgent
 from knowledge_base.models import KnowledgeBase
 
 User = get_user_model()
@@ -415,4 +418,100 @@ class SearchView(APIView):
             'total': total
         }
 
+class HotItemsPagination(PageNumberPagination):
+    page_size = 10
+    page_size_query_param = 'size'
+    max_page_size = 100
 
+# 热门智能体视图
+class HotAgentsView(generics.ListAPIView):
+    serializer_class = HotAgentSerializer
+    pagination_class = HotItemsPagination
+    
+    def get_queryset(self):
+        # 只获取已审核通过的智能体
+        return PublishedAgent.objects.filter(
+            status='approved', 
+            is_active=True
+        ).annotate(
+            # 计算热度分数：浏览量 + 点赞数*2 + 关注者数*3
+            popularity_score=F('views') + Count('likes')*2 + Count('followers')*3
+        ).order_by('-popularity_score', '-created_at')
+    
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        page = self.paginate_queryset(queryset)
+        
+        if page is not None:
+            # 标记当前用户是否已关注
+            user = request.user
+            if user.is_authenticated:
+                for agent in page:
+                    agent.is_followed = agent.followers.filter(id=user.id).exists()
+            
+            serializer = self.get_serializer(page, many=True)
+            return Response({
+                "code": 200,
+                "message": "success",
+                "data": {
+                    "items": serializer.data,
+                    "total": self.paginator.page.paginator.count
+                }
+            })
+        
+        serializer = self.get_serializer(queryset, many=True)
+        return Response({
+            "code": 200,
+            "message": "success",
+            "data": {
+                "items": serializer.data,
+                "total": len(serializer.data)
+            }
+        })
+
+# 热门知识库视图
+class HotKnowledgeBasesView(generics.ListAPIView):
+    serializer_class = HotKnowledgeBaseSerializer
+    pagination_class = HotItemsPagination
+    
+    def get_queryset(self):
+        # 热门知识库排序逻辑
+        return KnowledgeBase.objects.annotate(
+            # 文件数量
+            file_count=Count('files'),
+            # 关注者数量
+            follower_count=Count('followers'),
+            # 计算热度分数
+            popularity_score=F('views') + Count('followers')*2 + Count('files')
+        ).order_by('-popularity_score', '-updated_at')
+    
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        page = self.paginate_queryset(queryset)
+        
+        if page is not None:
+            # 标记当前用户是否已关注
+            user = request.user
+            if user.is_authenticated:
+                for kb in page:
+                    kb.is_followed = kb.followers.filter(id=user.id).exists()
+            
+            serializer = self.get_serializer(page, many=True)
+            return Response({
+                "code": 200,
+                "message": "success",
+                "data": {
+                    "items": serializer.data,
+                    "total": self.paginator.page.paginator.count
+                }
+            })
+        
+        serializer = self.get_serializer(queryset, many=True)
+        return Response({
+            "code": 200,
+            "message": "success",
+            "data": {
+                "items": serializer.data,
+                "total": len(serializer.data)
+            }
+        })

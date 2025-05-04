@@ -2,54 +2,66 @@
   <div class="my-agent-container">
     <el-container>
       <el-header class="header">
+          <el-button 
+            @click="router.push('/community')" 
+            type="primary" 
+            plain
+            size="medium"
+            icon="ArrowLeft"
+          >
+            返回社区
+          </el-button>
         <h2>我的智能体</h2>
         <el-button type="primary" @click="router.push('/agent-editor')">创建新智能体</el-button>
       </el-header>
 
       <el-main>
         <div class="agent-grid">
-          <el-card v-for="agent in agents" :key="agent.id" class="agent-card">
-            <template #header>
-              <div class="agent-header">
-                <h3>{{ agent.name }}</h3>
-                <el-dropdown>
-                  <el-button type="text">
-                    <el-icon><More /></el-icon>
-                  </el-button>
-                  <template #dropdown>
-                    <el-dropdown-menu>
-                      <el-dropdown-item @click="editAgent(agent)">编辑</el-dropdown-item>
-                      <el-dropdown-item @click="deleteAgent(agent)">删除</el-dropdown-item>
-                      <el-dropdown-item @click="shareAgent(agent)">分享</el-dropdown-item>
-                    </el-dropdown-menu>
-                  </template>
-                </el-dropdown>
-              </div>
-            </template>
+          <el-card v-for="agent in agents" :key="agent.id" class="agent-card" shadow="hover">
             <div class="agent-content">
+              <!-- 智能体封面图 -->
               <el-image 
                 :src="agent.coverImage" 
                 fit="cover" 
                 class="agent-cover"
+                @click="viewAgentDetails(agent)"
               />
-              <p class="agent-description">{{ agent.description }}</p>
-              <div class="agent-stats">
-                <span>
-                  <el-icon><View /></el-icon>
-                  {{ agent.views }}
-                </span>
-                <span>
-                  <el-icon><Star /></el-icon>
-                  {{ agent.likes }}
-                </span>
-                <span>
-                  <el-icon><ChatDotRound /></el-icon>
-                  {{ agent.comments }}
-                </span>
+              
+              <!-- 智能体名称和描述 -->
+              <div class="agent-info">
+                <h3 class="agent-name">{{ agent.name }}</h3>
+                <p class="agent-description">{{ agent.description }}</p>
+              </div>
+              
+              <!-- 操作按钮 -->
+              <div class="agent-actions">
+                <el-button type="primary" size="small" @click="router.push(`/chat/${agent.id}`)">
+                  <el-icon class="el-icon--left"><ChatDotRound /></el-icon>对话
+                </el-button>
+                <el-button type="warning" size="small" @click="editAgent(agent)">
+                  <el-icon class="el-icon--left"><Edit /></el-icon>编辑
+                </el-button>
+                <el-button type="danger" size="small" @click="deleteAgent(agent)">
+                  <el-icon class="el-icon--left"><Delete /></el-icon>删除
+                </el-button>
+                <el-button type="info" size="small" @click="shareAgent(agent)">
+                  <el-icon class="el-icon--left"><Share /></el-icon>分享
+                </el-button>
               </div>
             </div>
           </el-card>
         </div>
+        
+        <!-- 空状态展示 -->
+        <el-empty 
+          v-if="agents.length === 0" 
+          description="暂无智能体" 
+          :image-size="200"
+        >
+          <el-button type="primary" @click="router.push('/agent-editor')">
+            <el-icon class="el-icon--left"><Plus /></el-icon>创建第一个智能体
+          </el-button>
+        </el-empty>
 
         <!-- 分页 -->
         <div class="pagination">
@@ -72,7 +84,17 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { More, View, Star, ChatDotRound } from '@element-plus/icons-vue'
+import { 
+  More, 
+  View, 
+  Star, 
+  ChatDotRound, 
+  ArrowLeft, 
+  Edit, 
+  Delete, 
+  Share, 
+  Plus 
+} from '@element-plus/icons-vue'
 
 const router = useRouter()
 const agents = ref([])
@@ -217,28 +239,86 @@ const editAgent = async (agent) => {
 // 删除智能体
 const deleteAgent = (agent) => {
   ElMessageBox.confirm(
-    '确定要删除该智能体吗？',
-    '警告',
+    `确定要删除智能体 "${agent.name}" 吗？此操作不可恢复。`,
+    '删除确认',
     {
-      confirmButtonText: '确定',
+      confirmButtonText: '确定删除',
       cancelButtonText: '取消',
-      type: 'warning'
+      type: 'warning',
+      distinguishCancelAndClose: true,
+      closeOnClickModal: false
     }
   ).then(async () => {
     try {
-      // TODO: 调用后端API删除智能体
-      ElMessage.success('删除成功')
-      fetchAgents()
+      const token = localStorage.getItem('token')
+      if (!token) {
+        ElMessage.error('请先登录')
+        router.push('/login')
+        return
+      }
+
+      // 调用后端API删除智能体
+      const response = await fetch(`/user/agent/${agent.id}/delete`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+      
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.message || '删除智能体失败')
+      }
+      
+      const result = await response.json()
+      
+      if (result.code === 200) {
+        ElMessage.success(result.message || '智能体删除成功')
+        // 重新加载智能体列表
+        fetchAgents()
+      } else {
+        throw new Error(result.message || '删除智能体失败')
+      }
     } catch (error) {
-      ElMessage.error('删除失败')
+      console.error('删除智能体失败:', error)
+      ElMessage.error(`删除失败: ${error.message || '请稍后重试'}`)
+    }
+  }).catch(action => {
+    if (action !== 'cancel') {
+      console.error('删除对话框出错:', action)
     }
   })
 }
 
 // 分享智能体
 const shareAgent = (agent) => {
-  // TODO: 实现分享功能
-  ElMessage.success('分享链接已复制到剪贴板')
+  // 实现分享功能
+  try {
+    // 构建分享链接
+    const shareUrl = `${window.location.origin}/agent/${agent.id}`
+    
+    // 尝试使用 Navigator Clipboard API
+    navigator.clipboard.writeText(shareUrl)
+      .then(() => {
+        ElMessage.success('分享链接已复制到剪贴板')
+      })
+      .catch(() => {
+        // 回退方法（用于不支持 clipboard API 的浏览器）
+        const textarea = document.createElement('textarea')
+        textarea.value = shareUrl
+        textarea.style.position = 'fixed'
+        document.body.appendChild(textarea)
+        textarea.focus()
+        textarea.select()
+        document.execCommand('copy')
+        document.body.removeChild(textarea)
+        ElMessage.success('分享链接已复制到剪贴板')
+      })
+  } catch (error) {
+    console.error('分享失败:', error)
+    ElMessage.error('分享失败，请手动复制链接')
+  }
 }
 
 // 分页处理
