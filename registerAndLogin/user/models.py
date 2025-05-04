@@ -281,3 +281,20 @@ class PublishedAgent(models.Model):
 
     def __str__(self):
         return f'{self.name} (by {self.creator.username})'
+
+class AgentComment(models.Model):
+    """智能体评论"""
+    agent = models.ForeignKey(PublishedAgent, on_delete=models.CASCADE, related_name='agent_comments', verbose_name='智能体')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='agent_comments', verbose_name='评论者')
+    content = models.TextField(verbose_name='评论内容')
+    parent = models.ForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='replies', verbose_name='父评论')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')
+    likes = models.ManyToManyField(User, related_name='liked_agent_comments', blank=True, verbose_name='点赞用户')
+
+    class Meta:
+        verbose_name = '智能体评论'
+        verbose_name_plural = '智能体评论'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'{self.user.username} 评论了 {self.agent.name}'

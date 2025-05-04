@@ -16,11 +16,15 @@ import os
 from django.conf import settings
 from django.utils import timezone
 import time
-from .models import PublishedAgent, UserActionLog
+from .models import (
+    User, UserActionLog, PublishedAgent, AgentComment,
+    # ... 其他导入 ...
+)
 from knowledge_base.models import KnowledgeBase
 from django.core.paginator import Paginator
 from community.models import Post, PostImage, PostAgent, PostKnowledgeBase
 from community.models import PostLike, PostFavorite, PostComment
+# from community.models import PostComment as AgentComment
 # from community.models import Post
 
 @csrf_exempt
@@ -2247,6 +2251,34 @@ class AgentDetailView(APIView):
             # 获取当前用户（如果已登录）
             user = request.user if request.user.is_authenticated else None
             
+            # 获取评论列表
+            comments = []
+            for comment in agent.agent_comments.filter(parent=None).order_by('-created_at'):
+                comments.append({
+                    'id': str(comment.id),
+                    'user': {
+                        'id': comment.user.id,
+                        'username': comment.user.username,
+                        'avatar': comment.user.avatar if hasattr(comment.user, 'avatar') else None
+                    },
+                    'time': comment.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                    'content': comment.content,
+                    'likes': comment.likes.count(),
+                    'replies': [
+                        {
+                            'id': str(reply.id),
+                            'user': {
+                                'id': reply.user.id,
+                                'username': reply.user.username,
+                                'avatar': reply.user.avatar if hasattr(reply.user, 'avatar') else None
+                            },
+                            'time': reply.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                            'content': reply.content,
+                            'likes': reply.likes.count()
+                        } for reply in comment.replies.all().order_by('created_at')
+                    ]
+                })
+            
             # 构建响应数据
             data = {
                 'id': str(agent.id),
@@ -2277,7 +2309,8 @@ class AgentDetailView(APIView):
                         'followCount': kb.followers.count(),
                         'isFollowed': user in kb.followers.all() if user else False
                     } for kb in agent.knowledge_bases.all()
-                ]
+                ],
+                'comments': comments
             }
             
             # 增加浏览量
@@ -2365,5 +2398,328 @@ class KnowledgeBaseDetailView(APIView):
             return Response({
                 'code': 500,
                 'message': f'获取知识库详情失败: {str(e)}',
+                'data': None
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class AgentCommentView(APIView):
+    """智能体评论视图"""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, agentId):
+        try:
+            # 获取智能体
+            try:
+                agent = PublishedAgent.objects.get(id=agentId)
+            except PublishedAgent.DoesNotExist:
+                return Response({
+                    'code': 404,
+                    'message': '智能体不存在',
+                    'data': None
+                }, status=status.HTTP_404_NOT_FOUND)
+
+            # 获取评论内容
+            content = request.data.get('content')
+            if not content:
+                return Response({
+                    'code': 400,
+                    'message': '评论内容不能为空',
+                    'data': None
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            # 验证评论长度
+            if len(content) > 500:
+                return Response({
+                    'code': 400,
+                    'message': '评论内容不能超过500个字符',
+                    'data': None
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            # 获取父评论ID
+            parent_comment_id = request.data.get('parentCommentId')
+            parent_comment = None
+            if parent_comment_id:
+                try:
+                    parent_comment = AgentComment.objects.get(id=parent_comment_id, agent=agent)
+                except AgentComment.DoesNotExist:
+                    return Response({
+                        'code': 404,
+                        'message': '父评论不存在',
+                        'data': None
+                    }, status=status.HTTP_404_NOT_FOUND)
+
+            # 创建评论
+            comment = AgentComment.objects.create(
+                agent=agent,
+                user=request.user,
+                content=content,
+                parent=parent_comment
+            )
+
+            # 构建响应数据
+            response_data = {
+                'commentId': str(comment.id),
+                'user': {
+                    'id': request.user.id,
+                    'username': request.user.username,
+                    'avatar': request.user.avatar if hasattr(request.user, 'avatar') else None
+                },
+                'time': comment.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                'content': comment.content,
+                'likes': 0,
+                'replies': []
+            }
+
+            # 记录用户行为
+            UserActionLog.objects.create(
+                user=request.user,
+                action='comment_agent',
+                target_id=agent.id,
+                target_type='agent',
+                ip_address=request.META.get('REMOTE_ADDR'),
+            )
+
+            return Response({
+                'code': 200,
+                'message': '评论提交成功',
+                'data': response_data
+            })
+
+        except Exception as e:
+            print(f"评论提交失败: {str(e)}")  # 添加错误日志
+            return Response({
+                'code': 500,
+                'message': f'评论提交失败: {str(e)}',
+                'data': None
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class AgentCommentLikeView(APIView):
+    """智能体评论点赞视图"""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, commentId):
+        try:
+            # 获取评论
+            try:
+                comment = AgentComment.objects.get(id=commentId)
+            except AgentComment.DoesNotExist:
+                return Response({
+                    'code': 404,
+                    'message': '评论不存在',
+                    'data': None
+                }, status=status.HTTP_404_NOT_FOUND)
+
+            # 检查是否已经点赞
+            if comment.likes.filter(id=request.user.id).exists():
+                return Response({
+                    'code': 400,
+                    'message': '已经点赞过了',
+                    'data': None
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            # 添加点赞
+            comment.likes.add(request.user)
+
+            # 记录用户行为
+            UserActionLog.objects.create(
+                user=request.user,
+                action='like_comment',
+                target_id=comment.id,
+                target_type='comment',
+                ip_address=request.META.get('REMOTE_ADDR'),
+            )
+
+            return Response({
+                'code': 200,
+                'message': '点赞成功',
+                'data': {
+                    'commentId': comment.id,
+                    'likes': comment.likes.count()
+                }
+            })
+
+        except Exception as e:
+            return Response({
+                'code': 500,
+                'message': f'点赞失败：{str(e)}',
+                'data': None
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class AgentLikeView(APIView):
+    """智能体点赞视图"""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, agentId):
+        """点赞智能体"""
+        try:
+            # 获取智能体
+            try:
+                agent = PublishedAgent.objects.get(id=agentId)
+            except PublishedAgent.DoesNotExist:
+                return Response({
+                    'code': 404,
+                    'message': '智能体不存在',
+                    'data': None
+                }, status=status.HTTP_404_NOT_FOUND)
+
+            # 检查是否已经点赞
+            if agent.likes.filter(id=request.user.id).exists():
+                return Response({
+                    'code': 400,
+                    'message': '已经点赞过了',
+                    'data': None
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            # 添加点赞
+            agent.likes.add(request.user)
+
+            # 记录用户行为
+            UserActionLog.objects.create(
+                user=request.user,
+                action='like_agent',
+                target_id=agent.id,
+                target_type='agent',
+                ip_address=request.META.get('REMOTE_ADDR'),
+            )
+
+            return Response({
+                'code': 200,
+                'message': '点赞成功',
+                'data': {
+                    'agentId': str(agent.id),
+                    'likes': agent.likes.count(),
+                    'isLiked': True
+                }
+            })
+
+        except Exception as e:
+            return Response({
+                'code': 500,
+                'message': f'点赞失败：{str(e)}',
+                'data': None
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def delete(self, request, agentId):
+        """取消点赞智能体"""
+        try:
+            # 获取智能体
+            try:
+                agent = PublishedAgent.objects.get(id=agentId)
+            except PublishedAgent.DoesNotExist:
+                return Response({
+                    'code': 404,
+                    'message': '智能体不存在',
+                    'data': None
+                }, status=status.HTTP_404_NOT_FOUND)
+
+            # 检查是否已经点赞
+            if not agent.likes.filter(id=request.user.id).exists():
+                return Response({
+                    'code': 400,
+                    'message': '还没有点赞',
+                    'data': None
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            # 取消点赞
+            agent.likes.remove(request.user)
+
+            # 记录用户行为
+            UserActionLog.objects.create(
+                user=request.user,
+                action='unlike_agent',
+                target_id=agent.id,
+                target_type='agent',
+                ip_address=request.META.get('REMOTE_ADDR'),
+            )
+
+            return Response({
+                'code': 200,
+                'message': '取消点赞成功',
+                'data': {
+                    'agentId': str(agent.id),
+                    'likes': agent.likes.count(),
+                    'isLiked': False
+                }
+            })
+
+        except Exception as e:
+            return Response({
+                'code': 500,
+                'message': f'取消点赞失败：{str(e)}',
+                'data': None
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class AgentCommentReplyView(APIView):
+    """智能体评论回复视图"""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, commentId):
+        try:
+            # 获取父评论
+            try:
+                parent_comment = AgentComment.objects.get(id=commentId)
+            except AgentComment.DoesNotExist:
+                return Response({
+                    'code': 404,
+                    'message': '评论不存在',
+                    'data': None
+                }, status=status.HTTP_404_NOT_FOUND)
+
+            # 获取回复内容
+            content = request.data.get('content')
+            if not content:
+                return Response({
+                    'code': 400,
+                    'message': '回复内容不能为空',
+                    'data': None
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            # 验证回复长度
+            if len(content) > 500:
+                return Response({
+                    'code': 400,
+                    'message': '回复内容不能超过500个字符',
+                    'data': None
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            # 创建回复
+            reply = AgentComment.objects.create(
+                agent=parent_comment.agent,
+                user=request.user,
+                content=content,
+                parent=parent_comment
+            )
+
+            # 记录用户行为
+            UserActionLog.objects.create(
+                user=request.user,
+                action='reply_comment',
+                target_id=parent_comment.id,
+                target_type='comment',
+                ip_address=request.META.get('REMOTE_ADDR'),
+            )
+
+            # 构建响应数据
+            response_data = {
+                'replyId': reply.id,
+                'user': {
+                    'id': request.user.id,
+                    'username': request.user.username,
+                    'avatar': request.user.avatar if hasattr(request.user, 'avatar') else None
+                },
+                'time': reply.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                'content': reply.content,
+                'likes': 0
+            }
+
+            return Response({
+                'code': 200,
+                'message': '回复提交成功',
+                'data': response_data
+            })
+
+        except Exception as e:
+            return Response({
+                'code': 500,
+                'message': f'回复提交失败：{str(e)}',
                 'data': None
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
