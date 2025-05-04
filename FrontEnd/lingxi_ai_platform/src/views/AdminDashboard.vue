@@ -1188,6 +1188,7 @@ const handleSizeChange = (val) => {
 
 const handleCurrentChange = (val) => {
   currentPage.value = val
+  console.log("==== handleCurrentChange", val)
   handleUserSearch()
 }
 
