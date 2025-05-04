@@ -26,7 +26,9 @@ from rest_framework_simplejwt.views import (
     TokenVerifyView,
 )
 
-from user.views import AgentDetailView, KnowledgeBaseDetailView
+from user.views import AgentDetailView, KnowledgeBaseDetailView, AgentCommentView, AgentCommentLikeView, \
+    AgentFollowView, KnowledgeBaseFollowView, AgentLikeView, AgentCommentReplyView, KnowledgeBaseLikeView, \
+    KnowledgeBaseCommentView, AgentRestoreView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -39,7 +41,16 @@ urlpatterns = [
     path('community/', include('community.urls')),
 
     path('agent/<int:agentId>/detail/', AgentDetailView.as_view(), name='agent_detail'),
+    path('agent/<int:agentId>/comment/', AgentCommentView.as_view(), name='agent_comment'),
+    path('agent/<int:agentId>/follow/', AgentFollowView.as_view(), name='agent_follow_alt'),
+    path('agent/<int:agentId>/like/', AgentLikeView.as_view(), name='agent_like'),
+    path('agent/restore/', AgentRestoreView.as_view(), name='agent_restore'),
+    path('comment/<int:commentId>/like/', AgentCommentLikeView.as_view(), name='agent_comment_like'),
+    path('comment/<int:commentId>/reply/', AgentCommentReplyView.as_view(), name='agent_comment_reply'),
     path('knowledge-base/<int:kbId>/detail/', KnowledgeBaseDetailView.as_view(), name='knowledge_base_detail'),
+    path('knowledge-base/<int:kbId>/follow/', KnowledgeBaseFollowView.as_view(), name='knowledge_base_follow_alt'),
+    path('knowledge-base/<int:kbId>/like/', KnowledgeBaseLikeView.as_view(), name='knowledge_base_like'),
+    path('knowledge-base/<int:kbId>/comment/', KnowledgeBaseCommentView.as_view(), name='knowledge_base_comment'),
 ]
 
 # 开发环境下添加静态文件URL配置
