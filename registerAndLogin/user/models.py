@@ -42,6 +42,7 @@ class User(AbstractBaseUser):
     created_at = models.DateTimeField(default=timezone.now, verbose_name='创建时间')
     updated_at = models.DateTimeField(default=timezone.now, verbose_name='最后一次看公告的时间')
     last_login = models.DateTimeField(null=True, blank=True, verbose_name='最后登录时间')
+    online_duration = models.DurationField(default=timezone.timedelta, verbose_name='今日在线时长')
     ban_type = models.CharField(
         max_length=20,
         choices=[

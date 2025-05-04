@@ -16,6 +16,7 @@ import os
 from django.conf import settings
 from django.utils import timezone
 import time
+from datetime import timedelta
 from .models import (
     User, UserActionLog, PublishedAgent, AgentComment,
     # ... 其他导入 ...
@@ -139,6 +140,11 @@ def user_login(request):
                     'success': False,
                     'message': '账号封禁中：' + reason
                 })
+                
+            # 验证上次登录是否在今天
+            if user.last_login and user.last_login.date() != timezone.now().date() or user.online_duration is None:
+                user.online_duration = timezone.timedelta()  # 重置在线时长
+                user.save()
 
             # 生成 JWT token
             refresh = RefreshToken.for_user(user)
@@ -199,6 +205,9 @@ def user_logout(request, user_id=None):
                 target_id=request.user.id,
                 target_type='user'
             )
+        user = User.objects.filter(id=user_id).first()
+        user.online_duration += timedelta(seconds=(time.time() - user.last_login.timestamp()))
+        user.save()
         try:
             return JsonResponse({
                 'code': 200
