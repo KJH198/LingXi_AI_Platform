@@ -1370,10 +1370,18 @@ class UserLoginRecordView(APIView):
             total_login_times = 0
             total_online_duration = timezone.timedelta()
             total_unexpected_operation_times = 0
-            for user in User.objects.all():
-                total_login_times += user.login_times
-                total_online_duration += user.online_duration
-                total_unexpected_operation_times += user.unexpected_operation_times
+            if user_id:
+                # 计算特定用户的登录次数、在线时长和异常操作次数
+                user = User.objects.get(id=user_id)
+                total_login_times = user.login_times
+                total_online_duration = user.online_duration
+                total_unexpected_operation_times = user.unexpected_operation_times
+            else:
+                # 计算所有用户的登录次数、在线时长和异常操作次数
+                for user in User.objects.all():
+                    total_login_times += user.login_times
+                    total_online_duration += user.online_duration
+                    total_unexpected_operation_times += user.unexpected_operation_times
             
             # 分页处理
             paginator = Paginator(records, page_size)
