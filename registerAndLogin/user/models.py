@@ -84,6 +84,8 @@ class User(AbstractBaseUser):
 
     def unfollow(self, user):
         """取消关注用户"""
+        if not self.is_following(user):
+            raise ValueError("还未关注该用户")
         self.following.remove(user)
         return True
 

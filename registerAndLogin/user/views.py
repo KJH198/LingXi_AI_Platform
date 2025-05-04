@@ -2887,3 +2887,230 @@ class KnowledgeBaseCommentView(APIView):
                 'message': f'评论提交失败: {str(e)}',
                 'data': None
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class AgentRestoreView(APIView):
+    """智能体恢复视图"""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        try:
+            # 获取智能体ID
+            agent_id = request.data.get('agentId')
+            if not agent_id:
+                return Response({
+                    'code': 400,
+                    'message': '智能体ID不能为空',
+                    'data': None
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            # 获取智能体
+            try:
+                agent = PublishedAgent.objects.get(id=agent_id)
+            except PublishedAgent.DoesNotExist:
+                return Response({
+                    'code': 404,
+                    'message': '智能体不存在',
+                    'data': None
+                }, status=status.HTTP_404_NOT_FOUND)
+
+            # 检查权限（只有创建者可以恢复）
+            if agent.creator != request.user:
+                return Response({
+                    'code': 403,
+                    'message': '无权恢复该智能体',
+                    'data': None
+                }, status=status.HTTP_403_FORBIDDEN)
+
+            # 获取智能体详细信息
+            data = {
+                'id': str(agent.id),
+                'name': agent.name,
+                'description': agent.description,
+                'creator': {
+                    'id': agent.creator.id,
+                    'username': agent.creator.username,
+                    'avatar': agent.creator.avatar if hasattr(agent.creator, 'avatar') else None
+                },
+                'views': agent.views,
+                'likes': agent.likes.count(),
+                'followers': agent.followers.count(),
+                'isFollowed': request.user in agent.followers.all(),
+                'isLiked': request.user in agent.likes.all(),
+                'avatar': agent.avatar,
+                'modelId': agent.model_id,
+                'workflowId': agent.workflow_id,
+                'status': agent.status,
+                'createdAt': agent.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                'updatedAt': agent.updated_at.strftime('%Y-%m-%d %H:%M:%S'),
+                'knowledgeBases': [
+                    {
+                        'id': str(kb.id),
+                        'name': kb.name,
+                        'description': kb.description,
+                        'fileCount': kb.files.count() if hasattr(kb, 'files') else 0,
+                        'followCount': kb.followers.count(),
+                        'isFollowed': request.user in kb.followers.all()
+                    } for kb in agent.knowledge_bases.all()
+                ],
+                'comments': [
+                    {
+                        'id': str(comment.id),
+                        'user': {
+                            'id': comment.user.id,
+                            'username': comment.user.username,
+                            'avatar': comment.user.avatar if hasattr(comment.user, 'avatar') else None
+                        },
+                        'time': comment.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                        'content': comment.content,
+                        'likes': comment.likes.count(),
+                        'replies': [
+                            {
+                                'id': str(reply.id),
+                                'user': {
+                                    'id': reply.user.id,
+                                    'username': reply.user.username,
+                                    'avatar': reply.user.avatar if hasattr(reply.user, 'avatar') else None
+                                },
+                                'time': reply.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                                'content': reply.content,
+                                'likes': reply.likes.count()
+                            } for reply in comment.replies.all().order_by('created_at')
+                        ]
+                    } for comment in agent.agent_comments.filter(parent=None).order_by('-created_at')
+                ]
+            }
+
+            # 记录用户行为
+            UserActionLog.objects.create(
+                user=request.user,
+                action='restore_agent',
+                target_id=agent.id,
+                target_type='agent',
+                ip_address=request.META.get('REMOTE_ADDR'),
+            )
+
+            return Response({
+                'code': 200,
+                'message': '获取智能体信息成功',
+                'data': data
+            })
+
+        except Exception as e:
+            print(f"获取智能体信息失败: {str(e)}")  # 添加错误日志
+            return Response({
+                'code': 500,
+                'message': f'获取智能体信息失败: {str(e)}',
+                'data': None
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class UserFollowView(APIView):
+    """用户关注视图"""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, userId):
+        """关注用户"""
+        try:
+            # 获取目标用户
+            try:
+                target_user = User.objects.get(id=userId)
+            except User.DoesNotExist:
+                return Response({
+                    'code': 404,
+                    'message': '用户不存在',
+                    'data': None
+                }, status=status.HTTP_404_NOT_FOUND)
+
+            # 检查是否是自己
+            if target_user == request.user:
+                return Response({
+                    'code': 400,
+                    'message': '不能关注自己',
+                    'data': None
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            # 检查是否已经关注
+            if request.user.is_following(target_user):
+                return Response({
+                    'code': 400,
+                    'message': '已经关注过该用户',
+                    'data': None
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            # 添加关注
+            request.user.follow(target_user)
+
+            # 记录用户行为
+            UserActionLog.objects.create(
+                user=request.user,
+                action='follow_user',
+                target_id=target_user.id,
+                target_type='user',
+                ip_address=request.META.get('REMOTE_ADDR'),
+            )
+
+            return Response({
+                'code': 200,
+                'message': '关注成功',
+                'data': None
+            })
+
+        except Exception as e:
+            print(f"关注用户失败: {str(e)}")  # 添加错误日志
+            return Response({
+                'code': 500,
+                'message': f'关注用户失败: {str(e)}',
+                'data': None
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def delete(self, request, userId):
+        """取消关注用户"""
+        try:
+            # 获取目标用户
+            try:
+                target_user = User.objects.get(id=userId)
+            except User.DoesNotExist:
+                return Response({
+                    'code': 404,
+                    'message': '用户不存在',
+                    'data': None
+                }, status=status.HTTP_404_NOT_FOUND)
+
+            try:
+                # 取消关注
+                request.user.unfollow(target_user)
+            except ValueError as e:
+                return Response({
+                    'code': 400,
+                    'message': str(e),
+                    'data': None
+                }, status=status.HTTP_400_BAD_REQUEST)
+            except Exception as e:
+                print(f"取消关注操作失败: {str(e)}")
+                return Response({
+                    'code': 500,
+                    'message': '取消关注失败',
+                    'data': None
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+            # 记录用户行为
+            UserActionLog.objects.create(
+                user=request.user,
+                action='unfollow_user',
+                target_id=target_user.id,
+                target_type='user',
+                ip_address=request.META.get('REMOTE_ADDR'),
+            )
+
+            return Response({
+                'code': 200,
+                'message': '已取消关注',
+                'data': None
+            })
+
+        except Exception as e:
+            print(f"取消关注用户失败: {str(e)}")  # 添加错误日志
+            return Response({
+                'code': 500,
+                'message': f'取消关注用户失败: {str(e)}',
+                'data': None
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

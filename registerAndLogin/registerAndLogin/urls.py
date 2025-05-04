@@ -28,7 +28,7 @@ from rest_framework_simplejwt.views import (
 
 from user.views import AgentDetailView, KnowledgeBaseDetailView, AgentCommentView, AgentCommentLikeView, \
     AgentFollowView, KnowledgeBaseFollowView, AgentLikeView, AgentCommentReplyView, KnowledgeBaseLikeView, \
-    KnowledgeBaseCommentView
+    KnowledgeBaseCommentView, AgentRestoreView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -44,6 +44,7 @@ urlpatterns = [
     path('agent/<int:agentId>/comment/', AgentCommentView.as_view(), name='agent_comment'),
     path('agent/<int:agentId>/follow/', AgentFollowView.as_view(), name='agent_follow_alt'),
     path('agent/<int:agentId>/like/', AgentLikeView.as_view(), name='agent_like'),
+    path('agent/restore/', AgentRestoreView.as_view(), name='agent_restore'),
     path('comment/<int:commentId>/like/', AgentCommentLikeView.as_view(), name='agent_comment_like'),
     path('comment/<int:commentId>/reply/', AgentCommentReplyView.as_view(), name='agent_comment_reply'),
     path('knowledge-base/<int:kbId>/detail/', KnowledgeBaseDetailView.as_view(), name='knowledge_base_detail'),
