@@ -665,7 +665,7 @@ const handleChat = () => {
   localStorage.setItem('currentChatAgent', JSON.stringify(chatAgentInfo))
   
   // 跳转到聊天页面
-  router.push('/chat')
+  router.push('/chat/' + agentId.value)
 }
 
 // 分享智能体
