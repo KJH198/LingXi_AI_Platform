@@ -107,6 +107,13 @@ def user_login(request):
                     'message': '用户不存在'
                 })
 
+            # 验证上次登录是否在今天
+            if user.last_login and user.last_login.date() != timezone.now().date():
+                user.online_duration = timezone.timedelta()  # 重置在线时长
+                user.login_times = 0  # 重置登录次数
+                user.unexpected_operation_times = 0  # 重置异常操作次数
+                user.save()
+                
             # 验证密码
             if not user.check_password(password):
                 UserActionLog.objects.create(
@@ -116,6 +123,8 @@ def user_login(request):
                     target_id=user.id,
                     target_type='user'
                 )
+                user.unexpected_operation_times += 1
+                user.save()
                 return JsonResponse({
                     'success': False,
                     'message': '密码错误'
@@ -141,11 +150,6 @@ def user_login(request):
                     'success': False,
                     'message': '账号封禁中：' + reason
                 })
-                
-            # 验证上次登录是否在今天
-            if user.last_login and user.last_login.date() != timezone.now().date() or user.online_duration is None:
-                user.online_duration = timezone.timedelta()  # 重置在线时长
-                user.save()
 
             # 生成 JWT token
             refresh = RefreshToken.for_user(user)
@@ -162,6 +166,9 @@ def user_login(request):
                 target_id=user.id,
                 target_type='user'
             )
+            user.last_login = timezone.now()
+            user.login_times += 1
+            user.save()
 
             return JsonResponse({
                 'success': True,
@@ -209,6 +216,7 @@ def user_logout(request, user_id=None):
         user = User.objects.filter(id=user_id).first()
         user.online_duration += timedelta(seconds=(time.time() - user.last_login.timestamp()))
         user.save()
+        print(f"User {user.username} logged out. Today online duration: {user.online_duration}")
         try:
             return JsonResponse({
                 'code': 200
@@ -1337,6 +1345,7 @@ class UserLoginRecordView(APIView):
             data = JSONParser().parse(request)
             page = data.get('page', 1)
             page_size = data.get('page_size', 20)
+            print("获取用户登录记录，当前页:", page, "每页大小:", page_size)
 
             if user_id:
                 # 查询特定用户的登录信息
@@ -1358,6 +1367,14 @@ class UserLoginRecordView(APIView):
                 for userActionLog in userActionLogs if userActionLog.action == 'login' or userActionLog.action == 'logout' or userActionLog.action == 'failed_login'
             ]
             
+            total_login_times = 0
+            total_online_duration = timezone.timedelta()
+            total_unexpected_operation_times = 0
+            for user in User.objects.all():
+                total_login_times += user.login_times
+                total_online_duration += user.online_duration
+                total_unexpected_operation_times += user.unexpected_operation_times
+            
             # 分页处理
             paginator = Paginator(records, page_size)
             try:
@@ -1366,6 +1383,9 @@ class UserLoginRecordView(APIView):
                 records_page = paginator.page(1)
 
             return Response({
+                'total_login_times': total_login_times,
+                'total_online_duration': str(total_online_duration),
+                'total_unexpected_operation_times': total_unexpected_operation_times,
                 'records': records,
                 'total': paginator.count,
                 'page': records_page.number,

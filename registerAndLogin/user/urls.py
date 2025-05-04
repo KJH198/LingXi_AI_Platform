@@ -96,7 +96,7 @@ urlpatterns = [
     # 统计用户登录时长
     path('logout/<str:user_id>', user_logout, name='user_logout'),
     
-    # 登录数据列表和搜索、操作记录数据列表和搜索、异常行为数据列表和搜索
+    # 登录数据列表和搜索、操作记录数据列表和搜索、异常行为数据列表和搜索 
     path('admin/login_records', UserLoginRecordView.as_view(), name='login_records'),
     path('admin/operation_records', UserOperationRecordsView.as_view(), name='admin_operation_records'),
     path('admin/abnormal_behaviors', UserAbnormalBehaviorsView.as_view(), name='admin_abnormal_behaviors'),
