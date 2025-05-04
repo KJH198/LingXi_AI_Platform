@@ -1193,7 +1193,7 @@
   onBeforeUnmount(() => {
     // 如果未发布，则清理临时资源
     if (!isPublished.value) {
-      cleanupTempResources()
+      // cleanupTempResources()
     }
   })
   
@@ -1202,7 +1202,7 @@
     console.log("页面离开");
     if (to.path !== '/create-ai' && agentData.avatar && agentData.avatar.includes('temp_') && !isPublished.value) {
       console.log("to.path :", to.path);
-      cleanupTempResources();
+      // cleanupTempResources();
     }
     else {
       console.log("to.path :", to.path);
@@ -1214,7 +1214,7 @@
   onMounted(() => {
     window.addEventListener('beforeunload', (event) => {
       if (!isPublished.value && agentData.avatar) {
-        cleanupTempResources()
+        // cleanupTempResources()
         // 现代浏览器通常需要返回值来显示确认对话框
         event.preventDefault()
         event.returnValue = ''

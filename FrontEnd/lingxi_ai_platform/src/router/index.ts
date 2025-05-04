@@ -94,6 +94,12 @@ const routes: RouteRecordRaw[] = [
       title: '搜索结果 - 灵犀AI社区'
     }
   },
+  {
+    path: '/agent-editor/:id',
+    name: 'AgentEditorWithId',
+    component: () => import('../views/AgentEditor.vue'),
+    meta: { requiresAuth: true }
+  },
 ]
 
 const router = createRouter({

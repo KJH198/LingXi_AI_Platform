@@ -195,8 +195,23 @@ const fetchAgents = async () => {
 }
 
 // 编辑智能体
-const editAgent = (agent) => {
-  router.push(`/agent-editor/${agent.id}`)
+const editAgent = async (agent) => {
+  try {
+    // 清除本地可能存在的旧数据
+    localStorage.removeItem('agentData')
+    localStorage.removeItem('selectedKnowledgeBases')
+    localStorage.removeItem('selectedWorkflowId')
+    
+    // 设置编辑模式标记
+    localStorage.setItem('agentEditMode', 'true')
+    localStorage.setItem('agentEditId', agent.id)
+    
+    // 跳转到编辑页面
+    router.push(`/agent-editor/${agent.id}`)
+  } catch (error) {
+    console.error('准备编辑数据失败:', error)
+    ElMessage.error('启动编辑失败，请重试')
+  }
 }
 
 // 删除智能体

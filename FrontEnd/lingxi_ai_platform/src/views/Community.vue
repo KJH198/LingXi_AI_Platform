@@ -166,7 +166,7 @@
                   :type="post.isLiked ? 'primary' : 'text'" 
                   @click="likePost(post)"
                 >
-                  <el-icon><Star /></el-icon>
+                  <el-icon><Pointer /></el-icon>
                   {{ post.likes }}
                 </el-button>
                 <el-button type="text" @click="showCommentDialog(post)">
@@ -514,6 +514,7 @@ const fetchUserInfo = async () => {
 
 // 添加搜索图标导入
 import { Search } from '@element-plus/icons-vue'
+import { Pointer } from '@element-plus/icons-vue'
 
 // 添加搜索相关状态
 const searchQuery = ref('')
@@ -1115,7 +1116,7 @@ const followUser = async (userId) => {
     }
     
     const result = await response.json()
-    if (result.code === 200) {
+    if (response.status === 200) {
       // 更新状态
       posts.value.forEach(p => {
         if (p.userId === userId) {

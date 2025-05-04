@@ -24,6 +24,7 @@ from knowledge_base.models import KnowledgeBase, KnowledgeBaseComment
 from django.core.paginator import Paginator
 from community.models import Post, PostImage, PostAgent, PostKnowledgeBase
 from community.models import PostLike, PostFavorite, PostComment
+from django.shortcuts import get_object_or_404
 # from community.models import PostComment as AgentComment
 # from community.models import Post
 # from ..knowledge_base.models import KnowledgeBase, KnowledgeBaseComment
@@ -884,15 +885,8 @@ class UserFollowingView(APIView):
                     'message': '请先登录'
                 }, status=status.HTTP_401_UNAUTHORIZED)
 
-            # 验证当前用户ID是否匹配
-            if request.user.id != user_id:
-                return Response({
-                    'success': False,
-                    'message': '无权操作其他用户的关注'
-                }, status=status.HTTP_403_FORBIDDEN)
-
             # 获取目标用户ID
-            target_user_id = request.data.get('target_user_id')
+            target_user_id = user_id
             if not target_user_id:
                 return Response({
                     'success': False,
@@ -945,15 +939,8 @@ class UserFollowingView(APIView):
                     'message': '请先登录'
                 }, status=status.HTTP_401_UNAUTHORIZED)
 
-            # 验证当前用户ID是否匹配
-            if request.user.id != user_id:
-                return Response({
-                    'success': False,
-                    'message': '无权操作其他用户的关注'
-                }, status=status.HTTP_403_FORBIDDEN)
-
             # 获取目标用户ID
-            target_user_id = request.data.get('target_user_id')
+            target_user_id = user_id
             if not target_user_id:
                 return Response({
                     'success': False,
@@ -2402,6 +2389,137 @@ class KnowledgeBaseDetailView(APIView):
                 'data': None
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+class AgentEditDetailView(APIView):
+    """获取待编辑的智能体详情"""
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request, agent_id):
+        try:
+            # 获取智能体
+            agent = get_object_or_404(PublishedAgent, id=agent_id)
+            print(f"获取智能体: {agent.name}")
+            
+            # 检查是否是创建者
+            if request.user != agent.creator:
+                return Response({
+                    'code': 403,
+                    'message': '您没有权限编辑该智能体',
+                    'data': None
+                }, status=status.HTTP_403_FORBIDDEN)
+            
+            print("检查权限通过")
+            # 组装智能体详情数据
+            agent_data = {
+                'id': str(agent.id),
+                'name': agent.name,
+                'description': agent.description,
+                'avatar': agent.avatar,  # 直接使用avatar字符串字段
+                'status': agent.status,
+                'modelId': agent.model_id,
+                'workflowId': agent.workflow_id,
+                'is_active': agent.is_active,
+                'created_at': agent.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                'updated_at': agent.updated_at.strftime('%Y-%m-%d %H:%M:%S'),
+                'knowledgeBases': [str(kb.id) for kb in agent.knowledge_bases.all()],
+                # 添加模型参数字段，如果存在的话
+                'modelParams': {
+                    'temperature': agent.temperature if hasattr(agent, 'temperature') else None,
+                    'max_tokens': agent.max_tokens if hasattr(agent, 'max_tokens') else None,
+                    'top_p': agent.top_p if hasattr(agent, 'top_p') else None
+                }
+            }
+
+            print("组装数据成功")
+            
+            return Response({
+                'code': 200,
+                'message': '获取成功',
+                'data': agent_data
+            })
+            
+        except Exception as e:
+            return Response({
+                'code': 500,
+                'message': f'获取智能体详情失败: {str(e)}',
+                'data': None
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class AgentUpdateView(APIView):
+    """更新智能体"""
+    permission_classes = [IsAuthenticated]
+    
+    def put(self, request, agent_id):
+        try:
+            # 获取智能体
+            agent = get_object_or_404(PublishedAgent, id=agent_id)
+            
+            # 检查权限
+            if request.user != agent.creator:
+                return Response({
+                    'code': 403,
+                    'message': '您没有权限编辑该智能体',
+                    'data': None
+                }, status=status.HTTP_403_FORBIDDEN)
+            
+            # 获取请求数据
+            data = request.data
+            
+            # 更新基本信息
+            if 'name' in data:
+                agent.name = data['name']
+            if 'description' in data:
+                agent.description = data['description']
+            if 'modelId' in data:
+                agent.model_id = data['modelId']
+            
+            # 更新模型参数
+            if 'modelParams' in data:
+                model_params = data['modelParams']
+                if 'temperature' in model_params:
+                    agent.temperature = model_params['temperature']
+                if 'maxTokens' in model_params:
+                    agent.max_tokens = model_params['maxTokens']
+                if 'topP' in model_params:
+                    agent.top_p = model_params['topP']
+            
+            # 更新工作流
+            if 'workflowId' in data:
+                agent.workflow_id = data['workflowId']
+            
+            # 更新知识库（多对多关系）
+            if 'knowledgeBases' in data:
+                from knowledge_base.models import KnowledgeBase
+                # 清空现有关联
+                agent.knowledge_bases.clear()
+                # 添加新关联
+                for kb_id in data['knowledgeBases']:
+                    try:
+                        kb = KnowledgeBase.objects.get(id=kb_id)
+                        agent.knowledge_bases.add(kb)
+                    except KnowledgeBase.DoesNotExist:
+                        continue
+            
+            # 保存更改
+            agent.save()
+            
+            return Response({
+                'code': 200,
+                'message': '智能体更新成功',
+                'data': {'id': str(agent.id)}
+            })
+        
+        except PublishedAgent.DoesNotExist:
+            return Response({
+                'code': 404,
+                'message': '智能体不存在',
+                'data': None
+            }, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({
+                'code': 500,
+                'message': f'更新智能体失败: {str(e)}',
+                'data': None
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 class AgentCommentView(APIView):
     """智能体评论视图"""
     permission_classes = [IsAuthenticated]
@@ -2885,5 +3003,232 @@ class KnowledgeBaseCommentView(APIView):
             return Response({
                 'code': 500,
                 'message': f'评论提交失败: {str(e)}',
+                'data': None
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class AgentRestoreView(APIView):
+    """智能体恢复视图"""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        try:
+            # 获取智能体ID
+            agent_id = request.data.get('agentId')
+            if not agent_id:
+                return Response({
+                    'code': 400,
+                    'message': '智能体ID不能为空',
+                    'data': None
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            # 获取智能体
+            try:
+                agent = PublishedAgent.objects.get(id=agent_id)
+            except PublishedAgent.DoesNotExist:
+                return Response({
+                    'code': 404,
+                    'message': '智能体不存在',
+                    'data': None
+                }, status=status.HTTP_404_NOT_FOUND)
+
+            # 检查权限（只有创建者可以恢复）
+            if agent.creator != request.user:
+                return Response({
+                    'code': 403,
+                    'message': '无权恢复该智能体',
+                    'data': None
+                }, status=status.HTTP_403_FORBIDDEN)
+
+            # 获取智能体详细信息
+            data = {
+                'id': str(agent.id),
+                'name': agent.name,
+                'description': agent.description,
+                'creator': {
+                    'id': agent.creator.id,
+                    'username': agent.creator.username,
+                    'avatar': agent.creator.avatar if hasattr(agent.creator, 'avatar') else None
+                },
+                'views': agent.views,
+                'likes': agent.likes.count(),
+                'followers': agent.followers.count(),
+                'isFollowed': request.user in agent.followers.all(),
+                'isLiked': request.user in agent.likes.all(),
+                'avatar': agent.avatar,
+                'modelId': agent.model_id,
+                'workflowId': agent.workflow_id,
+                'status': agent.status,
+                'createdAt': agent.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                'updatedAt': agent.updated_at.strftime('%Y-%m-%d %H:%M:%S'),
+                'knowledgeBases': [
+                    {
+                        'id': str(kb.id),
+                        'name': kb.name,
+                        'description': kb.description,
+                        'fileCount': kb.files.count() if hasattr(kb, 'files') else 0,
+                        'followCount': kb.followers.count(),
+                        'isFollowed': request.user in kb.followers.all()
+                    } for kb in agent.knowledge_bases.all()
+                ],
+                'comments': [
+                    {
+                        'id': str(comment.id),
+                        'user': {
+                            'id': comment.user.id,
+                            'username': comment.user.username,
+                            'avatar': comment.user.avatar if hasattr(comment.user, 'avatar') else None
+                        },
+                        'time': comment.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                        'content': comment.content,
+                        'likes': comment.likes.count(),
+                        'replies': [
+                            {
+                                'id': str(reply.id),
+                                'user': {
+                                    'id': reply.user.id,
+                                    'username': reply.user.username,
+                                    'avatar': reply.user.avatar if hasattr(reply.user, 'avatar') else None
+                                },
+                                'time': reply.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                                'content': reply.content,
+                                'likes': reply.likes.count()
+                            } for reply in comment.replies.all().order_by('created_at')
+                        ]
+                    } for comment in agent.agent_comments.filter(parent=None).order_by('-created_at')
+                ]
+            }
+
+            # 记录用户行为
+            UserActionLog.objects.create(
+                user=request.user,
+                action='restore_agent',
+                target_id=agent.id,
+                target_type='agent',
+                ip_address=request.META.get('REMOTE_ADDR'),
+            )
+
+            return Response({
+                'code': 200,
+                'message': '获取智能体信息成功',
+                'data': data
+            })
+
+        except Exception as e:
+            print(f"获取智能体信息失败: {str(e)}")  # 添加错误日志
+            return Response({
+                'code': 500,
+                'message': f'获取智能体信息失败: {str(e)}',
+                'data': None
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class UserFollowView(APIView):
+    """用户关注视图"""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, userId):
+        """关注用户"""
+        try:
+            # 获取目标用户
+            try:
+                target_user = User.objects.get(id=userId)
+            except User.DoesNotExist:
+                return Response({
+                    'code': 404,
+                    'message': '用户不存在',
+                    'data': None
+                }, status=status.HTTP_404_NOT_FOUND)
+
+            # 检查是否是自己
+            if target_user == request.user:
+                return Response({
+                    'code': 400,
+                    'message': '不能关注自己',
+                    'data': None
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            # 检查是否已经关注
+            if request.user.is_following(target_user):
+                return Response({
+                    'code': 400,
+                    'message': '已经关注过该用户',
+                    'data': None
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            # 添加关注
+            request.user.follow(target_user)
+
+            # 记录用户行为
+            UserActionLog.objects.create(
+                user=request.user,
+                action='follow_user',
+                target_id=target_user.id,
+                target_type='user',
+                ip_address=request.META.get('REMOTE_ADDR'),
+            )
+
+            return Response({
+                'code': 200,
+                'message': '关注成功',
+                'data': None
+            })
+
+        except Exception as e:
+            print(f"关注用户失败: {str(e)}")  # 添加错误日志
+            return Response({
+                'code': 500,
+                'message': f'关注用户失败: {str(e)}',
+                'data': None
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def delete(self, request, userId):
+        """取消关注用户"""
+        try:
+            # 获取目标用户
+            try:
+                target_user = User.objects.get(id=userId)
+            except User.DoesNotExist:
+                return Response({
+                    'code': 404,
+                    'message': '用户不存在',
+                    'data': None
+                }, status=status.HTTP_404_NOT_FOUND)
+
+            try:
+                # 取消关注
+                request.user.unfollow(target_user)
+            except ValueError as e:
+                return Response({
+                    'code': 400,
+                    'message': str(e),
+                    'data': None
+                }, status=status.HTTP_400_BAD_REQUEST)
+            except Exception as e:
+                print(f"取消关注操作失败: {str(e)}")
+                return Response({
+                    'code': 500,
+                    'message': '取消关注失败',
+                    'data': None
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+            # 记录用户行为
+            UserActionLog.objects.create(
+                user=request.user,
+                action='unfollow_user',
+                target_id=target_user.id,
+                target_type='user',
+                ip_address=request.META.get('REMOTE_ADDR'),
+            )
+
+            return Response({
+                'code': 200,
+                'message': '已取消关注',
+                'data': None
+            })
+
+        except Exception as e:
+            print(f"取消关注用户失败: {str(e)}")  # 添加错误日志
+            return Response({
+                'code': 500,
+                'message': f'取消关注用户失败: {str(e)}',
                 'data': None
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
