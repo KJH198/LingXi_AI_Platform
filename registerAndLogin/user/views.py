@@ -501,7 +501,7 @@ class UserDetailAPIView(APIView):
 
 class UserOperationRecordsView(APIView):
     """获取用户操作记录接口"""
-    def get(self, request, user_id=None):
+    def post(self, request, user_id=None):
         # 验证管理员权限
         if not request.user.is_admin:
             return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
@@ -544,7 +544,7 @@ class UserOperationRecordsView(APIView):
 
 class UserAbnormalBehaviorsView(APIView):
     """获取用户异常行为接口"""
-    def get(self, request):
+    def post(self, request):
         # 验证管理员权限
         if not request.user.is_admin:
             return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
@@ -1316,7 +1316,7 @@ class UserSearchView(APIView):
 
 class UserLoginRecordView(APIView):
     """用户登录记录视图"""
-    def get(self, request, user_id=None):
+    def post(self, request, user_id=None):
         try:
             # 验证管理员权限
             if not request.user.is_admin:
