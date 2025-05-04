@@ -27,7 +27,8 @@ from rest_framework_simplejwt.views import (
 )
 
 from user.views import AgentDetailView, KnowledgeBaseDetailView, AgentCommentView, AgentCommentLikeView, \
-    AgentFollowView, KnowledgeBaseFollowView, AgentLikeView, AgentCommentReplyView
+    AgentFollowView, KnowledgeBaseFollowView, AgentLikeView, AgentCommentReplyView, KnowledgeBaseLikeView, \
+    KnowledgeBaseCommentView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -47,6 +48,8 @@ urlpatterns = [
     path('comment/<int:commentId>/reply/', AgentCommentReplyView.as_view(), name='agent_comment_reply'),
     path('knowledge-base/<int:kbId>/detail/', KnowledgeBaseDetailView.as_view(), name='knowledge_base_detail'),
     path('knowledge-base/<int:kbId>/follow/', KnowledgeBaseFollowView.as_view(), name='knowledge_base_follow_alt'),
+    path('knowledge-base/<int:kbId>/like/', KnowledgeBaseLikeView.as_view(), name='knowledge_base_like'),
+    path('knowledge-base/<int:kbId>/comment/', KnowledgeBaseCommentView.as_view(), name='knowledge_base_comment'),
 ]
 
 # 开发环境下添加静态文件URL配置

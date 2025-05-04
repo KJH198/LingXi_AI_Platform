@@ -48,6 +48,8 @@ from .views import (
     AgentCommentLikeView,
     AgentLikeView,
     AgentCommentReplyView,
+    KnowledgeBaseLikeView,
+    KnowledgeBaseCommentView,
 )
 
 urlpatterns = [
@@ -119,5 +121,7 @@ urlpatterns = [
     path('follow/agent/<int:agentId>/', AgentFollowView.as_view(), name='agent_follow'),
     path('follow/knowledge-base/<int:kbId>/', KnowledgeBaseFollowView.as_view(), name='knowledge_base_follow'),
 
+    path('knowledge-base/<int:kbId>/like/', KnowledgeBaseLikeView.as_view(), name='knowledge_base_like'),
+    path('knowledge-base/<int:kbId>/comment/', KnowledgeBaseCommentView.as_view(), name='knowledge_base_comment'),
 
 ]

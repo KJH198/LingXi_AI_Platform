@@ -20,12 +20,13 @@ from .models import (
     User, UserActionLog, PublishedAgent, AgentComment,
     # ... 其他导入 ...
 )
-from knowledge_base.models import KnowledgeBase
+from knowledge_base.models import KnowledgeBase, KnowledgeBaseComment
 from django.core.paginator import Paginator
 from community.models import Post, PostImage, PostAgent, PostKnowledgeBase
 from community.models import PostLike, PostFavorite, PostComment
 # from community.models import PostComment as AgentComment
 # from community.models import Post
+# from ..knowledge_base.models import KnowledgeBase, KnowledgeBaseComment
 
 @csrf_exempt
 def register(request):
@@ -2369,7 +2370,7 @@ class KnowledgeBaseDetailView(APIView):
                 'followers': kb.followers.count(),
                 'lastUpdated': kb.created_at.strftime('%Y-%m-%d'),  # 使用创建时间作为最后更新时间
                 'isFollowed': user in kb.followers.all() if user else False,
-                'isLiked': False,  # 知识库模型中没有点赞功能
+                'isLiked': user in kb.likes.all() if user else False,
                 'tags': [],  # 知识库模型中没有标签字段
                 'scenarios': [],  # 知识库模型中没有场景字段
                 'creator': {
@@ -2721,5 +2722,168 @@ class AgentCommentReplyView(APIView):
             return Response({
                 'code': 500,
                 'message': f'回复提交失败：{str(e)}',
+                'data': None
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class KnowledgeBaseLikeView(APIView):
+    """知识库点赞视图"""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, kbId):
+        try:
+            # 获取知识库
+            try:
+                kb = KnowledgeBase.objects.get(id=int(kbId))
+            except (KnowledgeBase.DoesNotExist, ValueError):
+                return Response({
+                    'code': 404,
+                    'message': '知识库不存在'
+                }, status=status.HTTP_404_NOT_FOUND)
+            
+            # 检查是否已经点赞
+            if kb.likes.filter(id=request.user.id).exists():
+                return Response({
+                    'code': 400,
+                    'message': '已经点赞过了'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # 添加点赞
+            kb.likes.add(request.user)
+            
+            # 记录用户行为
+            UserActionLog.objects.create(
+                user=request.user,
+                action='like_knowledge_base',
+                target_id=kb.id,
+                target_type='knowledge_base',
+                ip_address=request.META.get('REMOTE_ADDR'),
+            )
+            
+            return Response({
+                'code': 200,
+                'message': '点赞成功',
+                'data': None
+            })
+            
+        except Exception as e:
+            return Response({
+                'code': 500,
+                'message': f'点赞失败：{str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def delete(self, request, kbId):
+        try:
+            # 获取知识库
+            try:
+                kb = KnowledgeBase.objects.get(id=int(kbId))
+            except (KnowledgeBase.DoesNotExist, ValueError):
+                return Response({
+                    'code': 404,
+                    'message': '知识库不存在'
+                }, status=status.HTTP_404_NOT_FOUND)
+            
+            # 检查是否已经点赞
+            if not kb.likes.filter(id=request.user.id).exists():
+                return Response({
+                    'code': 400,
+                    'message': '还没有点赞'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # 取消点赞
+            kb.likes.remove(request.user)
+            
+            # 记录用户行为
+            UserActionLog.objects.create(
+                user=request.user,
+                action='unlike_knowledge_base',
+                target_id=kb.id,
+                target_type='knowledge_base',
+                ip_address=request.META.get('REMOTE_ADDR'),
+            )
+            
+            return Response({
+                'code': 200,
+                'message': '取消点赞成功',
+                'data': None
+            })
+            
+        except Exception as e:
+            return Response({
+                'code': 500,
+                'message': f'取消点赞失败：{str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class KnowledgeBaseCommentView(APIView):
+    """知识库评论视图"""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, kbId):
+        try:
+            # 获取知识库
+            try:
+                kb = KnowledgeBase.objects.get(id=kbId)
+            except KnowledgeBase.DoesNotExist:
+                return Response({
+                    'code': 404,
+                    'message': '知识库不存在',
+                    'data': None
+                }, status=status.HTTP_404_NOT_FOUND)
+            
+            # 获取评论内容
+            content = request.data.get('content')
+            if not content:
+                return Response({
+                    'code': 400,
+                    'message': '评论内容不能为空',
+                    'data': None
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            if len(content) > 500:
+                return Response({
+                    'code': 400,
+                    'message': '评论内容不能超过500个字符',
+                    'data': None
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # 创建评论
+            comment = KnowledgeBaseComment.objects.create(
+                knowledge_base=kb,
+                user=request.user,
+                content=content
+            )
+            
+            # 记录用户行为
+            UserActionLog.objects.create(
+                user=request.user,
+                action='comment_knowledge_base',
+                target_id=kb.id,
+                target_type='knowledge_base',
+                ip_address=request.META.get('REMOTE_ADDR'),
+            )
+            
+            # 构建响应数据
+            data = {
+                'commentId': comment.id,
+                'user': {
+                    'id': request.user.id,
+                    'username': request.user.username,
+                    'avatar': request.user.avatar if hasattr(request.user, 'avatar') else None
+                },
+                'time': comment.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                'content': comment.content,
+                'likes': 0
+            }
+            
+            return Response({
+                'code': 200,
+                'message': '评论提交成功',
+                'data': data
+            })
+            
+        except Exception as e:
+            print(f"评论提交失败: {str(e)}")  # 添加错误日志
+            return Response({
+                'code': 500,
+                'message': f'评论提交失败: {str(e)}',
                 'data': None
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
