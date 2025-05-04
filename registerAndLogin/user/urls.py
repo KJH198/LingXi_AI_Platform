@@ -5,10 +5,12 @@ from .views import (
     AdminChangeAgentSataus,
     AdminGetAgents,
     AdminUnbanView,
+    CheckAnnouncements,
     CreateAnnouncement,
     DeleteAnnouncement,
     EditAnnouncement,
     GetAnnouncements,
+    Update,
     register,
     user_login,
     update_user_info,
@@ -94,10 +96,14 @@ urlpatterns = [
     path('admin/EditAnnouncement/<int:announcement_id>', EditAnnouncement.as_view(), name='update_announcement'),
     path('admin/DeleteAnnouncement/<int:announcement_id>', DeleteAnnouncement.as_view(), name='delete_announcement'),
     
+    # 验证是否需要提醒用户看公告以及更新最后一次看公告的时间
+    path('user/checkAnnouncements/<int:user_id>', CheckAnnouncements.as_view(), name='check_announcement'),
+    path('user/update/<int:user_id>', Update.as_view(), name='user_update'),
+    
     # 统计用户登录时长
     path('logout/<str:user_id>', user_logout, name='user_logout'),
     
-    # 登录数据列表和搜索、操作记录数据列表和搜索、异常行为数据列表和搜索
+    # 登录数据列表和搜索、操作记录数据列表和搜索、异常行为数据列表和搜索 
     path('admin/login_records', UserLoginRecordView.as_view(), name='login_records'),
     path('admin/operation_records', UserOperationRecordsView.as_view(), name='admin_operation_records'),
     path('admin/abnormal_behaviors', UserAbnormalBehaviorsView.as_view(), name='admin_abnormal_behaviors'),

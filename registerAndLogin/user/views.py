@@ -2,6 +2,7 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth import authenticate, login
 import json
+from rest_framework.parsers import JSONParser
 from .models import Announcement, User
 from django.shortcuts import render
 from rest_framework.views import APIView
@@ -16,6 +17,7 @@ import os
 from django.conf import settings
 from django.utils import timezone
 import time
+from datetime import timedelta
 from .models import (
     User, UserActionLog, PublishedAgent, AgentComment,
     # ... 其他导入 ...
@@ -105,6 +107,13 @@ def user_login(request):
                     'message': '用户不存在'
                 })
 
+            # 验证上次登录是否在今天
+            if user.last_login and user.last_login.date() != timezone.now().date():
+                user.online_duration = timezone.timedelta()  # 重置在线时长
+                user.login_times = 0  # 重置登录次数
+                user.unexpected_operation_times = 0  # 重置异常操作次数
+                user.save()
+                
             # 验证密码
             if not user.check_password(password):
                 UserActionLog.objects.create(
@@ -114,6 +123,8 @@ def user_login(request):
                     target_id=user.id,
                     target_type='user'
                 )
+                user.unexpected_operation_times += 1
+                user.save()
                 return JsonResponse({
                     'success': False,
                     'message': '密码错误'
@@ -155,6 +166,9 @@ def user_login(request):
                 target_id=user.id,
                 target_type='user'
             )
+            user.last_login = timezone.now()
+            user.login_times += 1
+            user.save()
 
             return JsonResponse({
                 'success': True,
@@ -199,6 +213,10 @@ def user_logout(request, user_id=None):
                 target_id=request.user.id,
                 target_type='user'
             )
+        user = User.objects.filter(id=user_id).first()
+        user.online_duration += timedelta(seconds=(time.time() - user.last_login.timestamp()))
+        user.save()
+        print(f"User {user.username} logged out. Today online duration: {user.online_duration}")
         try:
             return JsonResponse({
                 'code': 200
@@ -506,9 +524,10 @@ class UserOperationRecordsView(APIView):
         if not request.user.is_admin:
             return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
         
-        # 获取查询参数
-        page = request.query_params.get('page', 1)
-        page_size = request.query_params.get('page_size', 20)
+        # 获取查询参数(没有用默认值)
+        data = JSONParser().parse(request)
+        page = data.get('page', 1)
+        page_size = data.get('page_size', 20)
         
         if user_id:
             userActionLogs = UserActionLog.objects.filter(user_id=user_id).order_by('-created_at')
@@ -1323,8 +1342,10 @@ class UserLoginRecordView(APIView):
                 return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
             
             # 获取查询参数(没有用默认值)
-            page = request.query_params.get('page', 1)
-            page_size = request.query_params.get('page_size', 20)
+            data = JSONParser().parse(request)
+            page = data.get('page', 1)
+            page_size = data.get('page_size', 20)
+            print("获取用户登录记录，当前页:", page, "每页大小:", page_size)
 
             if user_id:
                 # 查询特定用户的登录信息
@@ -1346,6 +1367,22 @@ class UserLoginRecordView(APIView):
                 for userActionLog in userActionLogs if userActionLog.action == 'login' or userActionLog.action == 'logout' or userActionLog.action == 'failed_login'
             ]
             
+            total_login_times = 0
+            total_online_duration = timezone.timedelta()
+            total_unexpected_operation_times = 0
+            if user_id:
+                # 计算特定用户的登录次数、在线时长和异常操作次数
+                user = User.objects.get(id=user_id)
+                total_login_times = user.login_times
+                total_online_duration = user.online_duration
+                total_unexpected_operation_times = user.unexpected_operation_times
+            else:
+                # 计算所有用户的登录次数、在线时长和异常操作次数
+                for user in User.objects.all():
+                    total_login_times += user.login_times
+                    total_online_duration += user.online_duration
+                    total_unexpected_operation_times += user.unexpected_operation_times
+            
             # 分页处理
             paginator = Paginator(records, page_size)
             try:
@@ -1354,6 +1391,9 @@ class UserLoginRecordView(APIView):
                 records_page = paginator.page(1)
 
             return Response({
+                'total_login_times': total_login_times,
+                'total_online_duration': str(total_online_duration),
+                'total_unexpected_operation_times': total_unexpected_operation_times,
                 'records': records,
                 'total': paginator.count,
                 'page': records_page.number,
@@ -1377,7 +1417,7 @@ class GetAnnouncements(APIView):
                 'title': announcement.title,
                 'content': announcement.content,
                 'status': announcement.status,
-                'publish_time': announcement.publish_time.strftime('%Y-%m-%d %H:%M:%S') if announcement.publish_time else None
+                'publish_time': announcement.publishTime.strftime('%Y-%m-%d %H:%M:%S') if announcement.publishTime else None
             }
             for announcement in announcements
         ]
@@ -1446,6 +1486,36 @@ class DeleteAnnouncement(APIView):
             return Response({'code': 200,'message': '公告删除成功'})
         except Announcement.DoesNotExist:
             return Response({'error': '公告不存在'}, status=status.HTTP_404_NOT_FOUND)
+
+class CheckAnnouncements(APIView):
+    """检查公告是否更新"""
+    def get(self, request):
+        # 验证用户权限
+        if not request.user.is_authenticated:
+            return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
+        
+        user = User.objects.get(id=request.user.id)
+        # 获取最新公告的发布时间
+        latest_announcement = Announcement.objects.filter(status='published').order_by('-publish_time').first()
+        if latest_announcement and latest_announcement.publish_time > user.last_announcement_check:
+            return Response({
+                'code': 200,
+                'has_new_announcements': True,
+                'latest_announcement_time': latest_announcement.publish_time.strftime('%Y-%m-%d %H:%M:%S')
+            })
+        else :
+            return Response({
+                'code': 200,
+                'has_new_announcements': False
+            })
+
+class Update(APIView):
+    """更新最后一次看公告时间"""
+    def post(self, request):
+        # 验证用户权限
+        if not request.user.is_authenticated:
+            return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
+        User.objects.filter(id=request.user.id).update(updated_at=timezone.now())
 
 class AgentPublishView(APIView):
     """智能体发布视图"""
