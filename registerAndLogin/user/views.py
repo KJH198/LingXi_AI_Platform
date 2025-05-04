@@ -19,6 +19,8 @@ import time
 from .models import PublishedAgent, UserActionLog
 from knowledge_base.models import KnowledgeBase
 from django.core.paginator import Paginator
+from community.models import Post, PostImage, PostAgent, PostKnowledgeBase
+from community.models import PostLike, PostFavorite, PostComment
 # from community.models import Post
 
 @csrf_exempt
@@ -1471,18 +1473,31 @@ class AgentPublishView(APIView):
             knowledge_bases = data.get('knowledgeBases', [])
             workflow_id = data.get('workflowId')
             
-            if avatar and 'temp_' in os.path.basename(avatar):
-                # 获取新文件名（移除temp_前缀）
-                old_filename = os.path.basename(avatar)
-                new_filename = old_filename.replace('temp_', '')
-            
-                # 重命名文件
-                old_path = os.path.join(settings.MEDIA_ROOT, 'agent_avatars', old_filename)
-                new_path = os.path.join(settings.MEDIA_ROOT, 'agent_avatars', new_filename)
-                os.rename(old_path, new_path)
-            
-                # 更新头像URL
-                avatar = f"/media/agent_avatars/{new_filename}"
+            # 处理头像文件
+            if avatar and 'temp_' in avatar:
+                try:
+                    # 获取文件名
+                    old_filename = os.path.basename(avatar)
+                    new_filename = old_filename.replace('temp_', '')
+                    
+                    # 构建完整的文件路径
+                    old_path = os.path.join(settings.MEDIA_ROOT, 'agent_avatars', old_filename)
+                    new_path = os.path.join(settings.MEDIA_ROOT, 'agent_avatars', new_filename)
+                    
+                    # 确保目录存在
+                    os.makedirs(os.path.dirname(old_path), exist_ok=True)
+                    
+                    # 如果源文件存在，则重命名
+                    if os.path.exists(old_path):
+                        os.rename(old_path, new_path)
+                        # 更新头像URL
+                        avatar = f"/media/agent_avatars/{new_filename}"
+                    else:
+                        print(f"警告：找不到源文件 {old_path}")
+                        # 如果找不到源文件，保持原始URL不变
+                except Exception as e:
+                    print(f"处理头像文件时出错：{str(e)}")
+                    # 如果处理失败，保持原始URL不变
             
             print("解析的数据:")
             print(f"名称: {name}")
@@ -1491,7 +1506,6 @@ class AgentPublishView(APIView):
             print(f"模型ID: {model_id}")
             print(f"知识库: {knowledge_bases}")
             print(f"工作流ID: {workflow_id}")
-            
             
             # 验证必填字段
             if not all([name, model_id]):
@@ -1674,17 +1688,31 @@ class PostCreateView(APIView):
             post = Post.objects.create(
                 title=title,
                 content=content,
-                creator=request.user,
-                images=images
+                user=request.user
             )
+
+            # 添加图片
+            for image_url in images:
+                PostImage.objects.create(
+                    post=post,
+                    image_url=image_url
+                )
 
             # 添加关联的智能体
             if agents:
-                post.agents.set(agents)
+                for agent_id in agents:
+                    PostAgent.objects.create(
+                        post=post,
+                        agent_id=agent_id
+                    )
 
             # 添加关联的知识库
             if knowledge_bases:
-                post.knowledge_bases.set(knowledge_bases)
+                for kb_id in knowledge_bases:
+                    PostKnowledgeBase.objects.create(
+                        post=post,
+                        knowledge_base_id=kb_id
+                    )
                 
             UserActionLog.objects.create(
                 user=request.user,
@@ -1774,4 +1802,568 @@ class PostImageUploadView(APIView):
             return Response({
                 'code': 500,
                 'message': f'上传失败：{str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class PostLikeView(APIView):
+    """帖子点赞视图"""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, postId):
+        try:
+            # 获取帖子
+            post = Post.objects.get(id=postId)
+            
+            # 检查是否已经点赞
+            if PostLike.objects.filter(post=post, user=request.user).exists():
+                return Response({
+                    'code': 400,
+                    'message': '已经点赞过了'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # 创建点赞记录
+            PostLike.objects.create(post=post, user=request.user)
+            
+            # 更新帖子点赞数
+            post.like_count += 1
+            post.save()
+            
+            # 记录用户行为
+            UserActionLog.objects.create(
+                user=request.user,
+                action='like_post',
+                target_id=post.id,
+                target_type='post',
+                ip_address=request.META.get('REMOTE_ADDR'),
+            )
+            
+            return Response({
+                'code': 200,
+                'message': '点赞成功',
+                'data': None
+            })
+            
+        except Post.DoesNotExist:
+            return Response({
+                'code': 404,
+                'message': '帖子不存在'
+            }, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({
+                'code': 500,
+                'message': f'点赞失败：{str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def delete(self, request, postId):
+        try:
+            # 获取帖子
+            post = Post.objects.get(id=postId)
+            
+            # 检查是否已经点赞
+            like = PostLike.objects.filter(post=post, user=request.user).first()
+            if not like:
+                return Response({
+                    'code': 400,
+                    'message': '还没有点赞'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # 删除点赞记录
+            like.delete()
+            
+            # 更新帖子点赞数
+            post.like_count -= 1
+            post.save()
+            
+            # 记录用户行为
+            UserActionLog.objects.create(
+                user=request.user,
+                action='unlike_post',
+                target_id=post.id,
+                target_type='post',
+                ip_address=request.META.get('REMOTE_ADDR'),
+            )
+            
+            return Response({
+                'code': 200,
+                'message': '取消点赞成功',
+                'data': None
+            })
+            
+        except Post.DoesNotExist:
+            return Response({
+                'code': 404,
+                'message': '帖子不存在'
+            }, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({
+                'code': 500,
+                'message': f'取消点赞失败：{str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class PostFavoriteView(APIView):
+    """帖子收藏视图"""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, postId):
+        try:
+            # 获取帖子
+            post = Post.objects.get(id=postId)
+            
+            # 检查是否已经收藏
+            if PostFavorite.objects.filter(post=post, user=request.user).exists():
+                return Response({
+                    'code': 400,
+                    'message': '已经收藏过了'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # 创建收藏记录
+            PostFavorite.objects.create(post=post, user=request.user)
+            
+            # 更新帖子收藏数
+            post.favorite_count += 1
+            post.save()
+            
+            # 记录用户行为
+            UserActionLog.objects.create(
+                user=request.user,
+                action='favorite_post',
+                target_id=post.id,
+                target_type='post',
+                ip_address=request.META.get('REMOTE_ADDR'),
+            )
+            
+            return Response({
+                'code': 200,
+                'message': '收藏成功',
+                'data': None
+            })
+            
+        except Post.DoesNotExist:
+            return Response({
+                'code': 404,
+                'message': '帖子不存在'
+            }, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({
+                'code': 500,
+                'message': f'收藏失败：{str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def delete(self, request, postId):
+        try:
+            # 获取帖子
+            post = Post.objects.get(id=postId)
+            
+            # 检查是否已经收藏
+            favorite = PostFavorite.objects.filter(post=post, user=request.user).first()
+            if not favorite:
+                return Response({
+                    'code': 400,
+                    'message': '还没有收藏'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # 删除收藏记录
+            favorite.delete()
+            
+            # 更新帖子收藏数
+            post.favorite_count -= 1
+            post.save()
+            
+            # 记录用户行为
+            UserActionLog.objects.create(
+                user=request.user,
+                action='unfavorite_post',
+                target_id=post.id,
+                target_type='post',
+                ip_address=request.META.get('REMOTE_ADDR'),
+            )
+            
+            return Response({
+                'code': 200,
+                'message': '取消收藏成功',
+                'data': None
+            })
+            
+        except Post.DoesNotExist:
+            return Response({
+                'code': 404,
+                'message': '帖子不存在'
+            }, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({
+                'code': 500,
+                'message': f'取消收藏失败：{str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class PostCommentView(APIView):
+    """帖子评论视图"""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, postId):
+        try:
+            # 获取请求数据
+            content = request.data.get('content')
+            
+            # 验证评论内容
+            if not content:
+                return Response({
+                    'code': 400,
+                    'message': '评论内容不能为空'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # 验证评论长度
+            if len(content) > 1000:  # 假设评论最大长度为1000字符
+                return Response({
+                    'code': 400,
+                    'message': '评论内容不能超过1000个字符'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # 获取帖子
+            try:
+                post = Post.objects.get(id=postId)
+            except Post.DoesNotExist:
+                return Response({
+                    'code': 404,
+                    'message': '帖子不存在'
+                }, status=status.HTTP_404_NOT_FOUND)
+            
+            # 创建评论
+            comment = PostComment.objects.create(
+                post=post,
+                user=request.user,
+                content=content
+            )
+            
+            # 更新帖子评论数
+            post.comment_count += 1
+            post.save()
+            
+            # 记录用户行为
+            UserActionLog.objects.create(
+                user=request.user,
+                action='comment_post',
+                target_id=post.id,
+                target_type='post',
+                ip_address=request.META.get('REMOTE_ADDR'),
+            )
+            
+            return Response({
+                'code': 200,
+                'message': '评论成功',
+                'data': {
+                    'commentId': comment.id,
+                    'time': comment.created_at.strftime('%Y-%m-%d %H:%M')
+                }
+            })
+            
+        except Exception as e:
+            return Response({
+                'code': 500,
+                'message': f'评论失败：{str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class AgentFollowView(APIView):
+    """智能体关注视图"""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, agentId):
+        try:
+            # 获取智能体
+            try:
+                agent = PublishedAgent.objects.get(id=int(agentId))
+            except (PublishedAgent.DoesNotExist, ValueError):
+                return Response({
+                    'code': 404,
+                    'message': '智能体不存在'
+                }, status=status.HTTP_404_NOT_FOUND)
+            
+            # 检查是否已经关注
+            if agent.followers.filter(id=request.user.id).exists():
+                return Response({
+                    'code': 400,
+                    'message': '已经关注过了'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # 添加关注
+            agent.followers.add(request.user)
+            
+            # 记录用户行为
+            UserActionLog.objects.create(
+                user=request.user,
+                action='follow_agent',
+                target_id=agent.id,
+                target_type='agent',
+                ip_address=request.META.get('REMOTE_ADDR'),
+            )
+            
+            return Response({
+                'code': 200,
+                'message': '关注成功',
+                'data': None
+            })
+            
+        except Exception as e:
+            return Response({
+                'code': 500,
+                'message': f'关注失败：{str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def delete(self, request, agentId):
+        try:
+            # 获取智能体
+            try:
+                agent = PublishedAgent.objects.get(id=int(agentId))
+            except (PublishedAgent.DoesNotExist, ValueError):
+                return Response({
+                    'code': 404,
+                    'message': '智能体不存在'
+                }, status=status.HTTP_404_NOT_FOUND)
+            
+            # 检查是否已经关注
+            if not agent.followers.filter(id=request.user.id).exists():
+                return Response({
+                    'code': 400,
+                    'message': '还没有关注'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # 取消关注
+            agent.followers.remove(request.user)
+            
+            # 记录用户行为
+            UserActionLog.objects.create(
+                user=request.user,
+                action='unfollow_agent',
+                target_id=agent.id,
+                target_type='agent',
+                ip_address=request.META.get('REMOTE_ADDR'),
+            )
+            
+            return Response({
+                'code': 200,
+                'message': '取消关注成功',
+                'data': None
+            })
+            
+        except Exception as e:
+            return Response({
+                'code': 500,
+                'message': f'取消关注失败：{str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class KnowledgeBaseFollowView(APIView):
+    """知识库关注视图"""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, kbId):
+        try:
+            # 获取知识库
+            try:
+                kb = KnowledgeBase.objects.get(id=int(kbId))
+            except (KnowledgeBase.DoesNotExist, ValueError):
+                return Response({
+                    'code': 404,
+                    'message': '知识库不存在'
+                }, status=status.HTTP_404_NOT_FOUND)
+            
+            # 检查是否已经关注
+            if kb.followers.filter(id=request.user.id).exists():
+                return Response({
+                    'code': 400,
+                    'message': '已经关注过了'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # 添加关注
+            kb.followers.add(request.user)
+            
+            # 记录用户行为
+            UserActionLog.objects.create(
+                user=request.user,
+                action='follow_knowledge_base',
+                target_id=kb.id,
+                target_type='knowledge_base',
+                ip_address=request.META.get('REMOTE_ADDR'),
+            )
+            
+            return Response({
+                'code': 200,
+                'message': '关注成功',
+                'data': None
+            })
+            
+        except Exception as e:
+            return Response({
+                'code': 500,
+                'message': f'关注失败：{str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def delete(self, request, kbId):
+        try:
+            # 获取知识库
+            try:
+                kb = KnowledgeBase.objects.get(id=int(kbId))
+            except (KnowledgeBase.DoesNotExist, ValueError):
+                return Response({
+                    'code': 404,
+                    'message': '知识库不存在'
+                }, status=status.HTTP_404_NOT_FOUND)
+            
+            # 检查是否已经关注
+            if not kb.followers.filter(id=request.user.id).exists():
+                return Response({
+                    'code': 400,
+                    'message': '还没有关注'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # 取消关注
+            kb.followers.remove(request.user)
+            
+            # 记录用户行为
+            UserActionLog.objects.create(
+                user=request.user,
+                action='unfollow_knowledge_base',
+                target_id=kb.id,
+                target_type='knowledge_base',
+                ip_address=request.META.get('REMOTE_ADDR'),
+            )
+            
+            return Response({
+                'code': 200,
+                'message': '取消关注成功',
+                'data': None
+            })
+            
+        except Exception as e:
+            return Response({
+                'code': 500,
+                'message': f'取消关注失败：{str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class AgentDetailView(APIView):
+    """获取智能体详情视图"""
+    def get(self, request, agentId):
+        try:
+            # 获取智能体信息
+            agent = PublishedAgent.objects.get(id=agentId)
+            
+            # 获取当前用户（如果已登录）
+            user = request.user if request.user.is_authenticated else None
+            
+            # 构建响应数据
+            data = {
+                'id': str(agent.id),
+                'name': agent.name,
+                'description': agent.description,
+                'creator': {
+                    'id': agent.creator.id,
+                    'username': agent.creator.username,
+                    'avatar': agent.creator.avatar if agent.creator.avatar else None
+                },
+                'views': agent.views,
+                'likes': agent.likes.count(),
+                'followers': agent.followers.count(),
+                'isFollowed': user in agent.followers.all() if user else False,
+                'isLiked': user in agent.likes.all() if user else False,
+                'avatar': agent.avatar,
+                'modelId': agent.model_id,
+                'workflowId': agent.workflow_id,
+                'status': agent.status,
+                'createdAt': agent.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                'updatedAt': agent.updated_at.strftime('%Y-%m-%d %H:%M:%S'),
+                'knowledgeBases': [
+                    {
+                        'id': str(kb.id),
+                        'name': kb.name,
+                        'description': kb.description,
+                        'fileCount': kb.files.count() if hasattr(kb, 'files') else 0,
+                        'followCount': kb.followers.count(),
+                        'isFollowed': user in kb.followers.all() if user else False
+                    } for kb in agent.knowledge_bases.all()
+                ]
+            }
+            
+            # 增加浏览量
+            agent.views += 1
+            agent.save()
+            
+            return Response({
+                'code': 200,
+                'message': '获取智能体详情成功',
+                'data': data
+            })
+            
+        except PublishedAgent.DoesNotExist:
+            return Response({
+                'code': 404,
+                'message': '智能体不存在',
+                'data': None
+            }, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({
+                'code': 500,
+                'message': f'获取智能体详情失败: {str(e)}',
+                'data': None
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class KnowledgeBaseDetailView(APIView):
+    """获取知识库详情视图"""
+    def get(self, request, kbId):
+        try:
+            # 获取知识库信息
+            kb = KnowledgeBase.objects.get(id=kbId)
+            
+            # 获取当前用户（如果已登录）
+            user = request.user if request.user.is_authenticated else None
+            
+            # 获取知识库文件列表
+            files = []
+            for file in kb.files.all():
+                files.append({
+                    'id': str(file.id),
+                    'name': file.filename,
+                    'type': file.file.name.split('.')[-1] if file.file else None,
+                    'size': file.size,
+                    'lastUpdated': file.uploaded_at.strftime('%Y-%m-%d %H:%M:%S'),
+                    'isPublic': True,  # 默认公开
+                    'url': file.file.url if file.file else None
+                })
+            
+            # 构建响应数据
+            data = {
+                'id': str(kb.id),
+                'name': kb.name,
+                'description': kb.description,
+                'fileCount': kb.files.count(),
+                'views': 0,  # 知识库模型中没有浏览量字段
+                'followers': kb.followers.count(),
+                'lastUpdated': kb.created_at.strftime('%Y-%m-%d'),  # 使用创建时间作为最后更新时间
+                'isFollowed': user in kb.followers.all() if user else False,
+                'isLiked': False,  # 知识库模型中没有点赞功能
+                'tags': [],  # 知识库模型中没有标签字段
+                'scenarios': [],  # 知识库模型中没有场景字段
+                'creator': {
+                    'id': kb.user.id,
+                    'username': kb.user.username,
+                    'avatar': kb.user.avatar if hasattr(kb.user, 'avatar') else None
+                },
+                'files': files,
+                'relatedAgents': [],  # 知识库模型中没有关联智能体
+                'comments': []  # 知识库模型中没有评论功能
+            }
+            
+            return Response({
+                'code': 200,
+                'message': '获取成功',
+                'data': data
+            })
+            
+        except KnowledgeBase.DoesNotExist:
+            return Response({
+                'code': 404,
+                'message': '知识库不存在',
+                'data': None
+            }, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({
+                'code': 500,
+                'message': f'获取知识库详情失败: {str(e)}',
+                'data': None
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

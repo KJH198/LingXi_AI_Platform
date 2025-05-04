@@ -34,7 +34,8 @@ INSTALLED_APPS = [
     'channels',
     'user',
     'agent',
-    'knowledge_base'
+    'knowledge_base',
+    'community'
 ]
 
 MIDDLEWARE = [
@@ -134,7 +135,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'lingxi',
         'USER': 'root',
-        'PASSWORD': '030607',   # 你的数据库密码
+        'PASSWORD': '24863971',   # 你的数据库密码
         'HOST': '127.0.0.1',    # 你的数据库地址
         'PORT': '3306',         # 你的数据库端口
     }

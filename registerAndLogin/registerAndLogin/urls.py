@@ -26,6 +26,8 @@ from rest_framework_simplejwt.views import (
     TokenVerifyView,
 )
 
+from user.views import AgentDetailView, KnowledgeBaseDetailView
+
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('user/', include(('user.urls', 'user'), namespace='user')),
@@ -34,6 +36,10 @@ urlpatterns = [
     path('api/token/verify/', TokenVerifyView.as_view(), name='token_verify'),
     path('agent/', include('agent.urls')),
     path('knowledge_base/', include('knowledge_base.urls')),
+    path('community/', include('community.urls')),
+
+    path('agent/<int:agentId>/detail/', AgentDetailView.as_view(), name='agent_detail'),
+    path('knowledge-base/<int:kbId>/detail/', KnowledgeBaseDetailView.as_view(), name='knowledge_base_detail'),
 ]
 
 # 开发环境下添加静态文件URL配置

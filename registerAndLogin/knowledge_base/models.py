@@ -1,7 +1,9 @@
 from django.db import models
 from django.conf import settings
+from django.contrib.auth.models import User
 
 class KnowledgeBase(models.Model):
+    """知识库模型"""
     STATUS_CHOICES = (
         ('ready', '已处理完毕'),
         ('processing', '正在处理'),
@@ -17,6 +19,7 @@ class KnowledgeBase(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='processing')
     created_at = models.DateTimeField(auto_now_add=True)
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='knowledge_bases')
+    followers = models.ManyToManyField(settings.AUTH_USER_MODEL, related_name='followed_knowledge_bases', blank=True)
 
     def __str__(self):
         return self.name

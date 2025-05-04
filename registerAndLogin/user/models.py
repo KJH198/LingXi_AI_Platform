@@ -269,9 +269,10 @@ class PublishedAgent(models.Model):
     workflow_id = models.CharField(max_length=100, blank=True, null=True, verbose_name='工作流ID')
     knowledge_bases = models.ManyToManyField('knowledge_base.KnowledgeBase', blank=True, verbose_name='知识库')
     views = models.IntegerField(default=0, verbose_name='浏览量')
-    likes = models.IntegerField(default=0, verbose_name='点赞数')
+    likes = models.ManyToManyField(User, related_name='liked_agents', blank=True, verbose_name='点赞用户')
     comments = models.IntegerField(default=0, verbose_name='评论数')
     avatar = models.CharField(max_length=255, blank=True, null=True, verbose_name='头像URL')
+    followers = models.ManyToManyField(User, related_name='followed_agents', blank=True, verbose_name='关注者')
 
     class Meta:
         verbose_name = '已发布智能体'
