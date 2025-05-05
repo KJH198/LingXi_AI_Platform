@@ -1254,7 +1254,6 @@ onMounted(async () => {
   // 自动获取静态输入配置并启动预览
   await fetchStaticInputs()
   await startPreview()
-  resetChat()
 })
 
 // 添加 loadAgentData 函数
