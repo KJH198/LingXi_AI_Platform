@@ -1713,6 +1713,8 @@ const updateNode = async () => {
   }
   
   drawerVisible.value = false
+  // 在updateNode函数末尾添加：
+  originalNodeData.value = JSON.parse(JSON.stringify(nodeForm.value))
 }
 
 // 删除节点
