@@ -515,7 +515,6 @@ const fetchUserInfo = async () => {
 // 添加搜索图标导入
 import { Search } from '@element-plus/icons-vue'
 import { Pointer } from '@element-plus/icons-vue'
-import { da } from 'element-plus/es/locale'
 
 // 添加搜索相关状态
 const searchQuery = ref('')
