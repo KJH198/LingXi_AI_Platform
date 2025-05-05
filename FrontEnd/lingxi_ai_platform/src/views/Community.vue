@@ -515,6 +515,7 @@ const fetchUserInfo = async () => {
 // 添加搜索图标导入
 import { Search } from '@element-plus/icons-vue'
 import { Pointer } from '@element-plus/icons-vue'
+import { da } from 'element-plus/es/locale'
 
 // 添加搜索相关状态
 const searchQuery = ref('')
@@ -792,18 +793,35 @@ const showAnnouncement = (announcement) => {
   markAnnouncementAsViewed(announcement);
 }
 
-const checkNewAnnouncements = () => {
-  const newAnnouncement = announcements.value.find((announcement) => !announcement.viewed);
-  if (newAnnouncement) {
-    ElMessage({
-      message: '有新的公告，点击查看！',
-      type: 'info',
-      duration: 5000,
-      onClose: () => {
-        showAnnouncement(newAnnouncement);
+const checkNewAnnouncements = async () => {
+
+  try {
+    const response = await fetch('/user/admin/GetAnnouncements', {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
       },
     });
+    if (!response.ok) throw new Error('获取登录记录失败');
+    const data = await response.json();
+    announcements.value = data.announcements
+  } catch (error) {
+    console.error('获取登录记录失败:', error);
+    ElMessage.error('获取登录记录失败');
+  } finally {
+    loading.value = false;
   }
+
+  // const newAnnouncement = announcements.value.find((announcement) => !announcement.viewed);
+  // if (newAnnouncement) {
+  //   ElMessage({
+  //     message: '有新的公告，点击查看！',
+  //     type: 'info',
+  //     duration: 5000,
+  //     onClose: () => {
+  //       showAnnouncement(newAnnouncement);
+  //     },
+  //   });
+  // }
 }
 
 // 用户的智能体和知识库列表

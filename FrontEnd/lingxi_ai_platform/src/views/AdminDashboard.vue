@@ -1542,12 +1542,13 @@ const announcementApi = {
   // 更新公告
   async updateAnnouncement(id, data) {
     try {
-      const response = await fetch(`/announcement/update/${id}`, {
-        method: 'PUT',
+      const response = await fetch(`/user/admin/EditAnnouncement/${id}`, {
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
         },
-        body: JSON.stringify(data)
+        body: JSON.stringify({...data})
       })
       if (!response.ok) throw new Error('更新公告失败')
       return await response.json()
@@ -1560,8 +1561,12 @@ const announcementApi = {
   // 删除公告
   async deleteAnnouncement(id) {
     try {
-      const response = await fetch(`/announcement/delete/${id}`, {
-        method: 'DELETE'
+      const response = await fetch(`/user/admin/DeleteAnnouncement/${id}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+        },
       })
       if (!response.ok) throw new Error('删除公告失败')
       return await response.json()
@@ -1631,11 +1636,11 @@ const handleDeleteAnnouncement = async (announcement) => {
     )
     loading.value = true
     // 使用模拟数据
-    announcements.value = announcements.value.filter(item => item.id !== announcement.id)
-    totalAnnouncements.value--
-    ElMessage.success('删除成功')
+    // announcements.value = announcements.value.filter(item => item.id !== announcement.id)
+    // totalAnnouncements.value--
     // TODO: 实际API调用
     await announcementApi.deleteAnnouncement(announcement.id)
+    handleAnnouncementSearch()
   } catch (error) {
     if (error !== 'cancel') {
       console.error('删除公告失败:', error)
@@ -1662,7 +1667,6 @@ const handleSaveAnnouncement = async () => {
           ...announcementForm,
           publishTime: new Date().toISOString().split('.')[0] + 'Z'
         })
-        announcements.value[index] =temp
       }
       ElMessage.success('更新成功')
     } else {
@@ -1672,11 +1676,9 @@ const handleSaveAnnouncement = async () => {
         publishTime:  formatted
       })
       console.log('新公告:', newAnnouncement.announcement)
-      announcements.value.unshift(newAnnouncement.announcement)
-      totalAnnouncements.value++
       ElMessage.success('发布成功')
     }
-    
+    handleAnnouncementSearch()
     announcementDialogVisible.value = false
   } catch (error) {
     console.error('保存公告失败:', error)
