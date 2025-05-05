@@ -370,7 +370,7 @@
     </el-dialog>
 
     <!-- 公告详情弹窗 -->
-    <el-dialog
+    <!-- <el-dialog
       v-model="announcementDialogVisible"
       title="公告详情"
       width="50%"
@@ -382,7 +382,7 @@
       <template #footer>
         <el-button @click="announcementDialogVisible = false">关闭</el-button>
       </template>
-    </el-dialog>
+    </el-dialog> -->
 
     <el-dialog
       v-model="createAgentDialogVisible"

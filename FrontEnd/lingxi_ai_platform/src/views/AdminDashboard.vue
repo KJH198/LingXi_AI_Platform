@@ -746,7 +746,7 @@
               <el-table :data="announcements" style="width: 100%" border>
                 <el-table-column prop="title" label="标题" width="200" />
                 <el-table-column prop="content" label="内容" show-overflow-tooltip />
-                <el-table-column prop="publishTime" label="发布时间" width="180" />
+                <el-table-column prop="publish_time" label="发布时间" width="180" />
                 <el-table-column prop="status" label="状态" width="100">
                   <template #default="scope">
                     <el-tag :type="scope.row.status === 'published' ? 'success' : 'info'">
@@ -1037,11 +1037,6 @@ const agentApi = {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
         },
-        method: 'POST',
-        data:{
-          page: currentPage.value || 1,
-          page_size: pageSize.value || 10
-        }
       });
       if (!response.ok) throw new Error('获取智能体列表失败');
       return await response.json();
@@ -1210,6 +1205,9 @@ const fetchLoginRecords = async () => {
     const data = await response.json();
     loginRecords.value = data.records;
     totalRecords.value = data.total;
+    todayLogins.value= data.total_login_times
+    avgLoginDuration.value= data.total_online_duration
+    abnormalLogins.value= data.total_unexpected_operation_times
   } catch (error) {
     console.error('获取登录记录失败:', error);
     ElMessage.error('获取登录记录失败');
@@ -1217,6 +1215,25 @@ const fetchLoginRecords = async () => {
     loading.value = false;
   }
 };
+
+const fetchAnnouncements = async () => {
+  loading.value = true;
+  try {
+    const response = await fetch('/user/admin/GetAnnouncements', {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+      },
+    });
+    if (!response.ok) throw new Error('获取登录记录失败');
+    const data = await response.json();
+    return data
+  } catch (error) {
+    console.error('获取登录记录失败:', error);
+    ElMessage.error('获取登录记录失败');
+  } finally {
+    loading.value = false;
+  }
+}
 
 // 在用户管理界面加载时调用fetchLoginRecords
 onMounted(() => {
@@ -1618,7 +1635,7 @@ const handleDeleteAnnouncement = async (announcement) => {
     totalAnnouncements.value--
     ElMessage.success('删除成功')
     // TODO: 实际API调用
-    // await announcementApi.deleteAnnouncement(announcement.id)
+    await announcementApi.deleteAnnouncement(announcement.id)
   } catch (error) {
     if (error !== 'cancel') {
       console.error('删除公告失败:', error)
@@ -1640,17 +1657,22 @@ const handleSaveAnnouncement = async () => {
       // 使用模拟数据
       const index = announcements.value.findIndex(item => item.id === currentAnnouncement.value.id)
       if (index !== -1) {
-        announcements.value[index] = {
+        const temp = await announcementApi.updateAnnouncement(currentAnnouncement.value.id,{
           ...currentAnnouncement.value,
           ...announcementForm,
-          publishTime: announcementForm.status === 'published' ? new Date().toLocaleString() : currentAnnouncement.value.publishTime
-        }
+          publishTime: new Date().toISOString().split('.')[0] + 'Z'
+        })
+        announcements.value[index] =temp
       }
       ElMessage.success('更新成功')
     } else {
-      const newAnnouncement = await announcementApi.createAnnouncement(announcementForm)
+      const formatted = new Date().toISOString().split('.')[0] + 'Z'
+      const newAnnouncement = await announcementApi.createAnnouncement({
+        ...announcementForm,
+        publishTime:  formatted
+      })
       console.log('新公告:', newAnnouncement.announcement)
-      announcements.value.unshift(newAnnouncement)
+      announcements.value.unshift(newAnnouncement.announcement)
       totalAnnouncements.value++
       ElMessage.success('发布成功')
     }
@@ -1666,18 +1688,12 @@ const handleSaveAnnouncement = async () => {
 // 处理公告搜索
 const handleAnnouncementSearch = async () => {
   loading.value = true
+  let mockAnnouncements = await fetchAnnouncements();
+  console.log("==== mockAnnouncements",mockAnnouncements)
   try {
     // 使用模拟数据
-    announcements.value = mockAnnouncements
-    totalAnnouncements.value = mockAnnouncements.length
-    // TODO: 实际API调用
-    // const params = {
-    //   page: currentPage.value,
-    //   pageSize: pageSize.value
-    // }
-    // const data = await announcementApi.getAnnouncements(params)
-    // announcements.value = data.announcements
-    // totalAnnouncements.value = data.total
+    announcements.value = mockAnnouncements.announcements || []
+    totalAnnouncements.value = mockAnnouncements.announcements?.length
   } catch (error) {
     console.error('获取公告列表失败:', error)
   } finally {
@@ -1689,7 +1705,7 @@ const handleAnnouncementSearch = async () => {
 const handleAgentSearch = async () => {
   loading.value = true;
   try {
-    const data = await agentApi.getAgentList({ status: 'pending' });
+    const data = await agentApi.getAgentList({ rating: 2 });
     agentReviews.value = data.agents;
     totalReviews.value = data.total;
     pendingReviews.value = data.pending_count;
