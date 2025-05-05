@@ -303,3 +303,24 @@ class AgentComment(models.Model):
 
     def __str__(self):
         return f'{self.user.username} 评论了 {self.agent.name}'
+    
+class AgentDraft(models.Model):
+    """智能体草稿模型"""
+    creator = models.ForeignKey(User, on_delete=models.CASCADE, related_name='agent_drafts', verbose_name='创建者')
+    name = models.CharField(max_length=100, verbose_name='智能体名称')
+    description = models.TextField(blank=True, null=True, verbose_name='描述')
+    avatar = models.CharField(max_length=255, blank=True, null=True, verbose_name='头像URL')
+    model_id = models.CharField(max_length=100, blank=True, null=True, verbose_name='模型ID')
+    workflow_id = models.CharField(max_length=100, blank=True, null=True, verbose_name='工作流ID')
+    knowledge_bases = models.ManyToManyField('knowledge_base.KnowledgeBase', blank=True, verbose_name='知识库')
+    model_params = models.JSONField(default=dict, blank=True, verbose_name='模型参数')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='更新时间')
+
+    class Meta:
+        verbose_name = '智能体草稿'
+        verbose_name_plural = '智能体草稿'
+        ordering = ['-updated_at']
+
+    def __str__(self):
+        return f'{self.name} (草稿 by {self.creator.username})'

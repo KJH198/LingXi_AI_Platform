@@ -57,6 +57,7 @@ from .views import (
     AgentRestoreView,
     UserFollowView,
     AgentDeleteView,
+    AgentDraftView,
 )
 
 urlpatterns = [
@@ -140,4 +141,6 @@ urlpatterns = [
     path('follow/<str:userId>/', UserFollowView.as_view(), name='user_follow'),
 
     path('agent/<str:agent_id>/delete', AgentDeleteView.as_view(), name='agent_delete'),
+    path('agent/draft', AgentDraftView.as_view(), name='agent_draft_create_or_list'),
+    path('agent/draft/<int:draft_id>', AgentDraftView.as_view(), name='agent_draft_detail_or_delete'),
 ]

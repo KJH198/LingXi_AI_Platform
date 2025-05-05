@@ -1,5 +1,7 @@
 import { createRouter, createWebHashHistory, type RouteRecordRaw } from 'vue-router'
 import Editor from '../views/Editor.vue'
+import AgentDrafts from '@/views/AgentDrafts.vue'
+import AgentEditor from '@/views/AgentEditor.vue'
 
 const routes: RouteRecordRaw[] = [
   {
@@ -104,7 +106,25 @@ const routes: RouteRecordRaw[] = [
     path: '/my-knowledgebases',
     name: 'MyKnowledgebases',
     component: () => import('../views/MyKnowledgeBase.vue'),
-  }
+  },
+  {
+    path: '/agent-drafts',
+    name: 'AgentDrafts',
+    component: AgentDrafts,
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/edit-agent/draft/:id',
+    name: 'EditAgentDraft',
+    component: AgentEditor,
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/edit-agent/publish/:id',
+    name: 'PublishAgentDraft',
+    component: AgentEditor,
+    meta: { requiresAuth: true }
+  },
 ]
 
 const router = createRouter({

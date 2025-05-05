@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import User, Announcement
+from .models import User, Announcement, AgentDraft
 
 class UserSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
@@ -40,3 +40,11 @@ class UserBanSerializer(serializers.Serializer):
     reason = serializers.CharField(max_length=500, required=True)
 
     is_permanent = serializers.BooleanField(default=False)
+
+
+class AgentDraftSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AgentDraft
+        fields = ['id', 'name', 'description', 'avatar', 'model_id', 'workflow_id', 
+                 'knowledge_bases', 'model_params', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'created_at', 'updated_at']

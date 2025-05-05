@@ -1116,44 +1116,57 @@ const handleSaveDraft = async (): Promise<void> => {
       return
     }
     
-    // 这里实现真正的保存逻辑
-    // const response = await fetch('/api/agent/draft', {
-    //   method: 'POST',
-    //   headers: {
-    //     'Content-Type': 'application/json',
-    //     'Authorization': `Bearer ${token}`
-    //   },
-    //   body: JSON.stringify(agentData)
-    // })
+    // 准备提交数据
+    const draftData = {
+      id: agentData.id, // 如果是新草稿，这个会是空字符串
+      name: agentData.name,
+      description: agentData.description,
+      modelId: agentData.modelId,
+      avatar: agentData.avatar,
+      knowledgeBases: agentData.knowledgeBases,
+      workflowId: agentData.workflowId,
+      modelParams: agentData.modelParams
+    }
     
-    // if (!response.ok) {
-    //   throw new Error('保存草稿失败')
-    // }
+    // 发送请求
+    const response = await fetch('/user/agent/draft', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(draftData)
+    })
     
-    // const result = await response.json()
+    if (!response.ok) {
+      throw new Error('保存草稿失败')
+    }
     
-    // if (result.code === 200) {
-    //   // 设置返回的ID
-    //   if (result.data && result.data.id) {
-    //     agentData.id = result.data.id
-    //   }
+    const result = await response.json()
+    
+    if (result.code === 200) {
+      // 设置返回的ID
+      if (result.data && result.data.id) {
+        agentData.id = result.data.id
+      }
       
-    //   ElMessage.success('智能体草稿已保存')
+      ElMessage.success('智能体草稿已保存')
       
-    //   // 保存成功后，清除本地存储中的临时数据
-    //   clearLocalStorage()
-    // } else {
-    //   throw new Error(result.message || '保存草稿失败')
-    // }
-    
-    // 仅用于演示
-    ElMessage.success('智能体草稿已保存')
+      // 保存成功后更新本地存储，但不清除
+      saveToLocalStorage()
+
+      // 如果是从草稿列表页面进入的，更新URL以反映当前编辑的草稿ID
+      if (route.name === 'EditAgentDraft' && route.params.id !== agentData.id) {
+        router.replace(`/edit-agent/draft/${agentData.id}`)
+      }
+    } else {
+      throw new Error(result.message || '保存草稿失败')
+    }
   } catch (error) {
     console.error('保存草稿失败:', error)
     ElMessage.error('保存草稿失败，请稍后重试')
   }
 }
-
 // 发布智能体
 const handlePublish = async (): Promise<void> => {
   try {
@@ -1204,8 +1217,10 @@ const handlePublish = async (): Promise<void> => {
       knowledgeBases: agentData.knowledgeBases,
       workflowId: agentData.workflowId,
       modelParams: agentData.modelParams
+      
     }
-    
+    const draftId = route.name === 'PublishAgentDraft' ? route.params.id : null // 添加原草稿ID
+
     // 根据是否已发布选择API端点
     const apiUrl = isPublished.value 
       ? `/user/agent/${agentData.id}/update/` 
@@ -1233,6 +1248,20 @@ const handlePublish = async (): Promise<void> => {
     if (result.code === 200) {
       ElMessage.success(`智能体"${agentData.name}"${isPublished.value ? '更新' : '发布'}成功！`)
       clearLocalStorage() // 发布成功后清除本地存储中的临时数据
+
+      if (draftId) {
+        try {
+          await fetch(`/user/agent/draft/${draftId}`, {
+            method: 'DELETE',
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          })
+          console.log('草稿已删除')
+        } catch (err) {
+          console.error('删除草稿失败:', err)
+        }
+      }
       router.push('/my-agents')
     } else {
       throw new Error(result.message || `${isPublished.value ? '更新' : '发布'}智能体失败`)
@@ -1351,24 +1380,27 @@ onMounted(async () => {
   
   // 检查路由参数，判断是否是编辑模式
   const agentId = route.params.id
+  const isDraftEdit = route.name === 'EditAgentDraft'
   
   if (agentId) {
-    // 编辑现有智能体
-    console.log('编辑模式，智能体ID:', agentId)
+    // 清除本地可能存在的旧数据
+    clearLocalStorage()
+    
     try {
-      // 清除本地可能存在的旧数据
-      clearLocalStorage()
-      
-      // 从API加载智能体数据
-      await loadAgentData(agentId)
-      
-      // 设置编辑模式
-      isPublished.value = true
+      if (isDraftEdit) {
+        // 加载草稿数据
+        await loadDraftData(agentId)
+        isPublished.value = false // 草稿模式
+      } else {
+        // 加载已发布的智能体数据
+        await loadAgentData(agentId)
+        isPublished.value = true // 已发布模式
+      }
     } catch (error) {
-      console.error('加载智能体数据失败:', error)
-      ElMessage.error('加载智能体数据失败，请重试')
+      console.error('加载数据失败:', error)
+      ElMessage.error('加载数据失败，请重试')
       // 加载失败时跳回列表页
-      router.push('/my-agents')
+      router.push(isDraftEdit ? '/agent-drafts' : '/my-agents')
       return
     }
   } else {
@@ -1402,6 +1434,14 @@ onMounted(async () => {
     }
   }
   
+
+  const isPublishFromDraft = localStorage.getItem('publishFromDraft') === 'true'
+  if (isPublishFromDraft) {
+    // 清除标志
+    localStorage.removeItem('publishFromDraft')
+    // 自动进入发布模式
+    activeStep.value = 4 // 直接跳到最后一步
+  }
   // 监听页面刷新或关闭事件，保存数据
   window.addEventListener('beforeunload', () => {
     saveToLocalStorage()
@@ -1417,6 +1457,96 @@ onMounted(async () => {
     }
   })
 })
+
+const loadDraftData = async (draftId) => {
+  const token = localStorage.getItem('token')
+  if (!token) {
+    throw new Error('请先登录')
+  }
+
+  const response = await fetch(`/user/agent/draft/${draftId}`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  })
+
+  if (!response.ok) {
+    throw new Error(`获取草稿数据失败: ${response.status}`)
+  }
+
+  const result = await response.json()
+
+  if (result.code !== 200 || !result.data) {
+    throw new Error(result.message || '获取草稿数据失败')
+  }
+
+  // 更新状态
+  const data = result.data
+  
+  // 设置基本信息
+  agentData.id = data.id
+  agentData.name = data.name || ''
+  agentData.description = data.description || ''
+  agentData.avatar = data.avatar || ''
+  
+  // 设置模型信息
+  agentData.modelId = data.model_id || ''
+  
+  // 设置模型参数
+  if (data.model_params) {
+    agentData.modelParams = {
+      temperature: data.model_params.temperature ?? 0.7,
+      maxTokens: data.model_params.maxTokens ?? 1024,
+      topP: data.model_params.topP ?? 0.95
+    }
+  }
+  
+  // 设置知识库
+  agentData.knowledgeBases = data.knowledge_bases || []
+  
+  // 设置工作流
+  agentData.workflowId = data.workflow_id || ''
+  
+  console.log('草稿数据加载成功:', agentData)
+  nextTick(() => {
+    // 根据草稿数据完成情况决定跳转到哪一步
+    let targetStep = 0;
+    
+    // 步骤1: 检查基本信息是否完成
+    const isStep1Complete = agentData.name && agentData.name.trim() !== '';
+    if (!isStep1Complete) {
+      targetStep = 0;
+    }
+    // 步骤2: 检查模型选择是否完成
+    else if (!agentData.modelId) {
+      targetStep = 1;
+    }
+    // 步骤3: 检查知识库配置是否完成
+    // 知识库是可选的，所以这里我们不把它作为跳转条件，只是记录一下
+    // else if (!agentData.knowledgeBases.length) {
+    //   targetStep = 2;
+    // }
+    // 步骤4: 检查工作流配置是否完成
+    else if (!agentData.workflowId) {
+      targetStep = 3;
+    }
+    // 步骤5: 预览与调试 (如果前面都已完成)
+    else {
+      targetStep = 4;
+    }
+    
+    console.log(`跳转到第一个未完成的步骤: 步骤${targetStep + 1}`);
+    activeStep.value = targetStep;
+    
+    // 如果是跳转到预览步骤，确保预览环境准备好
+    if (targetStep === 4) {
+      fetchStaticInputs();
+      resetChat();
+    }
+  });
+}
 
 // 添加 loadAgentData 函数
 const loadAgentData = async (agentId) => {

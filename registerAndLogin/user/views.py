@@ -8,7 +8,7 @@ from django.shortcuts import render
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from .serializers import UserSerializer, UserDetailSerializer
+from .serializers import UserSerializer, UserDetailSerializer, AgentDraftSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.core.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
@@ -20,6 +20,7 @@ import time
 from datetime import timedelta
 from .models import (
     User, UserActionLog, PublishedAgent, AgentComment,
+    AgentDraft,
     # ... 其他导入 ...
 )
 from knowledge_base.models import KnowledgeBase, KnowledgeBaseComment
@@ -3347,4 +3348,150 @@ class AgentDeleteView(APIView):
                 'code': 500,
                 'message': f'删除智能体失败: {str(e)}',
                 'data': None
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class AgentDraftView(APIView):
+    """智能体草稿保存与获取"""
+    permission_classes = [IsAuthenticated]
+    
+    def post(self, request):
+        """保存草稿"""
+        try:
+            data = request.data
+            draft_id = data.get('id')
+            
+            # 如果提供了草稿ID，尝试更新现有草稿
+            if draft_id:
+                try:
+                    draft = AgentDraft.objects.get(id=draft_id, creator=request.user)
+                    serializer = AgentDraftSerializer(draft, data=data, partial=True)
+                except AgentDraft.DoesNotExist:
+                    return Response({
+                        'code': 404,
+                        'message': '草稿不存在或无权限'
+                    }, status=status.HTTP_404_NOT_FOUND)
+            else:
+                # 创建新草稿
+                serializer = AgentDraftSerializer(data=data)
+            
+            if serializer.is_valid():
+                # 保存基本数据
+                draft = serializer.save(creator=request.user)
+                
+                # 处理知识库关联
+                knowledge_bases = data.get('knowledgeBases', [])
+                if knowledge_bases:
+                    draft.knowledge_bases.set(knowledge_bases)
+                
+                model_id = data.get('modelId')
+                if model_id:
+                    draft.model_id = model_id
+                    draft.save()
+                
+                workflow_id = data.get('workflowId')
+                if workflow_id:
+                    draft.workflow_id = workflow_id
+                    draft.save()
+                
+                # 记录用户行为日志
+                UserActionLog.objects.create(
+                    user=request.user,
+                    action='save_agent_draft',
+                    target_id=draft.id,
+                    target_type='agent_draft',
+                    ip_address=request.META.get('REMOTE_ADDR')
+                )
+                
+                return Response({
+                    'code': 200,
+                    'message': '草稿保存成功',
+                    'data': {
+                        'id': draft.id,
+                        'name': draft.name,
+                        'updated_at': draft.updated_at
+                    }
+                })
+            else:
+                return Response({
+                    'code': 400,
+                    'message': '数据格式错误',
+                    'errors': serializer.errors
+                }, status=status.HTTP_400_BAD_REQUEST)
+                
+        except Exception as e:
+            print(f"保存草稿失败: {str(e)}")
+            return Response({
+                'code': 500,
+                'message': f'保存失败：{str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    def get(self, request, draft_id=None):
+        """获取草稿列表或单个草稿详情"""
+        try:
+            # 获取单个草稿详情
+            if draft_id:
+                try:
+                    draft = AgentDraft.objects.get(id=draft_id, creator=request.user)
+                    serializer = AgentDraftSerializer(draft)
+                    print(serializer.data)
+                    return Response({
+                        'code': 200,
+                        'message': '获取草稿成功',
+                        'data': serializer.data
+                    })
+                except AgentDraft.DoesNotExist:
+                    return Response({
+                        'code': 404,
+                        'message': '草稿不存在或无权限'
+                    }, status=status.HTTP_404_NOT_FOUND)
+            
+            # 获取草稿列表
+            else:
+                drafts = AgentDraft.objects.filter(creator=request.user)
+                serializer = AgentDraftSerializer(drafts, many=True)
+                
+                return Response({
+                    'code': 200,
+                    'message': '获取草稿列表成功',
+                    'data': serializer.data
+                })
+                
+        except Exception as e:
+            return Response({
+                'code': 500,
+                'message': f'获取草稿失败：{str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    def delete(self, request, draft_id):
+        """删除草稿"""
+        try:
+            try:
+                draft = AgentDraft.objects.get(id=draft_id, creator=request.user)
+            except AgentDraft.DoesNotExist:
+                return Response({
+                    'code': 404,
+                    'message': '草稿不存在或无权限'
+                }, status=status.HTTP_404_NOT_FOUND)
+            
+            draft_name = draft.name
+            draft.delete()
+            
+            # 记录用户行为日志
+            UserActionLog.objects.create(
+                user=request.user,
+                action='delete_agent_draft',
+                target_id=draft_id,
+                target_type='agent_draft',
+                ip_address=request.META.get('REMOTE_ADDR')
+            )
+            
+            return Response({
+                'code': 200,
+                'message': f'草稿 "{draft_name}" 已删除'
+            })
+            
+        except Exception as e:
+            return Response({
+                'code': 500,
+                'message': f'删除草稿失败：{str(e)}'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
