@@ -393,13 +393,9 @@ const selectedUploadKnowledgeBaseId = ref('');
 const selectedKnowledgeBaseType = ref('');
 const uploadFiles = ref<File[]>([]);
 
+const selectKnowledgebasesid = ref<string[]>([]);
 // 获取已选择知识库的详细信息
-const selectedKnowledgeBasesInfo = computed(() => {
-  return props.agentData.knowledgeBases
-    .map(id => knowledgeBases.value.find(kb => kb.id === id))
-    .filter(kb => kb !== undefined) as KnowledgeBaseType[];
-});
-
+const selectedKnowledgeBasesInfo = ref<KnowledgeBaseType[]>([]);
 // 计算属性：是否可以上传
 const canUpload = computed(() => {
   if (!selectedUploadKnowledgeBaseId.value) return false;
@@ -872,6 +868,9 @@ const fetchKnowledgeBases = async (forceRefresh = false): Promise<void> => {
     knowledgeBases.value = data || [];
     console.log('知识库列表:', knowledgeBases.value);
     knowledgeBasesLoaded.value = true;
+    console.log('selected:', selectKnowledgebasesid.value);
+    selectedKnowledgeBasesInfo.value = selectKnowledgebasesid.value.map(id => knowledgeBases.value.find(kb => String(kb.id) === String(id))).filter(kb => kb !== undefined) as KnowledgeBaseType[];
+    console.log('已选择的知识库00:', selectedKnowledgeBasesInfo.value);
   } catch (error) {
     console.error('获取知识库列表失败:', error);
     ElMessage.error('获取知识库列表失败，请稍后重试');
@@ -881,6 +880,12 @@ const fetchKnowledgeBases = async (forceRefresh = false): Promise<void> => {
 // 监听知识库配置步骤激活
 watch(() => props.agentData, () => {
   console.log('Agent数据变化');
+  if (props.agentData.knowledgeBases.length > 0) {
+    selectKnowledgebasesid.value = props.agentData.knowledgeBases;
+    selectedKnowledgeBasesInfo.value = props.agentData.knowledgeBases.map(id => knowledgeBases.value.find(kb => kb.id === id)).filter(kb => kb !== undefined) as KnowledgeBaseType[];
+  } else {
+    selectedKnowledgeBasesInfo.value = [];
+  }
 }, { deep: true });
 
 // 监听active属性变化
@@ -888,6 +893,10 @@ watch(() => props.active, (isActive) => {
   if (isActive && !knowledgeBasesLoaded.value) {
     fetchKnowledgeBases();
   }
+  if (isActive && props.agentData.knowledgeBases.length > 0) {
+    selectKnowledgebasesid.value = props.agentData.knowledgeBases;
+    selectedKnowledgeBasesInfo.value = props.agentData.knowledgeBases.map(id => knowledgeBases.value.find(kb => kb.id === id)).filter(kb => kb !== undefined) as KnowledgeBaseType[];
+  } 
 }, { immediate: true });
 </script>
 
