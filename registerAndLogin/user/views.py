@@ -395,11 +395,17 @@ class AdminUnbanView(APIView):
             user.ban_reason = None
             user.ban_until = None
             user.ban_type = None
+            user.is_active = True  # 用户重新激活
             user.save()
+            
+            # 生成新的JWT令牌
+            refresh = RefreshToken.for_user(user)
+            access_token = str(refresh.access_token)
             
             return Response({
                 'success': True,
-                'message': '用户解封成功'
+                'message': '用户解封成功',
+                'token': access_token  # 返回新的访问令牌
             })
             
         except User.DoesNotExist:
