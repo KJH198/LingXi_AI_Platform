@@ -531,10 +531,9 @@ class UserOperationRecordsView(APIView):
         page_size = data.get('page_size', 20)
         
         if user_id:
-            userActionLogs = UserActionLog.objects.filter(user_id=user_id).order_by('-created_at')
+            userActionLogs = UserActionLog.objects.filter(user_id=user_id)
         else:
-            userActionLogs = UserActionLog.objects.all().order_by('-created_at')
-        
+            userActionLogs = UserActionLog.objects.all()
         
         # 构造返回数据
         records = [
@@ -1346,7 +1345,6 @@ class UserLoginRecordView(APIView):
             data = JSONParser().parse(request)
             page = data.get('page', 1)
             page_size = data.get('page_size', 20)
-            print("获取用户登录记录，当前页:", page, "每页大小:", page_size)
 
             if user_id:
                 # 查询特定用户的登录信息
@@ -1361,7 +1359,7 @@ class UserLoginRecordView(APIView):
                     'user_id':userActionLog.user.id,
                     'user_name':userActionLog.user.username,
                     'time':userActionLog.created_at.strftime('%Y-%m-%d %H:%M:%S'),
-                    'user_isactive':userActionLog.user.is_active,
+                    'is_active':userActionLog.user.is_active,
                     'user_email':userActionLog.user.email,
                     'user_phone_number':userActionLog.user.phone_number
                 }

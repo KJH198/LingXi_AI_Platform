@@ -1,4 +1,5 @@
 # LingXi_AI_Platform/registerAndLogin/user/models.py
+from datetime import timedelta
 from django.db import models
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager
 from django.utils import timezone
@@ -118,6 +119,12 @@ class User(AbstractBaseUser):
             'reason': self.ban_reason,
             'until': self.ban_until
         }
+    # 重写 save 方法
+    def save(self, *args, **kwargs):
+        # 确保 online_duration 只保留整数秒
+        if self.online_duration:
+            self.online_duration = timedelta(seconds=int(self.online_duration.total_seconds()))
+        super().save(*args, **kwargs)
 
 class AIAgent(models.Model):
      """智能体模型"""

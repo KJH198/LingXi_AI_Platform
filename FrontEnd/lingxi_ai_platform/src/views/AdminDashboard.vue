@@ -365,7 +365,7 @@
                     </template>
                     <div class="stat-content">
                       <span class="stat-number">{{ avgLoginDuration }}</span>
-                      <span class="stat-unit">分钟</span>
+                      <span class="stat-unit">秒</span>
                     </div>
                   </el-card>
                 </el-col>
@@ -1246,7 +1246,7 @@ onMounted(() => {
 const handleLogout = () => {
   localStorage.removeItem('adminToken')
   localStorage.removeItem('userRole')
-  router.push('/adminLogin')
+  router.push('/admin')
 }
 
 const getViolationTagType = (type) => {
