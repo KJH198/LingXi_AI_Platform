@@ -524,11 +524,9 @@ class UserOperationRecordsView(APIView):
         # 验证管理员权限
         if not request.user.is_admin:
             return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
-        
-        # 获取查询参数(没有用默认值)
-        data = JSONParser().parse(request)
-        page = data.get('page', 1)
-        page_size = data.get('page_size', 20)
+
+        page = 1
+        page_size = 20
         
         if user_id:
             userActionLogs = UserActionLog.objects.filter(user_id=user_id)
