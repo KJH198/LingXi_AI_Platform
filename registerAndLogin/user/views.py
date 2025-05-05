@@ -1425,6 +1425,30 @@ class GetAnnouncements(APIView):
             'announcements': data,
         })
 
+class UserGetAnnouncements(APIView):
+    """获取公告列表"""
+    def get(self, request):
+        # 验证用户权限
+        if not request.user.is_authenticated:
+            return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
+
+        announcements = Announcement.objects.filter(status='published').order_by('-publishTime')
+        data = [
+            {
+                'id': announcement.id,
+                'title': announcement.title,
+                'content': announcement.content,
+                'status': announcement.status,
+                'publish_time': announcement.publishTime.strftime('%Y-%m-%d %H:%M:%S') if announcement.publishTime else None
+            }
+            for announcement in announcements
+        ]
+        return Response({
+            'code': 200,
+            'announcements': data,
+        })
+    
+
 class CreateAnnouncement(APIView):
     """创建公告"""
     def post(self, request):

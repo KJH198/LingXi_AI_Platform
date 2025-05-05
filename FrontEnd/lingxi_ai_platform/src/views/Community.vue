@@ -795,7 +795,7 @@ const showAnnouncement = (announcement) => {
 const checkNewAnnouncements = async () => {
 
   try {
-    const response = await fetch('/user/admin/GetAnnouncements', {
+    const response = await fetch('/user/GetAnnouncements', {
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('token')}`
       },
