@@ -1166,8 +1166,14 @@ const edgeCount = computed(() => elements.value.filter(el => el.type === 'smooth
 const nodeTypeCounters = ref({
   input: 0,
   'dynamic-input': 0,
-  process: 0,
-  llm: 0,
+  process: {
+    code: 0,
+    selector: 0,
+    loop: 0,
+    llm: 0,
+    batch: 0,
+    aggregate: 0
+  },
   workflow: 0,
   monitor: 0,
   output: 0
@@ -1313,6 +1319,7 @@ const addNode = (type) => {
       position,
       data: {
         label: `大模型 ${nodeTypeCounters.value.llm}`,
+        name: `大模型 ${nodeTypeCounters.value.llm}`,  // 添加name字段，与label保持一致
         type: 'llm',
         description: '大模型节点',
         icon: 'ChatDotRound',
@@ -1382,13 +1389,13 @@ const confirmAddProcessNode = () => {
   if (pendingProcessNode.value) {
     const selectedType = processTypes.find(type => type.value === selectedProcessType.value)
     
-    // 增加处理节点的计数器
-    nodeTypeCounters.value.process++
+    // 增加对应处理节点类型的计数器
+    nodeTypeCounters.value.process[selectedType.value]++
     
     // 创建默认配置对象
     const defaultConfig = {
       // 基础配置
-      name: '',
+      name: `${selectedType.label} ${nodeTypeCounters.value.process[selectedType.value]}`,
       type: 'process',
       description: selectedType.description,
       // 处理节点配置
@@ -1424,7 +1431,7 @@ const confirmAddProcessNode = () => {
       position: pendingProcessNode.value.position,
       data: {
         ...defaultConfig,
-        label: `${selectedType.label} ${nodeTypeCounters.value.process}`,
+        label: `${selectedType.label} ${nodeTypeCounters.value.process[selectedType.value]}`,
         icon: selectedType.icon,
         color: selectedType.color,
         bgColor: selectedType.bgColor
@@ -1523,7 +1530,7 @@ const handleNodeClick = (event) => {
   
   // 更新表单数据
   nodeForm.value = {
-    name: node.data?.name || node.data?.label || '',  // 优先使用name，如果没有则使用label
+    name: node.data?.label || '',  // 只使用label作为名称
     type: node.data?.type || '',
     description: node.data?.description || '',
     // 输入节点配置
@@ -1580,16 +1587,16 @@ const updateNode = async () => {
   const originalColor = node.data.color
   const originalBgColor = node.data.bgColor
   
-  // 根据节点类型决定如何更新标签
-  let newLabel = nodeForm.value.name || node.data.label
+  // 使用表单中的名称作为新的标签
+  const newLabel = nodeForm.value.name
+  
   if (node.data.type === 'process') {
     // 如果是代码处理节点，保持原始颜色
     if (node.data.processType === 'code') {
       const newNodeData = {
         ...node.data,
         ...nodeForm.value,
-        name: nodeForm.value.name,  // 确保设置name字段
-        label: newLabel,
+        label: newLabel,  // 只使用label字段
         color: originalColor,
         bgColor: originalBgColor
       }
@@ -1629,8 +1636,7 @@ const updateNode = async () => {
       const newNodeData = {
         ...node.data,
         ...nodeForm.value,
-        name: nodeForm.value.name,  // 确保设置name字段
-        label: newLabel,
+        label: newLabel,  // 只使用label字段
         icon: processTypeIcons[nodeForm.value.processType],
         color: processTypeColors[nodeForm.value.processType].color,
         bgColor: processTypeColors[nodeForm.value.processType].bgColor,
@@ -1684,40 +1690,17 @@ const updateNode = async () => {
     const newNodeData = {
       ...node.data,
       ...nodeForm.value,
-      name: nodeForm.value.name,  // 确保设置name字段
-      label: newLabel,
-      // 确保所有配置字段都被保存
-      type: nodeForm.value.type,
-      description: nodeForm.value.description,
-      // 输入节点配置
-      inputType: nodeForm.value.inputType,
-      defaultValue: nodeForm.value.defaultValue,
-      fileType: nodeForm.value.fileType,
-      apiUrl: nodeForm.value.apiUrl,
-      apiMethod: nodeForm.value.apiMethod,
-      // 输出节点配置
-      outputType: nodeForm.value.outputType,
-      fileFormat: nodeForm.value.fileFormat,
-      filePath: nodeForm.value.filePath,
-      // 选择器配置
-      ifCondition: nodeForm.value.ifCondition,
-      elseIfConditions: nodeForm.value.elseIfConditions,
-      elseCondition: '否则（默认执行路径）', // 固定值
+      label: newLabel,  // 只使用label字段
+      color: originalColor,
+      bgColor: originalBgColor
     }
     
-    // 使用 Vue Flow 的 updateNode 方法更新节点
     vueFlowUpdateNode(node.id, {
       data: newNodeData
     })
   }
   
-  // 更新原始数据
-  originalNodeData.value = JSON.parse(JSON.stringify(nodeForm.value))
-  
-  // 等待 DOM 更新
-  await nextTick()
-  
-  ElMessage.success('节点更新成功')
+  drawerVisible.value = false
 }
 
 // 删除节点
@@ -2389,7 +2372,7 @@ watch(() => nodeForm.value.processType, (newType) => {
   if (typeConfig) {
     // 只在未手动输入名称时自动更新
     if (!nodeForm.value.name || nodeForm.value.name === '' || nodeForm.value.name === originalNodeData.value.name) {
-      nodeForm.value.name = `${typeConfig.label} ${nodeTypeCounters.value.process}`
+      nodeForm.value.name = `${typeConfig.label} ${nodeTypeCounters.value.process[newType]}`
     }
   }
 })
