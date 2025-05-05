@@ -1251,7 +1251,7 @@ const addNode = (type) => {
     
     // 创建输入节点的默认配置
     const defaultInputConfig = {
-      name: '',
+      name: `输入 ${nodeTypeCounters.value.input}`,
       type: 'input',
       description: '输入节点',
       inputType: 'text',
@@ -1279,7 +1279,7 @@ const addNode = (type) => {
     
     // 创建输出节点的默认配置
     const defaultOutputConfig = {
-      name: '',
+      name: `输出 ${nodeTypeCounters.value.output}`,
       type: 'output',
       description: '输出节点',
       outputType: 'text',
@@ -1523,7 +1523,7 @@ const handleNodeClick = (event) => {
   
   // 更新表单数据
   nodeForm.value = {
-    name: node.data?.label || '',
+    name: node.data?.name || node.data?.label || '',  // 优先使用name，如果没有则使用label
     type: node.data?.type || '',
     description: node.data?.description || '',
     // 输入节点配置
@@ -1588,6 +1588,7 @@ const updateNode = async () => {
       const newNodeData = {
         ...node.data,
         ...nodeForm.value,
+        name: nodeForm.value.name,  // 确保设置name字段
         label: newLabel,
         color: originalColor,
         bgColor: originalBgColor
@@ -1628,12 +1629,12 @@ const updateNode = async () => {
       const newNodeData = {
         ...node.data,
         ...nodeForm.value,
+        name: nodeForm.value.name,  // 确保设置name字段
         label: newLabel,
         icon: processTypeIcons[nodeForm.value.processType],
         color: processTypeColors[nodeForm.value.processType].color,
         bgColor: processTypeColors[nodeForm.value.processType].bgColor,
         // 确保所有配置字段都被保存
-        name: nodeForm.value.name,
         type: nodeForm.value.type,
         description: nodeForm.value.description,
         // 输入节点配置
@@ -1683,9 +1684,9 @@ const updateNode = async () => {
     const newNodeData = {
       ...node.data,
       ...nodeForm.value,
+      name: nodeForm.value.name,  // 确保设置name字段
       label: newLabel,
       // 确保所有配置字段都被保存
-      name: nodeForm.value.name,
       type: nodeForm.value.type,
       description: nodeForm.value.description,
       // 输入节点配置
