@@ -1528,9 +1528,21 @@ const handleNodeClick = (event) => {
   
   selectedNode.value = node.id
   
+  // 从label中提取数字后缀
+  const labelMatch = node.data?.label?.match(/(\d+)$/)
+  const numberSuffix = labelMatch ? parseInt(labelMatch[1]) : 0
+  
+  // 如果是处理节点，更新对应类型的计数器
+  if (node.data?.type === 'process' && node.data?.processType) {
+    nodeTypeCounters.value.process[node.data.processType] = numberSuffix
+  } else if (node.data?.type) {
+    // 对于其他类型的节点，更新对应的计数器
+    nodeTypeCounters.value[node.data.type] = numberSuffix
+  }
+  
   // 更新表单数据
   nodeForm.value = {
-    name: node.data?.label || '',  // 只使用label作为名称
+    name: node.data?.label || '',  // 使用完整的label作为名称
     type: node.data?.type || '',
     description: node.data?.description || '',
     // 输入节点配置
