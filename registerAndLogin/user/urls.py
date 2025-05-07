@@ -59,6 +59,10 @@ from .views import (
     UserFollowView,
     AgentDeleteView,
     AgentDraftView,
+    UserProfileView, 
+    UserPostsView, 
+    UserPublicAgentsView, 
+    UserPublicKnowledgeBasesView, 
 )
 
 urlpatterns = [
@@ -71,6 +75,10 @@ urlpatterns = [
     path('user_info/', UserInfoView.as_view(), name='user_info'),
     path('update_info/', UpdateUserInfoView.as_view(), name='update_user_info'),
     path('upload_avatar/', UploadAvatarView.as_view(), name='upload_avatar'),
+    path('<str:user_id>/profile/', UserProfileView.as_view(), name='user_profile'),
+    path('<str:user_id>/posts/', UserPostsView.as_view(), name='user_posts'),
+    path('<str:user_id>/agents/', UserPublicAgentsView.as_view(), name='user_public_agents'),
+    path('<str:user_id>/knowledge-bases/', UserPublicKnowledgeBasesView.as_view(), name='user_public_knowledge_bases'),
 
     # 管理员路由
     path('adminLogin', AdminLoginView.as_view(), name='admin_login'),

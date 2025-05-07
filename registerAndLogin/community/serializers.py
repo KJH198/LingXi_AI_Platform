@@ -37,7 +37,7 @@ class HotKnowledgeBaseSerializer(serializers.ModelSerializer):
     class Meta:
         model = KnowledgeBase
         fields = ['id', 'name', 'description', 'creator', 
-                 'fileCount', 'followerCount', 'views', 'created_at', 'isFollowed']
+                 'fileCount', 'followerCount', 'created_at', 'isFollowed']
     
     def get_fileCount(self, obj):
         if hasattr(obj, 'file_count'):
