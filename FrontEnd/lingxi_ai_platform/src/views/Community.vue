@@ -461,6 +461,10 @@ const loading = ref(false)
 
 // 处理菜单选择
 const handleMenuSelect = (key) => {
+  // 如果是公告选项，不进行页面切换
+  if (key === '4') {
+    return
+  }
   activeMenu.value = key
   fetchPosts() // 切换菜单时重新加载帖子
 }
@@ -1566,6 +1570,29 @@ fetchPosts()
   display: flex;
   align-items: center;
   gap: 20px;
+  min-width: 600px; /* 确保有足够的宽度 */
+}
+
+.header-left h2 {
+  margin: 0;
+  white-space: nowrap;
+}
+
+.el-menu {
+  border-bottom: none;
+  flex: 1;
+}
+
+.el-menu--horizontal {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.el-menu--horizontal > .el-menu-item {
+  height: 60px;
+  line-height: 60px;
+  padding: 0 20px;
+  white-space: nowrap;
 }
 
 .header-right {
