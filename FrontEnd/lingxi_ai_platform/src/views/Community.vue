@@ -642,7 +642,7 @@ watch([currentPage, pageSize], () => {
 onMounted(() => {
   fetchUserInfo()
   fetchPosts()
-  // checkNewAnnouncements()
+  checkNewAnnouncements()
 })
 
 // 定义接口
