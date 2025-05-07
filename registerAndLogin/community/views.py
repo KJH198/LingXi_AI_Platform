@@ -431,17 +431,19 @@ class HotAgentsView(generics.ListAPIView):
     def get_queryset(self):
         # 只获取已审核通过的智能体
         return PublishedAgent.objects.filter(
-            status='approved', 
             is_active=True
         ).annotate(
-            # 计算热度分数：浏览量 + 点赞数*2 + 关注者数*3
-            popularity_score=F('views') + Count('likes')*2 + Count('followers')*3
+            # 计算热度分数：浏览量 + 点赞数*2 + 关注者数*4
+            popularity_score=F('views') + Count('likes')*2 + Count('followers')*4
         ).order_by('-popularity_score', '-created_at')
     
     def list(self, request, *args, **kwargs):
+        print("获取热门智能体列表请求:", request)
         queryset = self.filter_queryset(self.get_queryset())
+        print("获取热门智能体列表查询集:", queryset)
         page = self.paginate_queryset(queryset)
         
+        print("分页后的热门智能体:", page)
         if page is not None:
             # 标记当前用户是否已关注
             user = request.user
@@ -482,8 +484,8 @@ class HotKnowledgeBasesView(generics.ListAPIView):
             # 关注者数量
             follower_count=Count('followers'),
             # 计算热度分数
-            popularity_score=F('views') + Count('followers')*2 + Count('files')
-        ).order_by('-popularity_score', '-updated_at')
+            popularity_score=Count('followers')*2 + Count('likes')*4
+        ).order_by('-popularity_score', '-created_at')
     
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())

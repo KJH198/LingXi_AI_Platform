@@ -3521,3 +3521,239 @@ class AgentDraftView(APIView):
                 'code': 500,
                 'message': f'删除草稿失败：{str(e)}'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+class UserProfileView(APIView):
+    """获取用户个人资料接口"""
+    
+    def get(self, request, user_id):
+        """获取用户详情"""
+        try:
+            # 查询目标用户
+            target_user = User.objects.get(id=user_id)
+            
+            # 检查当前请求用户是否已登录
+            current_user = request.user if request.user.is_authenticated else None
+            
+            # 统计智能体数量
+            agent_count = PublishedAgent.objects.filter(creator=target_user).count()
+            
+            # 构建响应数据
+            user_data = {
+                'id': str(target_user.id),
+                'username': target_user.username,
+                'avatar': target_user.avatar,
+                'bio': target_user.bio or "",
+                'followersCount': target_user.get_followers_count(),
+                'followingCount': target_user.get_following_count(),
+                'postsCount': target_user.posts.count() if hasattr(target_user, 'posts') else 0,
+                'agentsCount': agent_count,
+                'isFollowed': current_user.is_following(target_user) if current_user else False
+            }
+            
+            return Response({
+                'code': 200,
+                'message': '获取用户信息成功',
+                'data': user_data
+            })
+            
+        except User.DoesNotExist:
+            return Response({
+                'code': 404,
+                'message': '用户不存在',
+                'data': None
+            }, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            print(f"获取用户信息失败: {str(e)}")
+            return Response({
+                'code': 500,
+                'message': f'获取用户信息失败: {str(e)}',
+                'data': None
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+class UserPostsView(APIView):
+    """获取用户帖子列表接口"""
+    
+    def get(self, request, user_id):
+        """获取用户发布的帖子"""
+        try:
+            # 查询目标用户
+            target_user = User.objects.get(id=user_id)
+            print(target_user)
+            
+            # 检查当前请求用户是否已登录
+            current_user = request.user if request.user.is_authenticated else None
+            
+            # 获取用户发布的帖子
+            posts = Post.objects.filter(user=target_user).order_by('-created_at')
+            # 构建响应数据
+            print(posts)
+            post_list = []
+            for post in posts:
+                # 检查当前用户是否点赞了该帖子
+                is_liked = False
+                if current_user:
+                    is_liked = post.likes.filter(id=current_user.id).exists() if hasattr(post, 'likes') else False
+                
+                # 获取评论
+                comments = []
+                for comment in PostComment.objects.filter(post=post).order_by('-created_at')[:10]:  # 只取前10条评论
+                    comments.append({
+                        'id': str(comment.id),
+                        'content': comment.content,
+                        'username': comment.user.username
+                    })
+                
+                # 获取图片
+                images = []
+                if hasattr(post, 'images'):
+                    for image in post.images.all():
+                        images.append(image.image.url if hasattr(image, 'image') else '')
+                
+                post_data = {
+                    'id': str(post.id),
+                    'title': post.title,
+                    'content': post.content,
+                    'time': post.created_at.strftime('%Y-%m-%d %H:%M'),
+                    'likes': post.likes.count() if hasattr(post, 'likes') else 0,
+                    'isLiked': is_liked,
+                    'comments': comments,
+                    'images': images
+                }
+                post_list.append(post_data)
+            
+            return Response({
+                'code': 200,
+                'message': '获取帖子列表成功',
+                'data': post_list
+            })
+            
+        except User.DoesNotExist:
+            return Response({
+                'code': 404,
+                'message': '用户不存在',
+                'data': []
+            }, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            print(f"获取用户帖子失败: {str(e)}")
+            return Response({
+                'code': 500,
+                'message': f'获取用户帖子失败: {str(e)}',
+                'data': []
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+class UserPublicAgentsView(APIView):
+    """获取用户公开智能体列表接口"""
+    
+    def get(self, request, user_id):
+        """获取用户创建的公开智能体列表"""
+        try:
+            # 查询目标用户
+            target_user = User.objects.get(id=user_id)
+            
+            # 检查当前请求用户是否已登录
+            current_user = request.user if request.user.is_authenticated else None
+            
+            # 获取用户创建的公开智能体列表
+            agents = PublishedAgent.objects.filter(
+                creator=target_user,
+                is_active=True      # 只获取未被禁用的
+            )
+            
+            # 构建响应数据
+            agent_list = []
+            for agent in agents:
+                # 获取关注数量
+                follow_count = agent.followers.count() if hasattr(agent, 'followers') else 0
+                
+                # 检查当前用户是否已关注该智能体
+                is_followed = False
+                if current_user and hasattr(agent, 'followers'):
+                    is_followed = agent.followers.filter(id=current_user.id).exists()
+                
+                agent_data = {
+                    'id': str(agent.id),
+                    'name': agent.name,
+                    'description': agent.description,
+                    'avatar': agent.avatar,
+                    'followCount': follow_count,
+                    'usageCount': agent.views or 0,  # 可能需要添加一个使用次数字段
+                    'isFollowed': is_followed
+                }
+                agent_list.append(agent_data)
+            
+            return Response({
+                'code': 200,
+                'message': '获取智能体列表成功',
+                'data': agent_list
+            })
+            
+        except User.DoesNotExist:
+            return Response({
+                'code': 404,
+                'message': '用户不存在',
+                'data': []
+            }, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            print(f"获取用户智能体失败: {str(e)}")
+            return Response({
+                'code': 500,
+                'message': f'获取用户智能体失败: {str(e)}',
+                'data': []
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+class UserPublicKnowledgeBasesView(APIView):
+    """获取用户公开知识库列表接口"""
+    
+    def get(self, request, user_id):
+        """获取用户创建的公开知识库列表"""
+        try:
+            # 查询目标用户
+            target_user = User.objects.get(id=user_id)
+            
+            # 检查当前请求用户是否已登录
+            current_user = request.user if request.user.is_authenticated else None
+            
+            # 获取用户创建的公开知识库
+            knowledge_bases = KnowledgeBase.objects.filter(user=target_user)
+            
+            # 构建响应数据
+            kb_list = []
+            for kb in knowledge_bases:
+                # 获取关注数量
+                follow_count = kb.followers.count() if hasattr(kb, 'followers') else 0
+                
+                # 检查当前用户是否已关注该知识库
+                is_followed = False
+                if current_user and hasattr(kb, 'followers'):
+                    is_followed = kb.followers.filter(id=current_user.id).exists()
+                
+                kb_data = {
+                    'id': str(kb.id),
+                    'name': kb.name,
+                    'description': kb.description,
+                    'type': kb.type if hasattr(kb, 'type') else 'text',
+                    'followCount': follow_count,
+                    'fileCount': kb.files.count() if hasattr(kb, 'files') else 0,
+                    'isFollowed': is_followed
+                }
+                kb_list.append(kb_data)
+            
+            return Response({
+                'code': 200,
+                'message': '获取知识库列表成功',
+                'data': kb_list
+            })
+            
+        except User.DoesNotExist:
+            return Response({
+                'code': 404,
+                'message': '用户不存在',
+                'data': []
+            }, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            print(f"获取用户知识库失败: {str(e)}")
+            return Response({
+                'code': 500,
+                'message': f'获取用户知识库失败: {str(e)}',
+                'data': []
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

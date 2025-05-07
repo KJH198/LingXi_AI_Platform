@@ -47,154 +47,172 @@
 
       <!-- 主要内容区 -->
       <el-main>
-        <!-- 加载指示器 -->
-        <div v-if="loading" class="loading-container">
-          <el-skeleton :rows="3" animated />
-          <el-skeleton :rows="3" animated style="margin-top: 20px" />
-        </div>
+        <!-- 根据选中的菜单项展示不同内容 -->
         
-        <!-- 空状态提示 -->
-        <el-empty v-else-if="posts.length === 0" description="暂无内容" />
-        
-        <!-- 帖子列表 -->
-        <div v-else class="post-list">
-          <el-card v-for="post in posts" :key="post.id" class="post-card">
-            <template #header>
-              <div class="post-header">
-                <div class="post-title" @click="viewUserProfile(post.userId)">
-                  <el-avatar :size="32" :src="post.avatar" />
-                  <span class="username">{{ post.username }}</span>
-                  <span class="time">{{ post.time }}</span>
-                </div>
-                <el-dropdown>
-                  <el-button type="text">
-                    <el-icon><More /></el-icon>
-                  </el-button>
-                  <template #dropdown>
-                    <el-dropdown-menu>
-                      <el-dropdown-item @click="followUser(post.userId)">
-                        {{ post.isFollowed ? '取消关注' : '关注' }}
-                      </el-dropdown-item>
-                      <el-dropdown-item @click="favoritePost(post)">
-                        {{ post.isFavorited ? '取消收藏' : '收藏' }}
-                      </el-dropdown-item>
-                      <el-dropdown-item @click="reportPost(post.id)">举报</el-dropdown-item>
-                    </el-dropdown-menu>
-                  </template>
-                </el-dropdown>
-              </div>
-            </template>
+        <!-- 帖子选项卡 -->
+        <template v-if="activeMenu === '1'">
+          <!-- 加载指示器 -->
+          <div v-if="loading" class="loading-container">
+            <el-skeleton :rows="3" animated />
+            <el-skeleton :rows="3" animated style="margin-top: 20px" />
+          </div>
+          
+          <!-- 帖子列表 -->
+          <div v-else>
+            <!-- 空状态提示 -->
+            <el-empty v-if="posts.length === 0" description="暂无内容" />
             
-            <div class="post-content">
-              <h3>{{ post.title }}</h3>
-              <p>{{ post.content }}</p>
-              
-              <!-- 图片展示 -->
-              <div class="post-images" v-if="post.images && post.images.length">
-                <el-image 
-                  v-for="(img, index) in post.images" 
-                  :key="index"
-                  :src="img"
-                  :preview-src-list="post.images"
-                  fit="cover"
-                  class="post-image"
-                />
-              </div>
-              
-              <!-- 智能体展示 -->
-              <div class="post-resources" v-if="post.agents && post.agents.length">
-                <div class="resource-header">
-                  <el-icon><Connection /></el-icon>
-                  <span>相关智能体</span>
-                </div>
-                <div class="resource-list">
-                  <div 
-                    v-for="agent in post.agents" 
-                    :key="agent.id" 
-                    class="resource-item"
-                    @click="viewAgentDetail(agent.id)"
-                  >
-                    <div class="resource-item-icon">AI</div>
-                    <div class="resource-item-content">
-                      <div class="resource-item-name">{{ agent.name }}</div>
-                      <div class="resource-item-creator">by {{ agent.creator.username }}</div>
+            <!-- 帖子列表内容 -->
+            <div v-else class="post-list">
+              <el-card v-for="post in posts" :key="post.id" class="post-card">
+                <template #header>
+                  <div class="post-header">
+                    <div class="post-title" @click="viewUserProfile(post.userId)">
+                      <el-avatar :size="32" :src="post.avatar" />
+                      <span class="username">{{ post.username }}</span>
+                      <span class="time">{{ post.time }}</span>
                     </div>
-                    <el-button 
-                      size="small" 
-                      :type="agent.isFollowed ? 'success' : 'primary'"
-                      @click.stop="followAgent(agent)"
-                    >
-                      {{ agent.isFollowed ? '已关注' : '关注' }}
-                    </el-button>
+                    <el-dropdown>
+                      <el-button type="text">
+                        <el-icon><More /></el-icon>
+                      </el-button>
+                      <template #dropdown>
+                        <el-dropdown-menu>
+                          <el-dropdown-item @click="followUser(post.userId)">
+                            {{ post.isFollowed ? '取消关注' : '关注' }}
+                          </el-dropdown-item>
+                          <el-dropdown-item @click="favoritePost(post)">
+                            {{ post.isFavorited ? '取消收藏' : '收藏' }}
+                          </el-dropdown-item>
+                          <el-dropdown-item @click="reportPost(post.id)">举报</el-dropdown-item>
+                        </el-dropdown-menu>
+                      </template>
+                    </el-dropdown>
+                  </div>
+                </template>
+                
+                <div class="post-content">
+                  <h3>{{ post.title }}</h3>
+                  <p>{{ post.content }}</p>
+                  
+                  <!-- 图片展示 -->
+                  <div class="post-images" v-if="post.images && post.images.length">
+                    <el-image 
+                      v-for="(img, index) in post.images" 
+                      :key="index"
+                      :src="img"
+                      :preview-src-list="post.images"
+                      fit="cover"
+                      class="post-image"
+                    />
+                  </div>
+                  
+                  <!-- 智能体展示 -->
+                  <div class="post-resources" v-if="post.agents && post.agents.length">
+                    <div class="resource-header">
+                      <el-icon><Connection /></el-icon>
+                      <span>相关智能体</span>
+                    </div>
+                    <div class="resource-list">
+                      <div 
+                        v-for="agent in post.agents" 
+                        :key="agent.id" 
+                        class="resource-item"
+                        @click="viewAgentDetail(agent.id)"
+                      >
+                        <div class="resource-item-icon">AI</div>
+                        <div class="resource-item-content">
+                          <div class="resource-item-name">{{ agent.name }}</div>
+                          <div class="resource-item-creator">by {{ agent.creator.username }}</div>
+                        </div>
+                        <el-button 
+                          size="small" 
+                          :type="agent.isFollowed ? 'success' : 'primary'"
+                          @click.stop="followAgent(agent)"
+                        >
+                          {{ agent.isFollowed ? '已关注' : '关注' }}
+                        </el-button>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <!-- 知识库展示 -->
+                  <div class="post-resources" v-if="post.knowledgeBases && post.knowledgeBases.length">
+                    <div class="resource-header">
+                      <el-icon><Collection /></el-icon>
+                      <span>相关知识库</span>
+                    </div>
+                    <div class="resource-list">
+                      <div 
+                        v-for="kb in post.knowledgeBases" 
+                        :key="kb.id" 
+                        class="resource-item"
+                        @click="viewKnowledgeBaseDetail(kb.id)"
+                      >
+                        <div class="resource-item-icon">KB</div>
+                        <div class="resource-item-content">
+                          <div class="resource-item-name">{{ kb.name }}</div>
+                          <div class="resource-item-creator">by {{ kb.creator.username }}</div>
+                        </div>
+                        <el-button 
+                          size="small" 
+                          :type="kb.isFollowed ? 'success' : 'primary'"
+                          @click.stop="followKnowledgeBase(kb)"
+                        >
+                          {{ kb.isFollowed ? '已关注' : '关注' }}
+                        </el-button>
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </div>
-              
-              <!-- 知识库展示 -->
-              <div class="post-resources" v-if="post.knowledgeBases && post.knowledgeBases.length">
-                <div class="resource-header">
-                  <el-icon><Collection /></el-icon>
-                  <span>相关知识库</span>
-                </div>
-                <div class="resource-list">
-                  <div 
-                    v-for="kb in post.knowledgeBases" 
-                    :key="kb.id" 
-                    class="resource-item"
-                    @click="viewKnowledgeBaseDetail(kb.id)"
-                  >
-                    <div class="resource-item-icon">KB</div>
-                    <div class="resource-item-content">
-                      <div class="resource-item-name">{{ kb.name }}</div>
-                      <div class="resource-item-creator">by {{ kb.creator.username }}</div>
-                    </div>
+                
+                <div class="post-footer">
+                  <div class="post-actions">
                     <el-button 
-                      size="small" 
-                      :type="kb.isFollowed ? 'success' : 'primary'"
-                      @click.stop="followKnowledgeBase(kb)"
+                      :type="post.isLiked ? 'primary' : 'text'" 
+                      @click="likePost(post)"
                     >
-                      {{ kb.isFollowed ? '已关注' : '关注' }}
+                      <el-icon><Pointer /></el-icon>
+                      {{ post.likes }}
+                    </el-button>
+                    <el-button type="text" @click="showCommentDialog(post)">
+                      <el-icon><ChatDotRound /></el-icon>
+                      {{ post.comments.length }}
+                    </el-button>
+                    <el-button type="text" @click="sharePost(post)">
+                      <el-icon><Share /></el-icon>
+                      分享
                     </el-button>
                   </div>
+                  <el-button type="primary" size="small" @click="showCommentDialog(post)">评论</el-button>
                 </div>
-              </div>
+              </el-card>
             </div>
             
-            <div class="post-footer">
-              <div class="post-actions">
-                <el-button 
-                  :type="post.isLiked ? 'primary' : 'text'" 
-                  @click="likePost(post)"
-                >
-                  <el-icon><Pointer /></el-icon>
-                  {{ post.likes }}
-                </el-button>
-                <el-button type="text" @click="showCommentDialog(post)">
-                  <el-icon><ChatDotRound /></el-icon>
-                  {{ post.comments.length }}
-                </el-button>
-                <el-button type="text" @click="sharePost(post)">
-                  <el-icon><Share /></el-icon>
-                  分享
-                </el-button>
-              </div>
-              <el-button type="primary" size="small" @click="showCommentDialog(post)">评论</el-button>
+            <!-- 分页 -->
+            <div v-if="posts.length > 0" class="pagination">
+              <el-pagination
+                v-model:current-page="currentPage"
+                v-model:page-size="pageSize"
+                :page-sizes="[10, 20, 30, 50]"
+                layout="total, sizes, prev, pager, next"
+                :total="total"
+                @size-change="handleSizeChange"
+                @current-change="handleCurrentChange"
+              />
             </div>
-          </el-card>
-        </div>
-
-        <!-- 分页 -->
-        <div class="pagination">
-          <el-pagination
-            v-model:current-page="currentPage"
-            v-model:page-size="pageSize"
-            :page-sizes="[10, 20, 30, 50]"
-            layout="total, sizes, prev, pager, next"
-            :total="total"
-            @size-change="handleSizeChange"
-            @current-change="handleCurrentChange"
-          />
-        </div>
+          </div>
+        </template>
+        
+        <!-- 热门智能体选项卡 -->
+        <template v-else-if="activeMenu === '2'">
+          <HotAgents />
+        </template>
+        
+        <!-- 热门知识库选项卡 -->
+        <template v-else-if="activeMenu === '3'">
+          <HotKnowledgeBases />
+        </template>
       </el-main>
     </el-container>
 
@@ -420,13 +438,15 @@ import {
   Star, 
   ChatDotRound, 
   Share, 
-  More, 
+  More,
   Plus,
   RefreshRight,
   Collection,
   Connection,
   User as UserIcon
 } from '@element-plus/icons-vue'
+import HotAgents from './HotAgents.vue'
+import HotKnowledgeBases from './HotKnowledgeBases.vue'
 
 const router = useRouter()
 const activeMenu = ref('1')
