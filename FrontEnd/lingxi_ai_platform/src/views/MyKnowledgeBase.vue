@@ -773,32 +773,44 @@
   
   <style scoped>
   .my-kb-container {
-    padding: 20px;
+    padding: 24px;
+    background-color: #f5f7fa;
+    min-height: 100vh;
   }
   
   .header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 20px;
+    margin-bottom: 24px;
+    padding: 0;
   }
   
   .header-left {
     display: flex;
     align-items: center;
-    gap: 15px;
+    gap: 16px;
+  }
+  
+  .header-left h2 {
+    margin: 0;
+    font-size: 24px;
+    font-weight: 600;
+    color: #303133;
   }
   
   .kb-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
     gap: 24px;
-    margin-bottom: 20px;
+    margin-bottom: 24px;
   }
   
   .kb-card {
     height: 100%;
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    transition: all 0.3s ease;
+    border-radius: 8px;
+    overflow: hidden;
   }
   
   .kb-card:hover {
@@ -816,6 +828,8 @@
     display: flex;
     align-items: center;
     gap: 12px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #ebeef5;
   }
   
   .kb-icon {
@@ -827,6 +841,13 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    transition: all 0.3s ease;
+  }
+  
+  .kb-card:hover .kb-icon {
+    transform: scale(1.1);
+    background-color: #409eff;
+    color: white;
   }
   
   .kb-name {
@@ -835,6 +856,7 @@
     font-weight: 600;
     color: #303133;
     cursor: pointer;
+    transition: color 0.3s ease;
   }
   
   .kb-name:hover {
@@ -844,11 +866,10 @@
   .kb-description {
     color: #606266;
     font-size: 14px;
-    line-height: 1.5;
+    line-height: 1.6;
     margin: 0;
     display: -webkit-box;
     -webkit-line-clamp: 2;
-    line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
   }
@@ -866,6 +887,15 @@
     gap: 4px;
     font-size: 13px;
     color: #606266;
+    background-color: #f5f7fa;
+    padding: 4px 8px;
+    border-radius: 4px;
+    transition: all 0.3s ease;
+  }
+  
+  .kb-stat:hover {
+    background-color: #ecf5ff;
+    color: #409eff;
   }
   
   .kb-update-time {
@@ -874,25 +904,30 @@
     gap: 4px;
     font-size: 13px;
     color: #909399;
+    margin-top: auto;
   }
   
   .kb-actions {
     display: grid;
-    grid-template-columns: repeat(2, 1fr); /* 确保两列等宽 */
+    grid-template-columns: repeat(2, 1fr);
     gap: 8px;
-    margin-top: 8px;
+    margin-top: auto;
+    padding-top: 16px;
+    border-top: 1px solid #ebeef5;
+    width: 100%;
   }
-
-  /* 确保按钮文本居中 */
+  
   .kb-actions .el-button {
-    width: 100%; /* 让按钮填满单元格 */
-    justify-content: center; /* 按钮内容居中 */
+    width: 100%;
+    justify-content: center;
+    margin: 0;
+    padding: 8px 15px;
   }
   
   .pagination {
     display: flex;
     justify-content: center;
-    margin-top: 30px;
+    margin-top: 32px;
   }
   
   .share-dialog-content {
@@ -907,56 +942,121 @@
     text-align: center;
     margin: 0;
   }
-
+  
   .kb-detail-container {
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    gap: 24px;
   }
-
+  
   .kb-files {
     display: flex;
     flex-direction: column;
     gap: 20px;
   }
-
+  
   .kb-files-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #ebeef5;
   }
-
+  
+  .kb-files-header h4 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: #303133;
+  }
+  
   .empty-files {
     text-align: center;
+    padding: 32px 0;
   }
-
+  
   .file-preview {
     white-space: pre-wrap;
     word-wrap: break-word;
-    background-color: #f5f5f5;
-    padding: 20px;
+    background-color: #f5f7fa;
+    padding: 24px;
     border-radius: 8px;
     overflow: auto;
+    max-height: 500px;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', 'source-code-pro', monospace;
+    font-size: 14px;
+    line-height: 1.6;
   }
-
+  
   .empty-preview {
     text-align: center;
+    padding: 32px 0;
   }
-
+  
   .el-form-item-description {
     color: #909399;
     font-size: 12px;
     margin-top: 4px;
+    line-height: 1.4;
   }
   
-  /* 添加媒体查询，在小屏幕上调整布局 */
+  /* 上传组件样式优化 */
+  .upload-container {
+    border: 2px dashed #dcdfe6;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+  }
+  
+  .upload-container:hover {
+    border-color: #409eff;
+  }
+  
+  .el-upload-dragger {
+    width: 100%;
+    height: 200px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+  }
+  
+  .el-upload-dragger .el-icon--upload {
+    font-size: 48px;
+    color: #409eff;
+  }
+  
+  .el-upload__text {
+    font-size: 16px;
+    color: #606266;
+  }
+  
+  .el-upload__text em {
+    color: #409eff;
+    font-style: normal;
+  }
+  
+  /* 响应式布局 */
   @media screen and (max-width: 768px) {
+    .my-kb-container {
+      padding: 16px;
+    }
+    
     .kb-grid {
-      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+      grid-template-columns: 1fr;
     }
     
     .kb-actions {
       grid-template-columns: 1fr;
+    }
+    
+    .kb-stats {
+      gap: 8px;
+    }
+    
+    .kb-stat {
+      font-size: 12px;
+      padding: 2px 6px;
     }
   }
   </style>
