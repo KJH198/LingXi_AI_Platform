@@ -2,34 +2,62 @@
   <div class="my-agent-container">
     <el-container>
       <el-header class="header">
+        <div class="header-left">
           <el-button 
             @click="router.push('/community')" 
             type="primary" 
             plain
             size="medium"
-            icon="ArrowLeft"
+            :icon="ArrowLeft"
           >
             返回社区
           </el-button>
-        <h2>我的智能体</h2>
-        <el-button type="primary" @click="router.push('/agent-editor')">创建新智能体</el-button>
+          <h2 class="page-title">我的智能体</h2>
+        </div>
+        <el-button type="primary" @click="router.push('/agent-editor')" :icon="Plus">
+          创建新智能体
+        </el-button>
       </el-header>
 
       <el-main>
-        <div class="agent-grid">
+        <el-skeleton :rows="3" animated v-if="loading" />
+        
+        <div v-else class="agent-grid">
           <el-card v-for="agent in agents" :key="agent.id" class="agent-card" shadow="hover">
             <div class="agent-content">
               <!-- 智能体封面图 -->
-              <el-image 
-                :src="agent.coverImage" 
-                fit="cover" 
-                class="agent-cover"
-                @click="viewAgentDetails(agent)"
-              />
+              <div class="agent-cover-wrapper" @click="viewAgentDetails(agent)">
+                <el-image 
+                  :src="agent.coverImage" 
+                  fit="cover" 
+                  class="agent-cover"
+                  :preview-src-list="[agent.coverImage]"
+                >
+                  <template #error>
+                    <div class="image-placeholder">
+                      <el-icon :size="40"><Picture /></el-icon>
+                    </div>
+                  </template>
+                </el-image>
+                <div class="agent-stats-overlay">
+                  <div class="stat-item">
+                    <el-icon><View /></el-icon>
+                    <span>{{ agent.views }}</span>
+                  </div>
+                  <div class="stat-item">
+                    <el-icon><Star /></el-icon>
+                    <span>{{ agent.likes }}</span>
+                  </div>
+                  <div class="stat-item">
+                    <el-icon><ChatDotRound /></el-icon>
+                    <span>{{ agent.comments }}</span>
+                  </div>
+                </div>
+              </div>
               
               <!-- 智能体名称和描述 -->
               <div class="agent-info">
-                <h3 class="agent-name">{{ agent.name }}</h3>
+                <h3 class="agent-name" @click="viewAgentDetails(agent)">{{ agent.name }}</h3>
                 <p class="agent-description">{{ agent.description }}</p>
               </div>
               
@@ -54,25 +82,26 @@
         
         <!-- 空状态展示 -->
         <el-empty 
-          v-if="agents.length === 0" 
+          v-if="!loading && agents.length === 0" 
           description="暂无智能体" 
           :image-size="200"
         >
-          <el-button type="primary" @click="router.push('/agent-editor')">
-            <el-icon class="el-icon--left"><Plus /></el-icon>创建第一个智能体
+          <el-button type="primary" @click="router.push('/agent-editor')" :icon="Plus">
+            创建第一个智能体
           </el-button>
         </el-empty>
 
         <!-- 分页 -->
-        <div class="pagination">
+        <div class="pagination" v-if="agents.length > 0">
           <el-pagination
             v-model:current-page="currentPage"
             v-model:page-size="pageSize"
             :page-sizes="[12, 24, 36, 48]"
-            layout="total, sizes, prev, pager, next"
+            layout="total, sizes, prev, pager, next, jumper"
             :total="total"
             @size-change="handleSizeChange"
             @current-change="handleCurrentChange"
+            background
           />
         </div>
       </el-main>
@@ -93,7 +122,8 @@ import {
   Edit, 
   Delete, 
   Share, 
-  Plus 
+  Plus,
+  Picture
 } from '@element-plus/icons-vue'
 
 const router = useRouter()
@@ -101,6 +131,7 @@ const agents = ref([])
 const currentPage = ref(1)
 const pageSize = ref(12)
 const total = ref(0)
+const loading = ref(true)
 
 // 获取用户智能体列表
 const fetchAgents = async () => {
@@ -213,6 +244,8 @@ const fetchAgents = async () => {
       }
     ]
     total.value = agents.value.length
+  } finally {
+    loading.value = false
   }
 }
 
@@ -339,77 +372,167 @@ onMounted(() => {
 
 <style scoped>
 .my-agent-container {
-  padding: 20px;
+  padding: 24px;
+  background-color: #f5f7fa;
+  min-height: 100vh;
 }
 
 .header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  margin-bottom: 24px;
+  padding: 0;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.page-title {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 600;
+  color: #303133;
 }
 
 .agent-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 20px;
-  margin-bottom: 20px;
+  gap: 24px;
+  margin-bottom: 24px;
 }
 
 .agent-card {
   height: 100%;
+  transition: all 0.3s ease;
+  border-radius: 8px;
+  overflow: hidden;
 }
 
-.agent-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+.agent-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1) !important;
 }
 
 .agent-content {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 16px;
+}
+
+.agent-cover-wrapper {
+  position: relative;
+  width: 100%;
+  height: 200px;
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: pointer;
 }
 
 .agent-cover {
   width: 100%;
-  height: 200px;
-  border-radius: 4px;
+  height: 100%;
+  transition: transform 0.3s ease;
+}
+
+.agent-cover-wrapper:hover .agent-cover {
+  transform: scale(1.05);
+}
+
+.image-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #f5f7fa;
+  color: #909399;
+}
+
+.agent-stats-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 12px;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.7));
+  display: flex;
+  justify-content: space-around;
+  color: white;
+}
+
+.stat-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 14px;
+}
+
+.agent-info {
+  padding: 0 4px;
+}
+
+.agent-name {
+  margin: 0 0 8px 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #303133;
+  cursor: pointer;
+  transition: color 0.3s ease;
+}
+
+.agent-name:hover {
+  color: #409EFF;
 }
 
 .agent-description {
-  color: #666;
+  color: #606266;
   font-size: 14px;
-  line-height: 1.5;
+  line-height: 1.6;
+  margin: 0;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  display: -moz-box;
-  -moz-line-clamp: 2;
-  -moz-box-orient: vertical;
-  display: box;
-  line-clamp: 2;
-  box-orient: vertical;
 }
 
-.agent-stats {
-  display: flex;
-  gap: 20px;
-  color: #666;
-  font-size: 14px;
+.agent-actions {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 16px;
+  border-top: 1px solid #ebeef5;
+  width: 100%;
 }
 
-.agent-stats span {
-  display: flex;
-  align-items: center;
-  gap: 4px;
+.agent-actions .el-button {
+  width: 100%;
+  justify-content: center;
+  margin: 0;
+  padding: 8px 15px;
 }
 
 .pagination {
   display: flex;
   justify-content: center;
-  margin-top: 20px;
+  margin-top: 32px;
+}
+
+@media screen and (max-width: 768px) {
+  .my-agent-container {
+    padding: 16px;
+  }
+  
+  .agent-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .agent-actions {
+    grid-template-columns: 1fr;
+  }
 }
 </style>
