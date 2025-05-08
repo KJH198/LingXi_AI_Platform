@@ -517,3 +517,204 @@ class HotKnowledgeBasesView(generics.ListAPIView):
                 "total": len(serializer.data)
             }
         })
+
+class PostDetailView(APIView):
+    """帖子详情视图"""
+    
+    def get(self, request, post_id):
+        try:
+            # 获取帖子对象
+            try:
+                post = Post.objects.get(id=post_id)
+            except Post.DoesNotExist:
+                return Response({
+                    'code': 404,
+                    'message': '帖子不存在',
+                    'data': None
+                }, status=status.HTTP_404_NOT_FOUND)
+            
+            # 增加浏览量
+            post.view_count += 1
+            post.save(update_fields=['view_count'])
+            
+            # 获取当前用户
+            current_user = request.user if request.user.is_authenticated else None
+            
+            # 检查用户是否点赞、收藏
+            is_liked = False
+            is_favorited = False
+            
+            if current_user:
+                is_liked = PostLike.objects.filter(post=post, user=current_user).exists()
+                is_favorited = PostFavorite.objects.filter(post=post, user=current_user).exists()
+            
+            # 获取帖子图片
+            images = [image.image_url for image in post.images.all()]
+            
+            # 获取帖子评论
+            comments = []
+            for comment in PostComment.objects.filter(post=post).order_by('-created_at'):
+                comments.append({
+                    'id': comment.id,
+                    'userId': comment.user.id,
+                    'username': comment.user.username,
+                    'avatar': comment.user.avatar if hasattr(comment.user, 'avatar') else None,
+                    'content': comment.content,
+                    'time': comment.created_at.strftime('%Y-%m-%d %H:%M')
+                })
+            
+            # 获取关联的智能体
+            agents = []
+            for post_agent in PostAgent.objects.filter(post=post):
+                agent = post_agent.agent
+                is_agent_followed = False
+                if current_user and hasattr(agent, 'followers'):
+                    is_agent_followed = agent.followers.filter(id=current_user.id).exists()
+                
+                agents.append({
+                    'id': str(agent.id),
+                    'name': agent.name,
+                    'description': agent.description,
+                    'avatar': agent.avatar,
+                    'creator': {
+                        'id': agent.creator.id,
+                        'username': agent.creator.username,
+                        'avatar': agent.creator.avatar if hasattr(agent.creator, 'avatar') else None
+                    },
+                    'followCount': agent.followers.count() if hasattr(agent, 'followers') else 0,
+                    'isFollowed': is_agent_followed
+                })
+            
+            # 获取关联的知识库
+            knowledge_bases = []
+            for post_kb in PostKnowledgeBase.objects.filter(post=post):
+                kb = post_kb.knowledge_base
+                is_kb_followed = False
+                if current_user and hasattr(kb, 'followers'):
+                    is_kb_followed = kb.followers.filter(id=current_user.id).exists()
+                
+                knowledge_bases.append({
+                    'id': str(kb.id),
+                    'name': kb.name,
+                    'description': kb.description,
+                    'creator': {
+                        'id': kb.user.id,
+                        'username': kb.user.username,
+                        'avatar': kb.user.avatar if hasattr(kb.user, 'avatar') else None
+                    },
+                    'fileCount': kb.files.count() if hasattr(kb, 'files') else 0,
+                    'followCount': kb.followers.count() if hasattr(kb, 'followers') else 0,
+                    'isFollowed': is_kb_followed
+                })
+            
+            # 获取作者信息
+            author = {
+                'id': post.user.id,
+                'username': post.user.username,
+                'avatar': post.user.avatar if hasattr(post.user, 'avatar') else None,
+                'bio': post.user.bio if hasattr(post.user, 'bio') else None
+            }
+            
+            # 检查当前用户是否关注了作者
+            is_author_followed = False
+            if current_user and hasattr(current_user, 'following'):
+                is_author_followed = current_user.following.filter(id=post.user.id).exists()
+            
+            # 构建响应数据
+            post_data = {
+                'id': post.id,
+                'title': post.title,
+                'content': post.content,
+                'time': post.created_at.strftime('%Y-%m-%d %H:%M'),
+                'updateTime': post.updated_at.strftime('%Y-%m-%d %H:%M'),
+                'author': author,
+                'isAuthorFollowed': is_author_followed,
+                'images': images,
+                'likes': post.like_count,
+                'favorites': post.favorite_count,
+                'comments': comments,
+                'commentCount': post.comment_count,
+                'viewCount': post.view_count,
+                'isLiked': is_liked,
+                'isFavorited': is_favorited,
+                'agents': agents,
+                'knowledgeBases': knowledge_bases
+            }
+            
+            return Response({
+                'code': 200,
+                'message': '获取帖子详情成功',
+                'data': post_data
+            })
+            
+        except Exception as e:
+            # 输出详细错误信息
+            import traceback
+            print(f"获取帖子详情失败: {str(e)}")
+            traceback.print_exc()
+            
+            return Response({
+                'code': 500,
+                'message': f'获取帖子详情失败: {str(e)}',
+                'data': None
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class PostCommentsView(APIView):
+    """帖子评论列表视图"""
+    
+    def get(self, request, post_id):
+        try:
+            # 获取帖子
+            try:
+                post = Post.objects.get(id=post_id)
+            except Post.DoesNotExist:
+                return Response({
+                    'code': 404,
+                    'message': '帖子不存在',
+                    'data': None
+                }, status=status.HTTP_404_NOT_FOUND)
+            
+            # 获取分页参数
+            page = int(request.GET.get('page', 1))
+            size = int(request.GET.get('size', 20))
+            
+            # 计算偏移量
+            offset = (page - 1) * size
+            limit = offset + size
+            
+            # 获取评论
+            comments = PostComment.objects.filter(post=post).order_by('-created_at')
+            total = comments.count()
+            comments = comments[offset:limit]
+            
+            # 格式化评论数据
+            items = []
+            for comment in comments:
+                items.append({
+                    'id': comment.id,
+                    'userId': comment.user.id,
+                    'username': comment.user.username,
+                    'avatar': comment.user.avatar if hasattr(comment.user, 'avatar') else None,
+                    'content': comment.content,
+                    'time': comment.created_at.strftime('%Y-%m-%d %H:%M')
+                })
+            
+            return Response({
+                'code': 200,
+                'message': '获取评论成功',
+                'data': {
+                    'items': items,
+                    'total': total
+                }
+            })
+            
+        except Exception as e:
+            import traceback
+            print(f"获取帖子评论失败: {str(e)}")
+            traceback.print_exc()
+            
+            return Response({
+                'code': 500,
+                'message': f'获取帖子评论失败: {str(e)}',
+                'data': None
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

@@ -125,6 +125,11 @@ const routes: RouteRecordRaw[] = [
     component: AgentEditor,
     meta: { requiresAuth: true }
   },
+  {
+    path: '/post/:id',
+    name: 'PostDetail',
+    component: () => import('../views/PostDetail.vue')
+  },
 ]
 
 const router = createRouter({
