@@ -14,7 +14,7 @@ SECRET_KEY = 'django-insecure-q2l4$fn%to@_xbbb0l-4@gd#r!-vz#qy-gd9fuu5f&c1vwe9!0
 DEBUG = True
 
 # 配置允许访问的主机，根据实际情况添加
-ALLOWED_HOSTS = ['localhost', '127.0.0.1','122.9.37.3', '192.168.0.67', 'www.lingxiai.cloud'] 
+ALLOWED_HOSTS = ['localhost', '127.0.0.1','113.44.176.130', '192.168.0.67', 'www.lingxiai.cloud'] 
 
 # 配置用户模型
 AUTH_USER_MODEL = 'user.User'
@@ -55,10 +55,10 @@ CORS_ORIGIN_WHITELIST = (
     'http://localhost:8000',
     'http://127.0.0.1:3000',  # 添加前端开发服务器地址
     'http://localhost:3000',   # 添加前端开发服务器地址
-    'http://122.9.37.3:8000',   # 添加云服务器地址
+    'http://113.44.176.130:8000',   # 添加云服务器地址
     'ws://localhost:8000',     # 添加WebSocket连接
     'ws://127.0.0.1:8000',     # 添加WebSocket连接
-    'wss://122.9.37.3:8000',   # 添加云服务器WebSocket连接
+    'wss://113.44.176.130:8000',   # 添加云服务器WebSocket连接
     'wss://www.lingxiai.cloud' # 添加域名WebSocket连接
 )
 
@@ -231,7 +231,7 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:8000",
     "ws://localhost:8000",
     "ws://127.0.0.1:8000",
-    "wss://122.9.37.3:8000",
+    "wss://113.44.176.130:8000",
     "wss://www.lingxiai.cloud"
 ]
 
