@@ -54,7 +54,7 @@ class InputNode(BaseNode):
 
 
 @csrf_exempt
-def submit_static_inputs(request):
+def submit_static_inputs(request, workflow_id):
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
@@ -69,7 +69,7 @@ def submit_static_inputs(request):
                     static_inputs[name] = value
 
             # 获取工作流对象
-            workflow = Workflow.objects.get(id=workflow_id, user_id=request.user.id)
+            workflow = Workflow.objects.get(id=workflow_id)
 
             # 调用工作流执行函数
             run_workflow_from_output_node(workflow)
@@ -611,7 +611,7 @@ def start_preview(request):
         if flag is False:  # 没有静态输入，直接调工作流
             print("reset")
             run_workflow_from_output_node(workflow)
-
+        # print(workflow_id+'!')
         return JsonResponse({
             'code': 200,
             'message': '预览模式启动成功',

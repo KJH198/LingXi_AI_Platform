@@ -2540,6 +2540,56 @@ class AgentEditDetailView(APIView):
                 'message': f'获取智能体详情失败: {str(e)}',
                 'data': None
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            
+class UseAgentView(APIView):
+    """获取智能体详情"""
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request, agent_id):
+        try:
+            # 获取智能体
+            agent = get_object_or_404(PublishedAgent, id=agent_id)
+            print(f"获取智能体: {agent.name}")
+            
+            # 检查用户权限
+            if not request.user.is_authenticated:
+                return JsonResponse({'error': 'Not authenticated'}, status=401)
+            
+            # 组装智能体详情数据
+            agent_data = {
+                'id': str(agent.id),
+                'name': agent.name,
+                'description': agent.description,
+                'avatar': agent.avatar,  # 直接使用avatar字符串字段
+                'status': agent.status,
+                'modelId': agent.model_id,
+                'workflowId': agent.workflow_id,
+                'is_active': agent.is_active,
+                'created_at': agent.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                'updated_at': agent.updated_at.strftime('%Y-%m-%d %H:%M:%S'),
+                'knowledgeBases': [str(kb.id) for kb in agent.knowledge_bases.all()],
+                # 添加模型参数字段，如果存在的话
+                'modelParams': {
+                    'temperature': agent.temperature if hasattr(agent, 'temperature') else None,
+                    'max_tokens': agent.max_tokens if hasattr(agent, 'max_tokens') else None,
+                    'top_p': agent.top_p if hasattr(agent, 'top_p') else None
+                }
+            }
+
+            print("组装数据成功")
+            
+            return Response({
+                'code': 200,
+                'message': '获取成功',
+                'data': agent_data
+            })
+            
+        except Exception as e:
+            return Response({
+                'code': 500,
+                'message': f'获取智能体详情失败: {str(e)}',
+                'data': None
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class AgentUpdateView(APIView):
     """更新智能体"""

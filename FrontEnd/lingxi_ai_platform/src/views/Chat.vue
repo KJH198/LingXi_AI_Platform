@@ -390,7 +390,7 @@ const handleSendStaticInputs = async () => {
       return
     }
     
-    const response = await fetch('/agent/staticInput', {
+    const response = await fetch(`/agent/staticInput/${agentData.workflowId}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -1263,7 +1263,7 @@ const loadAgentData = async (agentId) => {
     throw new Error('请先登录')
   }
 
-  const response = await fetch(`/user/agent/${agentId}/edit-detail/`, {
+  const response = await fetch(`/user/useAgent/${agentId}/`, {
     method: 'GET',
     headers: {
       'Authorization': `Bearer ${token}`,
