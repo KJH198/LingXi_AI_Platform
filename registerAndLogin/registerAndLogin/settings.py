@@ -51,14 +51,14 @@ MIDDLEWARE = [
 
 # 配置 CORS 白名单，允许的跨域源，根据实际情况修改
 CORS_ORIGIN_WHITELIST = (
-    'http://127.0.0.1:8000',
-    'http://localhost:8000',
+    'http://127.0.0.1:80',
+    'http://localhost:80',
     'http://127.0.0.1:3000',  # 添加前端开发服务器地址
     'http://localhost:3000',   # 添加前端开发服务器地址
-    'http://113.44.176.130:8000',   # 添加云服务器地址
-    'ws://localhost:8000',     # 添加WebSocket连接
-    'ws://127.0.0.1:8000',     # 添加WebSocket连接
-    'wss://113.44.176.130:8000',   # 添加云服务器WebSocket连接
+    'http://113.44.176.130:80',   # 添加云服务器地址
+    'ws://localhost:80',     # 添加WebSocket连接
+    'ws://127.0.0.1:80',     # 添加WebSocket连接
+    'wss://113.44.176.130:80',   # 添加云服务器WebSocket连接
     'wss://www.lingxiai.cloud' # 添加域名WebSocket连接
 )
 
@@ -227,11 +227,11 @@ SIMPLE_JWT = {
 CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:8000",
-    "http://127.0.0.1:8000",
-    "ws://localhost:8000",
-    "ws://127.0.0.1:8000",
-    "wss://113.44.176.130:8000",
+    "http://localhost:80",
+    "http://127.0.0.1:80",
+    "ws://localhost:80",
+    "ws://127.0.0.1:80",
+    "wss://113.44.176.130:80",
     "wss://www.lingxiai.cloud"
 ]
 
