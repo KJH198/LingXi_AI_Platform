@@ -169,6 +169,7 @@ def user_login(request):
             )
             user.last_login = timezone.now()
             user.login_times += 1
+            user.last_login_ip = request.META.get('REMOTE_ADDR')
             user.save()
 
             return JsonResponse({
