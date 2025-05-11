@@ -2270,6 +2270,81 @@ class AgentFollowView(APIView):
                 'message': f'取消关注失败：{str(e)}'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+class AdminGetKB(APIView):
+    """获取知识库列表接口"""
+    # 验证管理员权限
+    permission_classes = [IsAuthenticated]
+
+    def get(self, kb_id = None):
+        try:
+            # 获取所有知识库
+            if kb_id:
+                knowledge_bases = KnowledgeBase.objects.filter(id=kb_id).first()
+            else:
+                knowledge_bases = KnowledgeBase.objects.all()
+            
+            # 构建响应数据
+            kb_list = [
+                {
+                    'id': str(kb.id),
+                    'name': kb.name,
+                    'description': kb.description,
+                    'creatorID': kb.user.id,
+                    'fileCount': kb.files.count()
+                } for kb in knowledge_bases
+            ]
+            
+            return Response({
+                'code': 200,
+                'message': '获取成功',
+                'data': kb_list
+            })
+            
+        except Exception as e:
+            return Response({
+                'code': 500,
+                'message': f'获取知识库列表失败: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class AdminChangeKBSataus(APIView):
+    """管理员修改知识库状态接口"""
+    # 验证管理员权限
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, kb_id):
+        try:
+            # 获取知识库
+            try:
+                kb = KnowledgeBase.objects.get(id=kb_id)
+            except KnowledgeBase.DoesNotExist:
+                return Response({
+                    'code': 404,
+                    'message': '知识库不存在'
+                }, status=status.HTTP_404_NOT_FOUND)
+            
+            # 更新知识库状态
+            status = request.data.get('status')
+            if status not in ['approved', 'rejected']:
+                return Response({
+                    'code': 400,
+                    'message': '无效的状态'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            kb.status = status
+            kb.save()
+            
+            return Response({
+                'code': 200,
+                'message': '更新成功',
+                'data': None
+            })
+            
+        except Exception as e:
+            return Response({
+                'code': 500,
+                'message': f'更新失败: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 class KnowledgeBaseFollowView(APIView):
     """知识库关注视图"""
     permission_classes = [IsAuthenticated]

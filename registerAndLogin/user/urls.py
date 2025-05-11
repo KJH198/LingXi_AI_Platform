@@ -3,7 +3,9 @@ from django.urls import path
 from .views import (
     AdminBanView,
     AdminChangeAgentSataus,
+    AdminChangeKBSataus,
     AdminGetAgents,
+    AdminGetKB,
     AdminUnbanView,
     CheckAnnouncements,
     CreateAnnouncement,
@@ -128,6 +130,11 @@ urlpatterns = [
     path('admin/agents/list', AdminGetAgents.as_view(), name='agent_list'),
     path('admin/agents/list/<int:agent_id>', AdminGetAgents.as_view(), name='agent_search'),
     path('admin/changeAgentSataus/<int:agent_id>', AdminChangeAgentSataus.as_view(), name='agent_list'),
+    
+    # 获取知识库列表和搜索、审核知识库
+    path('admin/knowledgebases', AdminGetKB.as_view(), name='agent_list'),
+    path('admin/knowledgebases/<int:kb_id>', AdminGetKB.as_view(), name='agent_search'),
+    path('admin/changeKBSataus/<int:kb_id>', AdminChangeKBSataus.as_view(), name='agent_list'),
     
     # 智能体互用
     path('useAgent/<str:agent_id>/', UseAgentView.as_view(), name='agent_edit_detail'),
