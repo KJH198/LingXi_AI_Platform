@@ -169,6 +169,15 @@ def user_login(request):
             )
             user.last_login = timezone.now()
             user.login_times += 1
+            if user.last_login_ip != request.META.get('REMOTE_ADDR'):
+                AbnormalBehavior.objects.create(
+                    user=user,
+                    abnormal_type='login_ip_change',
+                    ip_address=request.META.get('REMOTE_ADDR'),
+                    is_handled=False,
+                    handled_at=None,
+                    handled_notes=''
+                )
             user.last_login_ip = request.META.get('REMOTE_ADDR')
             user.save()
 

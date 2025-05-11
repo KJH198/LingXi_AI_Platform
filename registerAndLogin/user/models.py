@@ -218,6 +218,7 @@ class AbnormalBehavior(models.Model):
         ('frequent_login', '频繁登录'),
         ('frequent_failed_login', '频繁登录失败'),
         ('long_online_duration', '超长时间在线'),
+        ('login_ip_change', '异地登录'),
         ('suspicious_activity', '可疑操作'),
         ('content_violation', '内容违规'),
         ('spam', '垃圾信息'),
