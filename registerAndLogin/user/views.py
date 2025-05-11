@@ -152,6 +152,10 @@ def user_login(request):
                     'message': '账号封禁中：' + reason
                 })
 
+            if user.login_times >= 5 and user.online_duration >= timedelta(minutes=30):
+                user.is_active = True   # 则判定为活跃用户
+                user.save()
+                
             # 生成 JWT token
             refresh = RefreshToken.for_user(user)
             access_token = str(refresh.access_token)
@@ -395,7 +399,6 @@ class AdminUnbanView(APIView):
             user.ban_reason = None
             user.ban_until = None
             user.ban_type = None
-            user.is_active = True  # 用户重新激活
             user.save()
             
             # 生成新的JWT令牌
@@ -494,7 +497,7 @@ class UserListAPIView(APIView):
                 'username': user.username,
                 'register_time': user.created_at.strftime('%Y-%m-%dT%H:%M:%SZ'),
                 'violation_type': user.ban_reason.split(':')[0] if user.ban_reason else None,
-                'status': 'banned' if not user.is_active else 'normal',
+                'status': 'banned' if user.is_banned() else 'normal',
                 'ip_address': user.last_login_ip if hasattr(user, 'last_login_ip') else None,
                 'device': user.last_login_device if hasattr(user, 'last_login_device') else None
             }
@@ -517,7 +520,7 @@ class UserDetailAPIView(APIView):
                 'register_time': user.created_at.strftime('%Y-%m-%dT%H:%M:%SZ'),
                 'last_login_time': user.last_login.strftime('%Y-%m-%dT%H:%M:%SZ') if user.last_login else None,
                 'violation_type': user.ban_reason.split(':')[0] if user.ban_reason else None,
-                'status': 'banned' if not user.is_active else 'normal',
+                'status': 'banned' if user.is_banned() else 'normal',
                 'ip_address': user.last_login_ip if hasattr(user, 'last_login_ip') else None,
                 'device': user.last_login_device if hasattr(user, 'last_login_device') else None
             })
@@ -1382,6 +1385,11 @@ class UserLoginRecordView(APIView):
             else:
                 # 计算所有用户的登录次数、在线时长和异常操作次数
                 for user in User.objects.all():
+                    # 如果用户是在2天前登录的
+                    if user.last_login and (timezone.now().date() - user.last_login.date()).days >= 1:
+                        user.is_active = False
+                        user.save()
+                    
                     total_login_times += user.login_times
                     total_online_duration += user.online_duration
                     total_unexpected_operation_times += user.unexpected_operation_times
