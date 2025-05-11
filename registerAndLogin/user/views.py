@@ -495,7 +495,7 @@ class UserListAPIView(APIView):
             user_dict = {
                 'id': str(user.id),
                 'username': user.username,
-                'register_time': user.created_at.strftime('%Y-%m-%dT%H:%M:%SZ'),
+                'register_time': user.created_at.strftime('%Y-%m-%d %H:%M:%S'),
                 'violation_type': user.ban_reason.split(':')[0] if user.ban_reason else None,
                 'status': 'banned' if user.is_banned() else 'normal',
                 'ip_address': user.last_login_ip if hasattr(user, 'last_login_ip') else None,
@@ -517,8 +517,8 @@ class UserDetailAPIView(APIView):
             return Response({
                 'id': str(user.id),
                 'username': user.username,
-                'register_time': user.created_at.strftime('%Y-%m-%dT%H:%M:%SZ'),
-                'last_login_time': user.last_login.strftime('%Y-%m-%dT%H:%M:%SZ') if user.last_login else None,
+                'register_time': user.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                'last_login_time': user.last_login.strftime('%Y-%m-%d %H:%M:%S') if user.last_login else None,
                 'violation_type': user.ban_reason.split(':')[0] if user.ban_reason else None,
                 'status': 'banned' if user.is_banned() else 'normal',
                 'ip_address': user.last_login_ip if hasattr(user, 'last_login_ip') else None,
@@ -547,7 +547,7 @@ class UserOperationRecordsView(APIView):
             {
                 'user_id':log.user.id,
                 'user_name':log.user.username,
-                'time':log.created_at.strftime('%Y-%m-%dT%H:%M:%SZ'),
+                'time':log.created_at.strftime('%Y-%m-%d %H:%M:%S'),
                 'action':log.action,
                 'target_id':log.target_id,
                 'target_type':log.target_type
@@ -607,14 +607,14 @@ class UserAbnormalBehaviorsView(APIView):
             records.append({
                 'user_id': str(behavior.user.id),
                 'username': behavior.user.username,
-                'abnormal_time': behavior.abnormal_time.strftime('%Y-%m-%dT%H:%M:%SZ'),
+                'abnormal_time': behavior.abnormal_time.strftime('%Y-%m-%d %H:%M:%S'),
                 'abnormal_type': behavior.abnormal_type,
                 'abnormal_type_display': behavior.get_abnormal_type_display(),
                 'description': behavior.description,
                 'ip_address': behavior.ip_address,
                 'is_handled': behavior.is_handled,
                 'handled_by': behavior.handled_by.username if behavior.handled_by else None,
-                'handled_at': behavior.handled_at.strftime('%Y-%m-%dT%H:%M:%SZ') if behavior.handled_at else None
+                'handled_at': behavior.handled_at.strftime('%Y-%m-%d %H:%M:%S') if behavior.handled_at else None
             })
         
         return Response({
@@ -647,7 +647,7 @@ class AdminGetAgents(APIView):
                 'agentID':agent.id,
                 'name':agent.name,
                 'description':agent.description,
-                'time':agent.created_at.strftime('%Y-%m-%dT%H:%M:%SZ'),
+                'time':agent.created_at.strftime('%Y-%m-%d %H:%M:%S'),
                 'creatorID':agent.creator.id,
                 'status':agent.status,
             } for agent in agents
