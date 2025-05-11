@@ -630,9 +630,9 @@ class AdminGetAgents(APIView):
         page_size = request.query_params.get('page_size', 20)
         
         if agent_id:
-            agent = PublishedAgent.objects.filter(id=agent_id).first()
+            agents = PublishedAgent.objects.filter(id=agent_id).first()
         else:
-            agents = PublishedAgent.objects.all().order_by('-created_at')
+            agents = PublishedAgent.objects.filter(status='pending').order_by('-created_at')
 
         # 构造返回数据
         agent_data = [
@@ -2281,7 +2281,7 @@ class AdminGetKB(APIView):
             if kb_id:
                 knowledge_bases = KnowledgeBase.objects.filter(id=kb_id).first()
             else:
-                knowledge_bases = KnowledgeBase.objects.all()
+                knowledge_bases = KnowledgeBase.objects.filter(status='pending').order_by('-created_at')
             
             # 构建响应数据
             kb_list = [
