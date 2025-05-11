@@ -151,11 +151,7 @@ def user_login(request):
                     'success': False,
                     'message': '账号封禁中：' + reason
                 })
-
-            if user.login_times >= 5 and user.online_duration >= timedelta(minutes=30):
-                user.is_active = True   # 则判定为活跃用户
-                user.save()
-                
+            
             # 生成 JWT token
             refresh = RefreshToken.for_user(user)
             access_token = str(refresh.access_token)
@@ -1385,11 +1381,6 @@ class UserLoginRecordView(APIView):
             else:
                 # 计算所有用户的登录次数、在线时长和异常操作次数
                 for user in User.objects.all():
-                    # 如果用户是在2天前登录的
-                    if user.last_login and (timezone.now().date() - user.last_login.date()).days >= 1:
-                        user.is_active = False
-                        user.save()
-                    
                     total_login_times += user.login_times
                     total_online_duration += user.online_duration
                     total_unexpected_operation_times += user.unexpected_operation_times
