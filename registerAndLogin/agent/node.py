@@ -54,8 +54,13 @@ class InputNode(BaseNode):
 
 
 @csrf_exempt
-def submit_static_inputs(request, workflow_id):
+def submit_static_inputs(request, workflow_id0 = None):
     if request.method == 'POST':
+        global workflow_id
+        # 如果没有传入 workflow_id，则使用全局变量
+        if not workflow_id0 is None:
+            workflow_id = workflow_id0
+
         try:
             data = json.loads(request.body)
             inputs = data.get('inputs', [])
