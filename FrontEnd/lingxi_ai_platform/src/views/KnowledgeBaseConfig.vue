@@ -159,21 +159,77 @@
         
         <!-- 文本知识库上传选项 -->
         <template v-if="selectedKnowledgeBaseType === 'text'">
-          <el-form-item label="上传文件">
-            <el-upload
-              action="#"
-              :auto-upload="false"
-              :on-change="handleTextFileChange"
-              multiple
-            >
-              <el-button icon="Upload">选择文件</el-button>
-              <template #tip>
-                <div class="el-upload__tip">
-                  支持上传 PDF、TXT、DOCX、MD 等格式文件，单个文件不超过10MB
+          <el-tabs v-model="uploadTabActive">
+            <el-tab-pane label="本地文件上传" name="local">
+              <el-form-item label="上传文件">
+                <el-upload
+                  action="#"
+                  :auto-upload="false"
+                  :on-change="handleTextFileChange"
+                  multiple
+                >
+                  <el-button icon="Upload">选择文件</el-button>
+                  <template #tip>
+                    <div class="el-upload__tip">
+                      支持上传 PDF、TXT、DOCX、MD 等格式文件，单个文件不超过10MB
+                    </div>
+                  </template>
+                </el-upload>
+              </el-form-item>
+            </el-tab-pane>
+            
+            <el-tab-pane label="URL上传" name="url">
+              <el-form-item label="处理方式">
+                <el-radio-group v-model="urlProcessType">
+                  <el-radio label="auto">自动判断</el-radio>
+                  <el-radio label="webpage">网页内容</el-radio>
+                  <el-radio label="file">下载文件</el-radio>
+                </el-radio-group>
+                <div class="process-type-description">
+                  <div v-if="urlProcessType === 'auto'">自动判断URL类型：网页将提取内容，文件将直接下载</div>
+                  <div v-else-if="urlProcessType === 'webpage'">处理为网页：提取并保存网页文本内容</div>
+                  <div v-else>处理为文件：直接下载URL指向的文件</div>
                 </div>
-              </template>
-            </el-upload>
-          </el-form-item>
+              </el-form-item>
+              
+              <el-form-item label="输入URL">
+                <el-input
+                  v-model="urlInput"
+                  placeholder="输入URL，如https://example.com/page 或 https://example.com/document.pdf"
+                  clearable
+                />
+                <el-button 
+                  type="primary" 
+                  icon="Plus" 
+                  style="margin-top: 10px" 
+                  @click="addUrl"
+                  :disabled="!isValidUrl(urlInput)"
+                >
+                  添加URL
+                </el-button>
+                <template #tip>
+                  <div class="el-upload__tip">
+                    <span v-if="urlProcessType === 'file'">支持PDF、TXT、DOCX、MD等格式文件的URL，文件不超过10MB</span>
+                    <span v-else>支持网页URL和文档URL，系统将提取内容加入知识库</span>
+                  </div>
+                </template>
+              </el-form-item>
+              
+              <!-- 已添加的URL列表 -->
+              <div v-if="urlList.length > 0" class="url-list">
+                <h5>已添加的URL ({{ urlList.length }})</h5>
+                <el-tag
+                  v-for="(url, index) in urlList"
+                  :key="index"
+                  closable
+                  @close="removeUrl(index)"
+                  class="url-tag"
+                >
+                  {{ truncateUrl(url) }}
+                </el-tag>
+              </div>
+            </el-tab-pane>
+          </el-tabs>
         </template>
         
         <!-- 图片知识库上传选项 -->
@@ -392,6 +448,10 @@ const newKnowledgeBase = reactive<NewKnowledgeBaseType>({
 const selectedUploadKnowledgeBaseId = ref('');
 const selectedKnowledgeBaseType = ref('');
 const uploadFiles = ref<File[]>([]);
+const uploadTabActive = ref('local');
+const urlProcessType = ref('auto');
+const urlInput = ref('');
+const urlList = ref<string[]>([]);
 
 const selectKnowledgebasesid = ref<string[]>([]);
 // 获取已选择知识库的详细信息
@@ -399,7 +459,7 @@ const selectedKnowledgeBasesInfo = ref<KnowledgeBaseType[]>([]);
 // 计算属性：是否可以上传
 const canUpload = computed(() => {
   if (!selectedUploadKnowledgeBaseId.value) return false;
-  return uploadFiles.value.length > 0;
+  return uploadFiles.value.length > 0 || urlList.value.length > 0;
 });
 
 // 检查知识库是否被选择
@@ -556,7 +616,6 @@ const previewFile = async (file: KnowledgeBaseFileType): Promise<void> => {
     previewLoading.value = true;
     filePreviewVisible.value = true;
     currentPreviewFile.value = file;
-    previewContent.value = '';
     
     // 获取认证 token
     const token = localStorage.getItem('token');
@@ -565,31 +624,94 @@ const previewFile = async (file: KnowledgeBaseFileType): Promise<void> => {
       return;
     }
     
-    const response = await fetch(`/knowledge_base/knowledgebase/${currentKnowledgeBase.value.id}/file/${file.id}/content/`, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${token}`  // 添加认证 token
+    // 构建文件URL
+    const fileUrl = `/knowledge_base/knowledgebase/${currentKnowledgeBase.value.id}/file/${file.id}/content/`;
+    
+    // 根据文件类型处理预览
+    const fileExt = file.filename.split('.').pop()?.toLowerCase();
+    
+    if (['txt', 'md', 'json', 'csv', 'xml', 'html', 'css', 'js'].includes(fileExt || '')) {
+      // 对于文本类型文件，仍然获取内容并显示
+      const response = await fetch(fileUrl, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error('获取文件内容失败');
       }
-    });
-    
-    if (!response.ok) {
-      if (response.status === 401) {
-        ElMessage.error('认证失败，请重新登录');
-        return;
+      
+      const blob = await response.blob();
+      const text = await blob.text();
+      previewContent.value = text;
+      
+    } else if (['pdf', 'jpg', 'jpeg', 'png', 'gif'].includes(fileExt || '')) {
+      // 对于PDF和图片，直接在iframe中显示
+      previewContent.value = null;
+      
+      // 创建一个包含token的URL
+      const url = new URL(fileUrl, window.location.origin);
+      
+      // 在组件内创建iframe显示文件
+      const previewContainer = document.getElementById('file-preview-container');
+      if (previewContainer) {
+        previewContainer.innerHTML = '';
+        const iframe = document.createElement('iframe');
+        iframe.style.width = '100%';
+        iframe.style.height = '500px';
+        iframe.style.border = 'none';
+        
+        // 先加载iframe，然后在onload时发送认证请求
+        previewContainer.appendChild(iframe);
+        
+        // 为iframe设置加载处理函数
+        iframe.onload = () => {
+          previewLoading.value = false;
+        };
+        
+        // 设置iframe src并包含token
+        iframe.src = fileUrl;
+        
+        // 添加认证头 (注意: 这种方式并不总是有效)
+        // 可能需要在后端实现专门的预览URL，它会重定向到文件但验证token
+        fetch(fileUrl, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        }).then(response => {
+          if (response.ok) {
+            iframe.src = fileUrl;
+          } else {
+            throw new Error('认证失败');
+          }
+        }).catch(err => {
+          previewLoading.value = false;
+          ElMessage.error('预览认证失败');
+        });
       }
-      throw new Error('获取文件内容失败');
-    }
-    
-    const result = await response.json();
-    
-    if (result.code === 200) {
-      previewContent.value = result.data.content;
     } else {
-      throw new Error(result.message || '获取文件内容失败');
+      // 对于其他类型文件，提供下载链接
+      previewContent.value = `无法直接预览此类型的文件 (.${fileExt})。\n\n点击下载：`;
+      
+      const downloadLink = document.createElement('a');
+      downloadLink.href = fileUrl;
+      downloadLink.textContent = file.filename;
+      downloadLink.download = file.filename;
+      downloadLink.className = 'download-link';
+      
+      // 添加认证头 (可能需要更复杂的处理)
+      const previewContainer = document.getElementById('file-preview-container');
+      if (previewContainer) {
+        previewContainer.appendChild(downloadLink);
+      }
     }
+    
   } catch (error) {
     console.error('预览文件失败:', error);
     ElMessage.error('预览文件失败，请稍后重试');
+    previewContent.value = '无法预览文件内容';
   } finally {
     previewLoading.value = false;
   }
@@ -661,6 +783,7 @@ const handleKnowledgeBaseChange = (kbId: string): void => {
     selectedKnowledgeBaseType.value = kb.type;
     // 清空上传文件列表
     uploadFiles.value = [];
+    urlList.value = [];
   }
 };
 
@@ -713,72 +836,207 @@ const handleImageFileChange = (file: any): boolean => {
   return false; // 阻止自动上传
 };
 
+// 添加URL到列表
+const addUrl = (): void => {
+  if (!isValidUrl(urlInput.value)) {
+    ElMessage.warning('请输入有效的URL');
+    return;
+  }
+  
+  if (!urlList.value.includes(urlInput.value)) {
+    urlList.value.push(urlInput.value);
+    urlInput.value = ''; // 清空输入框
+  } else {
+    ElMessage.warning('该URL已添加');
+  }
+};
+
+// 移除URL
+const removeUrl = (index: number): void => {
+  urlList.value.splice(index, 1);
+};
+
+// 验证URL格式
+const isValidUrl = (url: string): boolean => {
+  try {
+    new URL(url);
+    return true;
+  } catch (e) {
+    return false;
+  }
+};
+
+// 截断URL显示
+const truncateUrl = (url: string): string => {
+  return url.length > 50 ? url.substring(0, 47) + '...' : url;
+};
+
 // 上传文件到知识库
-const uploadKnowledgeFiles = async (): Promise<void> => {
+const uploadKnowledgeFiles = async () => {
   if (!selectedUploadKnowledgeBaseId.value) {
     ElMessage.warning('请选择知识库');
     return;
   }
   
-  if (uploadFiles.value.length === 0) {
-    ElMessage.warning('请选择要上传的文件');
+  if (uploadFiles.value.length === 0 && urlList.value.length === 0) {
+    ElMessage.warning('请选择要上传的文件或URL');
     return;
   }
   
   try {
+    // 显示加载状态
+    const loadingInstance = ElLoading.service({
+      fullscreen: true,
+      text: '正在处理URL...'
+    });
+    
     // 获取认证 token
     const token = localStorage.getItem('token');
     if (!token) {
       ElMessage.error('请先登录');
+      loadingInstance.close();
       return;
     }
     
-    const formData = new FormData();
-    const uploaded_count = uploadFiles.value.length;
+    if (uploadTabActive.value === 'local') {
+      const formData = new FormData();
+      const uploaded_count = uploadFiles.value.length;
 
-    // 添加所有文件
-    uploadFiles.value.forEach(file => {
-      formData.append('files', file);
-    });
-    
-    // 添加知识库类型
-    formData.append('type', selectedKnowledgeBaseType.value);
-    formData.append('knowledgeBaseId', selectedUploadKnowledgeBaseId.value);
-    
-    const response = await fetch(`/knowledge_base/knowledgebase/${selectedUploadKnowledgeBaseId.value}/upload/`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`  // 添加认证 token
-        // 注意：这里不要设置 'Content-Type'，因为 FormData 会自动设置为 multipart/form-data
-      },
-      body: formData
-    });
-    
-    if (!response.ok) {
-      if (response.status === 401) {
-        ElMessage.error('认证失败，请重新登录');
+      // 添加所有文件
+      uploadFiles.value.forEach(file => {
+        formData.append('files', file);
+      });
+      
+      // 添加知识库类型
+      formData.append('type', selectedKnowledgeBaseType.value);
+      formData.append('knowledgeBaseId', selectedUploadKnowledgeBaseId.value);
+      
+      const response = await fetch(`/knowledge_base/knowledgebase/${selectedUploadKnowledgeBaseId.value}/upload/`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`  // 添加认证 token
+          // 注意：这里不要设置 'Content-Type'，因为 FormData 会自动设置为 multipart/form-data
+        },
+        body: formData
+      });
+      
+      if (!response.ok) {
+        if (response.status === 401) {
+          ElMessage.error('认证失败，请重新登录');
+          loadingInstance.close();
+          return;
+        }
+        throw new Error('上传文件失败');
+      }
+      
+      const result = await response.json();
+      
+      // 重置表单
+      uploadFiles.value = [];
+      selectedUploadKnowledgeBaseId.value = '';
+      selectedKnowledgeBaseType.value = '';
+      uploadKnowledgeDialogVisible.value = false;
+      
+      // 刷新知识库列表
+      await fetchKnowledgeBases(true);
+      
+      ElMessage.success(`上传成功，共${uploaded_count}个文件`);
+    } else if (uploadTabActive.value === 'url') {
+      if (urlList.value.length === 0) {
+        ElMessage.warning('请添加至少一个URL');
+        loadingInstance.close();
         return;
       }
-      throw new Error('上传文件失败');
+      
+      try {
+        console.log('准备上传URL:', urlList.value);
+        
+        const response = await fetch(`/knowledge_base/knowledgebase/${selectedUploadKnowledgeBaseId.value}/upload_url/`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            urls: urlList.value,
+            processType: urlProcessType.value
+          })
+        });
+        
+        const result = await response.json();
+        console.log('URL上传结果:', result);
+        
+        loadingInstance.close();
+        
+        if (result.code === 200) {
+          // 添加详细日志
+          const successCount = result.data.processed_files ? result.data.processed_files.length : 0;
+          const failedCount = result.data.failed_urls ? result.data.failed_urls.length : 0;
+          
+          console.log(`成功处理URL数: ${successCount}, 失败URL数: ${failedCount}`);
+          
+          // 如果有失败的URL，显示详情
+          if (failedCount > 0) {
+            const failMessages = result.data.failed_urls.map(item => 
+              `<div><strong>${item.url}</strong>: ${item.error}</div>`
+            ).join('');
+            
+            ElMessageBox.alert(
+              `<div style="max-height: 300px; overflow-y: auto;">${failMessages}</div>`,
+              '部分URL处理失败',
+              { dangerouslyUseHTMLString: true }
+            );
+          }
+          
+          // 成功处理的URL详情
+          if (successCount > 0) {
+            const successMessages = result.data.processed_files.map(item => 
+              `<div><strong>${item.filename}</strong> (${formatFileSize(item.size)})</div>`
+            ).join('');
+            
+            // 仅当有成功项时显示
+            if (successMessages) {
+              ElMessageBox.alert(
+                `<div style="max-height: 300px; overflow-y: auto;">${successMessages}</div>`,
+                '成功处理的文件',
+                { dangerouslyUseHTMLString: true }
+              );
+            }
+          }
+          
+          // 重置表单
+          urlList.value = [];
+          urlInput.value = '';
+          
+          // 关闭对话框
+          uploadKnowledgeDialogVisible.value = false;
+          
+          // 刷新知识库列表
+          await fetchKnowledgeBases(true);
+          
+          ElMessage.success(`成功处理${successCount}个URL，失败${failedCount}个`);
+        } else {
+          throw new Error(result.message || 'URL处理失败');
+        }
+      } catch (error) {
+        console.error('URL处理失败:', error);
+        ElMessage.error(`URL处理失败: ${error.message}`);
+      }
     }
-    
-    const result = await response.json();
-    
-    // 重置表单
-    uploadFiles.value = [];
-    selectedUploadKnowledgeBaseId.value = '';
-    selectedKnowledgeBaseType.value = '';
-    uploadKnowledgeDialogVisible.value = false;
-    
-    // 刷新知识库列表
-    await fetchKnowledgeBases(true);
-    
-    ElMessage.success(`上传成功，共${uploaded_count}个文件`);
   } catch (error) {
     console.error('上传失败:', error);
     ElMessage.error('上传失败，请稍后重试');
+  } finally {
+    ElLoading.service().close();
   }
 };
+
+// 添加文件大小格式化函数
+function formatFileSize(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  else if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+  else return (bytes / 1048576).toFixed(1) + ' MB';
+}
 
 // 删除知识库
 const deleteKnowledgeBase = async (kb: KnowledgeBaseType): Promise<void> => {
@@ -1027,5 +1285,20 @@ watch(() => props.active, (isActive) => {
 .empty-preview {
   padding: 40px 0;
   text-align: center;
+}
+
+/* URL上传样式 */
+.url-list {
+  margin-top: 20px;
+}
+
+.url-tag {
+  margin: 5px;
+}
+
+.process-type-description {
+  color: #909399;
+  font-size: 12px;
+  margin-top: 4px;
 }
 </style>
