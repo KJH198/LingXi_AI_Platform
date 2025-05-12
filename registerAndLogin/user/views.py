@@ -64,7 +64,7 @@ def register(request):
             username=username,
             password=password,
             phone_number=phone_number,
-            email=email
+            email=email,
         )
         return JsonResponse({'message': 'User registered successfully'}, status=201)
     return JsonResponse({'error': 'Invalid request method'}, status=405)
@@ -98,7 +98,6 @@ def user_login(request):
                     'success': False,
                     'message': '手机号和密码不能为空'
                 })
-
             # 通过手机号查找用户
             try:
                 user = User.objects.get(phone_number=phone_number)
@@ -107,7 +106,15 @@ def user_login(request):
                     'success': False,
                     'message': '用户不存在'
                 })
-
+            except Exception as e:
+                print(f"查询用户出错: {str(e)}")
+                print(f"错误类型: {type(e)}")
+                import traceback
+                traceback.print_exc()
+                return JsonResponse({
+                    'success': False,
+                    'message': '服务器内部错误'
+                }, status=500)
             # 验证上次登录是否在今天
             if user.last_login and user.last_login.date() != timezone.now().date():
                 user.online_duration = timezone.timedelta()  # 重置在线时长
@@ -130,7 +137,6 @@ def user_login(request):
                     'success': False,
                     'message': '密码错误'
                 })
-                
             # 验证封禁
             if user.is_banned():
                 UserActionLog.objects.create(

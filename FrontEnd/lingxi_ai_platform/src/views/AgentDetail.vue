@@ -55,43 +55,58 @@
           <div class="agent-actions">
             <el-button 
               type="primary" 
-              size="large" 
               @click="handleChat"
             >开始对话</el-button>
             <el-button 
               :type="agentData.isFollowed ? 'success' : 'default'" 
-              size="large" 
               @click="handleFollow"
             >
               <el-icon><StarFilled /></el-icon> 
               {{ agentData.isFollowed ? '已关注' : '关注' }}
             </el-button>
-            <el-dropdown trigger="click">
-              <el-button>
-                <el-icon><More /></el-icon>
-              </el-button>
-              <template #dropdown>
-                <el-dropdown-menu>
-                  <el-dropdown-item @click="handleLike">
-                    <el-icon><StarFilled /></el-icon> {{ agentData.isLiked ? '取消点赞' : '点赞' }}
-                  </el-dropdown-item>
-                  <el-dropdown-item @click="handleShare">
-                    <el-icon><Share /></el-icon> 分享
-                  </el-dropdown-item>
-                  <el-dropdown-item @click="handleFork" v-if="canFork">
-                    <el-icon><CopyDocument /></el-icon> 复制/调整
-                  </el-dropdown-item>
-                  <el-dropdown-item @click="handleReport" divided>
-                    <el-icon><Warning /></el-icon> 举报
-                  </el-dropdown-item>
-                </el-dropdown-menu>
-              </template>
-            </el-dropdown>
+            <el-button 
+              :type="agentData.isLiked ? 'danger' : 'default'" 
+              @click="handleLike"
+            >
+              <el-icon><StarFilled /></el-icon> 
+              {{ agentData.isLiked ? '已点赞' : '点赞' }}
+            </el-button>
+            <el-button @click="handleShare">
+              <el-icon><Share /></el-icon> 分享
+            </el-button>
+            <el-button @click="handleReport">
+              <el-icon><Warning /></el-icon> 举报
+            </el-button>
           </div>
         </div>
       </el-card>
 
-      <!-- 详细内容 -->
+      <!-- 智能体简介 - 直接显示，不放在标签页中 -->
+      <el-card class="agent-intro">
+        <h2>智能体介绍</h2>
+        <div class="description">
+          <p>{{ agentData.description || '暂无介绍' }}</p>
+        </div>
+
+        <!-- 能力与特点简要显示 (仅显示前2个) -->
+        <div class="capabilities-preview" v-if="agentData.capabilities && agentData.capabilities.length">
+          <h3>能力与特点</h3>
+          <div class="capability-item" v-for="(cap, index) in agentData.capabilities.slice(0, 2)" :key="index">
+            <div class="capability-icon">
+              <el-icon><Check /></el-icon>
+            </div>
+            <div>
+              <h4>{{ cap.title }}</h4>
+              <p>{{ cap.description }}</p>
+            </div>
+          </div>
+          <el-button v-if="agentData.capabilities.length > 2" text type="primary" @click="activeTab = 'intro'">
+            查看更多能力
+          </el-button>
+        </div>
+      </el-card>
+
+      <!-- 详细内容标签页 -->
       <el-tabs v-model="activeTab" class="agent-tabs">
         <el-tab-pane label="介绍" name="intro">
           <el-card class="tab-card">
@@ -122,34 +137,6 @@
               </el-tag>
             </div>
             <el-empty v-else description="暂无场景说明" />
-          </el-card>
-        </el-tab-pane>
-
-        <el-tab-pane label="使用示例" name="examples">
-          <el-card class="tab-card">
-            <h2>使用示例</h2>
-            <div class="examples" v-if="agentData.examples && agentData.examples.length">
-              <el-collapse accordion>
-                <el-collapse-item v-for="(example, index) in agentData.examples" :key="index" :title="example.title">
-                  <div class="example-content">
-                    <h4>示例场景：{{ example.title }}</h4>
-                    <div class="chat-example">
-                      <div v-for="(message, msgIndex) in example.messages" :key="msgIndex" :class="['message', message.role === 'user' ? 'user-message' : 'agent-message']">
-                        <div class="message-avatar">
-                          <el-avatar :size="32" :src="message.role === 'user' ? userAvatar : agentAvatar">
-                            {{ message.role === 'user' ? 'U' : 'AI' }}
-                          </el-avatar>
-                        </div>
-                        <div class="message-content">
-                          <p>{{ message.content }}</p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </el-collapse-item>
-              </el-collapse>
-            </div>
-            <el-empty v-else description="暂无使用示例" />
           </el-card>
         </el-tab-pane>
 
@@ -1189,6 +1176,10 @@ onMounted(() => {
   margin: 0;
   color: #606266;
   font-size: 14px;
+}
+
+.capabilities-preview {
+  margin-top: 20px;
 }
 
 .scenarios {
