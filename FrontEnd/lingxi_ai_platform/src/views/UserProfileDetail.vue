@@ -53,15 +53,12 @@
                 >
                   {{ userInfo.isFollowed ? '已关注' : '关注' }}
                 </el-button>
-                <el-dropdown>
-                  <el-button icon="More">更多</el-button>
-                  <template #dropdown>
-                    <el-dropdown-menu>
-                      <el-dropdown-item @click="copyUserLink">复制主页链接</el-dropdown-item>
-                      <el-dropdown-item @click="reportUser">举报用户</el-dropdown-item>
-                    </el-dropdown-menu>
-                  </template>
-                </el-dropdown>
+                <el-button @click="copyUserLink">
+                  <el-icon><Share /></el-icon> 分享
+                </el-button>
+                <el-button @click="reportUser" type="danger" plain>
+                  <el-icon><Warning /></el-icon> 举报
+                </el-button>
               </div>
             </div>
           </el-card>
@@ -203,7 +200,8 @@ import {
   Star, 
   ChatDotRound, 
   Share, 
-  ArrowLeft
+  ArrowLeft,
+  Warning
 } from '@element-plus/icons-vue'
 
 // 路由相关

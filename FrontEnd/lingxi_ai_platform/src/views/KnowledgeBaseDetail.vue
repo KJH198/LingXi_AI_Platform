@@ -55,33 +55,24 @@
           <div class="kb-actions">
             <el-button 
               :type="kbData.isFollowed ? 'success' : 'primary'" 
-              size="large" 
               @click="handleFollow"
             >
               <el-icon><Star /></el-icon> 
               {{ kbData.isFollowed ? '已关注' : '关注' }}
             </el-button>
-            <el-dropdown trigger="click">
-              <el-button>
-                <el-icon><More /></el-icon>
-              </el-button>
-              <template #dropdown>
-                <el-dropdown-menu>
-                  <el-dropdown-item @click="handleShare">
-                    <el-icon><Share /></el-icon> 分享
-                  </el-dropdown-item>
-                  <el-dropdown-item @click="handleLike">
-                    <el-icon><StarFilled /></el-icon> {{ kbData.isLiked ? '取消点赞' : '点赞' }}
-                  </el-dropdown-item>
-                  <el-dropdown-item @click="handleClone" v-if="canClone">
-                    <el-icon><CopyDocument /></el-icon> 克隆知识库
-                  </el-dropdown-item>
-                  <el-dropdown-item @click="handleReport" divided>
-                    <el-icon><Warning /></el-icon> 举报
-                  </el-dropdown-item>
-                </el-dropdown-menu>
-              </template>
-            </el-dropdown>
+            <el-button 
+              :type="kbData.isLiked ? 'danger' : 'default'" 
+              @click="handleLike"
+            >
+              <el-icon><StarFilled /></el-icon> 
+              {{ kbData.isLiked ? '已点赞' : '点赞' }}
+            </el-button>
+            <el-button @click="handleShare">
+              <el-icon><Share /></el-icon> 分享
+            </el-button>
+            <el-button @click="handleReport">
+              <el-icon><Warning /></el-icon> 举报
+            </el-button>
           </div>
         </div>
       </el-card>

@@ -12,5 +12,7 @@ daphne
 WebSocket
 python-dotenv
 openai
+bs4
+requests
 pymupdf
 python-docx
