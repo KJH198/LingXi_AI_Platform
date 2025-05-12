@@ -9,7 +9,7 @@ setuptools
 channels
 channels-redis
 daphne
-WebSocket
+websockets
 python-dotenv
 openai
 bs4

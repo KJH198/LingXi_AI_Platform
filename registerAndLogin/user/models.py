@@ -36,7 +36,7 @@ class User(AbstractBaseUser):
     email = models.EmailField(max_length=255, blank=True, null=True, verbose_name='邮箱地址')
     bio = models.TextField(max_length=500, blank=True, null=True, verbose_name='个人简介')
     avatar = models.URLField(max_length=255, blank=True, null=True, verbose_name='头像URL')
-    is_active = models.BooleanField(default=False, verbose_name='是否活跃')
+    is_active = models.BooleanField(default=True, verbose_name='是否活跃')
     is_admin = models.BooleanField(default=False, verbose_name='是否为管理员')
     following = models.ManyToManyField('self', symmetrical=False, related_name='followers', blank=True,
                                        verbose_name='关注')
