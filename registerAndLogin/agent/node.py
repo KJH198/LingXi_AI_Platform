@@ -1,7 +1,9 @@
 from .models import Node, Workflow
 from knowledge_base.models import KnowledgeBaseFile
-from agent.llm import chat_with_condition, chat_with_aggregate, call_llm
+from agent.llm import chat_with_condition, chat_with_aggregate, deal_with_photo, call_llm
+from pathlib import Path
 import types
+import fitz
 
 import websockets
 import asyncio
@@ -12,6 +14,7 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
+from docx import Document  # 处理 docx
 
 static_inputs = {}  # 全局变量，保存所有静态输入
 pending_inputs = {}  # 全局变量，存等待中的动态输入
@@ -639,12 +642,36 @@ def send_kb_files_to_llm(knowledge_bases):
     all_text = ''
     for f in files:
         file_path = f.file.path
-        # print(f"filepath:",file_path)
-        with open(file_path, 'r', encoding='utf-8') as file_obj:
-            content = file_obj.read()
-            all_text += f"\n--- 文件: {f.filename} ---\n" + content
-    # print(f"all_text:", all_text)
+        suffix = Path(file_path).suffix.lower()
+        print(f"suffix:",suffix)
+
+        # 根据文件后缀判断处理方式
+        if suffix in ['.txt', '.md']:
+            with open(file_path, 'r', encoding='utf-8') as file_obj:
+                content = file_obj.read()
+        elif suffix in ['.jpg', '.jpeg', '.png', '.bmp', '.webp']:
+            content = deal_with_photo(file_path)
+        elif suffix == '.pdf':
+            content = deal_with_pdf(file_path)
+        elif suffix == '.docx':
+            content = deal_with_docx(file_path)
+        else:
+            content = f"[不支持的文件类型：{suffix}]"
+
+        all_text += f"\n--- 文件: {f.filename} ---\n{content}"
+        print(all_text)
     return all_text
+
+def deal_with_pdf(file_path):
+    doc = fitz.open(file_path)
+    text = ""
+    for page in doc:
+        text += page.get_text()
+    return text.strip()
+
+def deal_with_docx(file_path):
+    doc = Document(file_path)
+    return '\n'.join([para.text for para in doc.paragraphs])
 
 def select_model(model_id):
     if model_id == 'claude-3':

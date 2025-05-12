@@ -12,3 +12,5 @@ daphne
 WebSocket
 python-dotenv
 openai
+pymupdf
+python-docx
