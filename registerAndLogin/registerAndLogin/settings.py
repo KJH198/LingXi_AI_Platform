@@ -14,7 +14,7 @@ SECRET_KEY = 'django-insecure-q2l4$fn%to@_xbbb0l-4@gd#r!-vz#qy-gd9fuu5f&c1vwe9!0
 DEBUG = True
 
 # 配置允许访问的主机，根据实际情况添加
-ALLOWED_HOSTS = ['localhost', '127.0.0.1','122.9.37.3', '192.168.0.67', 'www.lingxiai.cloud'] 
+ALLOWED_HOSTS = ['localhost', '127.0.0.1','113.44.176.130', '192.168.0.67', 'www.lingxiai.cloud'] 
 
 # 配置用户模型
 AUTH_USER_MODEL = 'user.User'
@@ -51,14 +51,14 @@ MIDDLEWARE = [
 
 # 配置 CORS 白名单，允许的跨域源，根据实际情况修改
 CORS_ORIGIN_WHITELIST = (
-    'http://127.0.0.1:8000',
-    'http://localhost:8000',
+    'http://127.0.0.1:80',
+    'http://localhost:80',
     'http://127.0.0.1:3000',  # 添加前端开发服务器地址
     'http://localhost:3000',   # 添加前端开发服务器地址
-    'http://122.9.37.3:8000',   # 添加云服务器地址
-    'ws://localhost:8000',     # 添加WebSocket连接
-    'ws://127.0.0.1:8000',     # 添加WebSocket连接
-    'wss://122.9.37.3:8000',   # 添加云服务器WebSocket连接
+    'http://113.44.176.130:80',   # 添加云服务器地址
+    'ws://localhost:80',     # 添加WebSocket连接
+    'ws://127.0.0.1:80',     # 添加WebSocket连接
+    'wss://113.44.176.130:80',   # 添加云服务器WebSocket连接
     'wss://www.lingxiai.cloud' # 添加域名WebSocket连接
 )
 
@@ -160,10 +160,10 @@ AUTH_PASSWORD_VALIDATORS = [
 
 # Internationalization
 # https://docs.djangoproject.com/en/5.1/topics/i18n/
-LANGUAGE_CODE = 'en-us'
-TIME_ZONE = 'UTC'
+LANGUAGE_CODE = 'zh-hans'
+TIME_ZONE = 'Asia/Shanghai'
 USE_I18N = True
-USE_TZ = True
+USE_TZ = False
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
@@ -227,11 +227,11 @@ SIMPLE_JWT = {
 CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:8000",
-    "http://127.0.0.1:8000",
-    "ws://localhost:8000",
-    "ws://127.0.0.1:8000",
-    "wss://122.9.37.3:8000",
+    "http://localhost:80",
+    "http://127.0.0.1:80",
+    "ws://localhost:80",
+    "ws://127.0.0.1:80",
+    "wss://113.44.176.130:80",
     "wss://www.lingxiai.cloud"
 ]
 

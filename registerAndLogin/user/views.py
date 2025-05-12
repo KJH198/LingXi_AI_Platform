@@ -3,7 +3,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth import authenticate, login
 import json
 from rest_framework.parsers import JSONParser
-from .models import Announcement, User
+from .models import AbnormalBehavior, Announcement, User
 from django.shortcuts import render
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -151,7 +151,7 @@ def user_login(request):
                     'success': False,
                     'message': '账号封禁中：' + reason
                 })
-
+            
             # 生成 JWT token
             refresh = RefreshToken.for_user(user)
             access_token = str(refresh.access_token)
@@ -169,6 +169,16 @@ def user_login(request):
             )
             user.last_login = timezone.now()
             user.login_times += 1
+            if user.last_login_ip != request.META.get('REMOTE_ADDR'):
+                AbnormalBehavior.objects.create(
+                    user=user,
+                    abnormal_type='login_ip_change',
+                    ip_address=request.META.get('REMOTE_ADDR'),
+                    is_handled=False,
+                    handled_at=None,
+                    handled_notes=''
+                )
+            user.last_login_ip = request.META.get('REMOTE_ADDR')
             user.save()
 
             return JsonResponse({
@@ -395,7 +405,6 @@ class AdminUnbanView(APIView):
             user.ban_reason = None
             user.ban_until = None
             user.ban_type = None
-            user.is_active = True  # 用户重新激活
             user.save()
             
             # 生成新的JWT令牌
@@ -492,9 +501,9 @@ class UserListAPIView(APIView):
             user_dict = {
                 'id': str(user.id),
                 'username': user.username,
-                'register_time': user.created_at.strftime('%Y-%m-%dT%H:%M:%SZ'),
+                'register_time': user.created_at.strftime('%Y-%m-%d %H:%M:%S'),
                 'violation_type': user.ban_reason.split(':')[0] if user.ban_reason else None,
-                'status': 'banned' if not user.is_active else 'normal',
+                'status': 'banned' if user.is_banned() else 'normal',
                 'ip_address': user.last_login_ip if hasattr(user, 'last_login_ip') else None,
                 'device': user.last_login_device if hasattr(user, 'last_login_device') else None
             }
@@ -514,10 +523,10 @@ class UserDetailAPIView(APIView):
             return Response({
                 'id': str(user.id),
                 'username': user.username,
-                'register_time': user.created_at.strftime('%Y-%m-%dT%H:%M:%SZ'),
-                'last_login_time': user.last_login.strftime('%Y-%m-%dT%H:%M:%SZ') if user.last_login else None,
+                'register_time': user.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                'last_login_time': user.last_login.strftime('%Y-%m-%d %H:%M:%S') if user.last_login else None,
                 'violation_type': user.ban_reason.split(':')[0] if user.ban_reason else None,
-                'status': 'banned' if not user.is_active else 'normal',
+                'status': 'banned' if user.is_banned() else 'normal',
                 'ip_address': user.last_login_ip if hasattr(user, 'last_login_ip') else None,
                 'device': user.last_login_device if hasattr(user, 'last_login_device') else None
             })
@@ -544,7 +553,7 @@ class UserOperationRecordsView(APIView):
             {
                 'user_id':log.user.id,
                 'user_name':log.user.username,
-                'time':log.created_at.strftime('%Y-%m-%dT%H:%M:%SZ'),
+                'time':log.created_at.strftime('%Y-%m-%d %H:%M:%S'),
                 'action':log.action,
                 'target_id':log.target_id,
                 'target_type':log.target_type
@@ -567,57 +576,44 @@ class UserOperationRecordsView(APIView):
 
 class UserAbnormalBehaviorsView(APIView):
     """获取用户异常行为接口"""
-    def post(self, request):
+    def get(self, request, user_id=None):
         # 验证管理员权限
         if not request.user.is_admin:
             return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
         
-        from django.core.paginator import Paginator
-        from .models import AbnormalBehavior
+        page = 1
+        page_size = 20
         
-        # 获取查询参数
-        user_id = request.query_params.get('user_id')
-        abnormal_type = request.query_params.get('type')
-        page = request.query_params.get('page', 1)
-        page_size = request.query_params.get('page_size', 20)
-        handled = request.query_params.get('handled')
-        
-        # 构建查询条件
-        queryset = AbnormalBehavior.objects.all().order_by('-abnormal_time')
         if user_id:
-            queryset = queryset.filter(user_id=user_id)
-        if abnormal_type:
-            queryset = queryset.filter(abnormal_type=abnormal_type)
-        if handled:
-            queryset = queryset.filter(is_handled=handled.lower() == 'true')
-        
-        # 分页处理
-        paginator = Paginator(queryset, page_size)
-        try:
-            records_page = paginator.page(page)
-        except:
-            records_page = paginator.page(1)
+            logs = AbnormalBehavior.objects.filter(user_id=user_id).all()
+        else:
+            logs = AbnormalBehavior.objects.filter().all()
         
         # 构造返回数据
-        records = []
-        for behavior in records_page:
-            records.append({
-                'user_id': str(behavior.user.id),
-                'username': behavior.user.username,
-                'abnormal_time': behavior.abnormal_time.strftime('%Y-%m-%dT%H:%M:%SZ'),
-                'abnormal_type': behavior.abnormal_type,
-                'abnormal_type_display': behavior.get_abnormal_type_display(),
-                'description': behavior.description,
-                'ip_address': behavior.ip_address,
-                'is_handled': behavior.is_handled,
-                'handled_by': behavior.handled_by.username if behavior.handled_by else None,
-                'handled_at': behavior.handled_at.strftime('%Y-%m-%dT%H:%M:%SZ') if behavior.handled_at else None
-            })
+        behaviors = [
+            {
+                'user_id': log.user.id,
+                'user_name': log.user.username,
+                'abnormal_time': log.abnormal_time.strftime('%Y-%m-%d %H:%M:%S') if log.abnormal_time else None,
+                'abnormal_type': log.abnormal_type,
+                'ip_address': log.ip_address,
+                'is_handled': log.is_handled,
+                'handled_at': log.handled_at.strftime('%Y-%m-%d %H:%M:%S') if log.handled_at else None,
+                'handled_notes': log.handled_notes,
+            }
+            for log in logs
+        ]
+        
+        paginator = Paginator(behaviors, page_size)
+        try:
+            behaviors_page = paginator.page(page)
+        except:
+            behaviors_page = paginator.page(1)
         
         return Response({
-            'records': records,
+            'behaviors': behaviors,
             'total': paginator.count,
-            'page': records_page.number,
+            'page': behaviors_page.number,
             'page_size': int(page_size),
             'page_count': paginator.num_pages
         })
@@ -634,9 +630,9 @@ class AdminGetAgents(APIView):
         page_size = request.query_params.get('page_size', 20)
         
         if agent_id:
-            agent = PublishedAgent.objects.filter(id=agent_id).first()
+            agents = PublishedAgent.objects.filter(id=agent_id).first()
         else:
-            agents = PublishedAgent.objects.all().order_by('-created_at')
+            agents = PublishedAgent.objects.filter(status='pending').order_by('-created_at')
 
         # 构造返回数据
         agent_data = [
@@ -644,7 +640,7 @@ class AdminGetAgents(APIView):
                 'agentID':agent.id,
                 'name':agent.name,
                 'description':agent.description,
-                'time':agent.created_at.strftime('%Y-%m-%dT%H:%M:%SZ'),
+                'time':agent.created_at.strftime('%Y-%m-%d %H:%M:%S'),
                 'creatorID':agent.creator.id,
                 'status':agent.status,
             } for agent in agents
@@ -680,6 +676,14 @@ class AdminChangeAgentSataus(APIView):
                 agent.status = 'approved'
             else:
                 agent.status = 'rejected'
+                AbnormalBehavior.objects.create(
+                    user=agent.creator,
+                    abnormal_type='content_violation',
+                    ip_address=agent.creator.last_login_ip,
+                    is_handled=False,
+                    handled_at=None,
+                    handled_notes=''
+                )
             agent.save()
             return Response({
                 'success': True,
@@ -1385,6 +1389,34 @@ class UserLoginRecordView(APIView):
                     total_login_times += user.login_times
                     total_online_duration += user.online_duration
                     total_unexpected_operation_times += user.unexpected_operation_times
+                    
+                    if user.login_times >= 30:
+                        AbnormalBehavior.objects.create(
+                            user=user,
+                            abnormal_time=timezone.now(),
+                            abnormal_type='frequent_login',
+                            ip_address=user.last_login_ip,
+                            is_handled=False,
+                            handled_notes='',
+                        )
+                    if user.unexpected_operation_times >= 5:
+                        AbnormalBehavior.objects.create(
+                            user=user,
+                            abnormal_time=timezone.now(),
+                            abnormal_type='frequent_failed_login',
+                            ip_address=user.last_login_ip,
+                            is_handled=False,
+                            handled_notes='',
+                        )
+                    if user.online_duration >= timezone.timedelta(hours=12):
+                        AbnormalBehavior.objects.create(
+                            user=user,
+                            abnormal_time=timezone.now(),
+                            abnormal_type='long_online_duration',
+                            ip_address=user.last_login_ip,
+                            is_handled=False,
+                            handled_notes='',
+                        )
             
             # 分页处理
             paginator = Paginator(records, page_size)
@@ -2238,6 +2270,81 @@ class AgentFollowView(APIView):
                 'message': f'取消关注失败：{str(e)}'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+class AdminGetKB(APIView):
+    """获取知识库列表接口"""
+    # 验证管理员权限
+    permission_classes = [IsAuthenticated]
+
+    def get(self, kb_id = None):
+        try:
+            # 获取所有知识库
+            if kb_id:
+                knowledge_bases = KnowledgeBase.objects.filter(id=kb_id).first()
+            else:
+                knowledge_bases = KnowledgeBase.objects.filter(status='pending').order_by('-created_at')
+            
+            # 构建响应数据
+            kb_list = [
+                {
+                    'id': str(kb.id),
+                    'name': kb.name,
+                    'description': kb.description,
+                    'creatorID': kb.user.id,
+                    'fileCount': kb.files.count()
+                } for kb in knowledge_bases
+            ]
+            
+            return Response({
+                'code': 200,
+                'message': '获取成功',
+                'data': kb_list
+            })
+            
+        except Exception as e:
+            return Response({
+                'code': 500,
+                'message': f'获取知识库列表失败: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class AdminChangeKBSataus(APIView):
+    """管理员修改知识库状态接口"""
+    # 验证管理员权限
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, kb_id):
+        try:
+            # 获取知识库
+            try:
+                kb = KnowledgeBase.objects.get(id=kb_id)
+            except KnowledgeBase.DoesNotExist:
+                return Response({
+                    'code': 404,
+                    'message': '知识库不存在'
+                }, status=status.HTTP_404_NOT_FOUND)
+            
+            # 更新知识库状态
+            status = request.data.get('status')
+            if status not in ['approved', 'rejected']:
+                return Response({
+                    'code': 400,
+                    'message': '无效的状态'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            kb.status = status
+            kb.save()
+            
+            return Response({
+                'code': 200,
+                'message': '更新成功',
+                'data': None
+            })
+            
+        except Exception as e:
+            return Response({
+                'code': 500,
+                'message': f'更新失败: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 class KnowledgeBaseFollowView(APIView):
     """知识库关注视图"""
     permission_classes = [IsAuthenticated]
@@ -2505,6 +2612,56 @@ class AgentEditDetailView(APIView):
                 }, status=status.HTTP_403_FORBIDDEN)
             
             print("检查权限通过")
+            # 组装智能体详情数据
+            agent_data = {
+                'id': str(agent.id),
+                'name': agent.name,
+                'description': agent.description,
+                'avatar': agent.avatar,  # 直接使用avatar字符串字段
+                'status': agent.status,
+                'modelId': agent.model_id,
+                'workflowId': agent.workflow_id,
+                'is_active': agent.is_active,
+                'created_at': agent.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                'updated_at': agent.updated_at.strftime('%Y-%m-%d %H:%M:%S'),
+                'knowledgeBases': [str(kb.id) for kb in agent.knowledge_bases.all()],
+                # 添加模型参数字段，如果存在的话
+                'modelParams': {
+                    'temperature': agent.temperature if hasattr(agent, 'temperature') else None,
+                    'max_tokens': agent.max_tokens if hasattr(agent, 'max_tokens') else None,
+                    'top_p': agent.top_p if hasattr(agent, 'top_p') else None
+                }
+            }
+
+            print("组装数据成功")
+            
+            return Response({
+                'code': 200,
+                'message': '获取成功',
+                'data': agent_data
+            })
+            
+        except Exception as e:
+            return Response({
+                'code': 500,
+                'message': f'获取智能体详情失败: {str(e)}',
+                'data': None
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            
+class UseAgentView(APIView):
+    """获取智能体详情"""
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request, agent_id):
+        try:
+            # 获取智能体
+            agent = get_object_or_404(PublishedAgent, id=agent_id)
+            print(f"获取智能体: {agent.name}")
+            
+            # 检查用户权限
+            if not request.user.is_authenticated:
+                return JsonResponse({'error': 'Not authenticated'}, status=401)
+            
             # 组装智能体详情数据
             agent_data = {
                 'id': str(agent.id),

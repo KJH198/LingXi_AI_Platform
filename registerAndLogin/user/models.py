@@ -36,7 +36,7 @@ class User(AbstractBaseUser):
     email = models.EmailField(max_length=255, blank=True, null=True, verbose_name='邮箱地址')
     bio = models.TextField(max_length=500, blank=True, null=True, verbose_name='个人简介')
     avatar = models.URLField(max_length=255, blank=True, null=True, verbose_name='头像URL')
-    is_active = models.BooleanField(default=True, verbose_name='是否活跃')
+    is_active = models.BooleanField(default=False, verbose_name='是否活跃')
     is_admin = models.BooleanField(default=False, verbose_name='是否为管理员')
     following = models.ManyToManyField('self', symmetrical=False, related_name='followers', blank=True,
                                        verbose_name='关注')
@@ -46,6 +46,7 @@ class User(AbstractBaseUser):
     online_duration = models.DurationField(default=timezone.timedelta, verbose_name='今日在线时长')
     login_times = models.IntegerField(default=0, verbose_name='今日登录次数')
     unexpected_operation_times = models.IntegerField(default=0, verbose_name='今日异常操作次数')
+    last_login_ip = models.GenericIPAddressField(null=True, blank=True, verbose_name='最后登录IP地址')
     ban_type = models.CharField(
         max_length=20,
         choices=[
@@ -215,6 +216,9 @@ class AbnormalBehavior(models.Model):
     """用户异常行为记录"""
     ABNORMAL_TYPES = [
         ('frequent_login', '频繁登录'),
+        ('frequent_failed_login', '频繁登录失败'),
+        ('long_online_duration', '超长时间在线'),
+        ('login_ip_change', '异地登录'),
         ('suspicious_activity', '可疑操作'),
         ('content_violation', '内容违规'),
         ('spam', '垃圾信息'),
@@ -224,11 +228,8 @@ class AbnormalBehavior(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='abnormal_behaviors', verbose_name='用户')
     abnormal_time = models.DateTimeField(auto_now_add=True, verbose_name='异常时间')
     abnormal_type = models.CharField(max_length=50, choices=ABNORMAL_TYPES, verbose_name='异常类型')
-    description = models.TextField(verbose_name='异常描述')
     ip_address = models.GenericIPAddressField(blank=True, null=True, verbose_name='IP地址')
     is_handled = models.BooleanField(default=False, verbose_name='是否已处理')
-    handled_by = models.ForeignKey(User, on_delete=models.SET_NULL, blank=True, null=True,
-                                 related_name='handled_behaviors', verbose_name='处理人')
     handled_at = models.DateTimeField(blank=True, null=True, verbose_name='处理时间')
     handled_notes = models.TextField(blank=True, null=True, verbose_name='处理意见')
 
