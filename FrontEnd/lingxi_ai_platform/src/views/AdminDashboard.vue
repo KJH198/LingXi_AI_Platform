@@ -329,6 +329,7 @@
                     class="search-input"
                     clearable
                     @keyup.enter="handleBehaviorSearch"
+                    @clear="resetBehaviorSearch"
                   >
                     <template #append>
                       <el-button @click="handleBehaviorSearch">搜索</el-button>
@@ -828,7 +829,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { User, UserFilled, Warning, Timer, Document, Check, Close } from '@element-plus/icons-vue'
@@ -894,6 +895,11 @@ const behaviorSearchResultDialogVisible = ref(false)
 const agentSearchResultDialogVisible = ref(false)
 const selectedBehavior = ref(null)
 const selectedAgent = ref(null)
+
+// 原始数据
+const allLoginRecords = ref([]);
+const allOperationRecords = ref([]);
+const allAbnormalRecords = ref([]);
 
 // API 请求函数
 const api = {
@@ -1192,22 +1198,29 @@ const fetchLoginRecords = async () => {
   loading.value = true;
   try {
     const response = await fetch('/user/admin/login_records', {
+      method: 'POST',
       headers: {
+        'Content-Type': 'application/json',
         'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
       },
-      method: 'POST',
       body: JSON.stringify({
         page: currentPage.value || 1,
         page_size: pageSize.value || 10
       })
     });
+    
     if (!response.ok) throw new Error('获取登录记录失败');
     const data = await response.json();
-    loginRecords.value = data.records;
+    
+    // 保存所有数据
+    allLoginRecords.value = data.records;
+    // 初始显示所有数据
+    loginRecords.value = [...allLoginRecords.value];
+    
     totalRecords.value = data.total;
-    todayLogins.value= data.total_login_times
-    avgLoginDuration.value= data.total_online_duration
-    abnormalLogins.value= data.total_unexpected_operation_times
+    todayLogins.value = data.total_login_times;
+    avgLoginDuration.value = data.total_online_duration;
+    abnormalLogins.value = data.total_unexpected_operation_times;
   } catch (error) {
     console.error('获取登录记录失败:', error);
     ElMessage.error('获取登录记录失败');
@@ -1372,35 +1385,70 @@ const handleViewAbnormalDetail = (record) => {
 }
 
 // 修改行为搜索函数
-const handleBehaviorSearch = async () => {
-  try {
-    const params = {};
-    if (behaviorSearchQuery.value) params.user_id = behaviorSearchQuery.value;
-    if (selectedAction.value) params.action = selectedAction.value;
-    if (startDate.value) params.start_date = startDate.value;
-    if (endDate.value) params.end_date = endDate.value;
+// Update behavior search to filter lists instead of showing user details
+const handleBehaviorSearch = () => {
+  const query = behaviorSearchQuery.value.toLowerCase().trim();
+  
+  if (!query) {
+    // 如果搜索框为空，显示所有数据
+    resetBehaviorSearch();
+    return;
+  }
+  
+  // 根据当前标签页过滤对应的数据
+  if (activeBehaviorTab.value === 'login') {
+    loginRecords.value = allLoginRecords.value.filter(record => 
+      String(record.user_id).includes(query) || 
+      record.user_name.toLowerCase().includes(query)
+    );
+  } else if (activeBehaviorTab.value === 'operation') {
+    operationRecords.value = allOperationRecords.value.filter(record => 
+      String(record.user_id).includes(query) || 
+      record.user_name.toLowerCase().includes(query)
+    );
+  } else if (activeBehaviorTab.value === 'abnormal') {
+    abnormalRecords.value = allAbnormalRecords.value.filter(record => 
+      String(record.user_id).includes(query) || 
+      record.user_name.toLowerCase().includes(query)
+    );
+  }
+};
 
-    const queryString = new URLSearchParams(params).toString();
-    const response = await fetch(`/user/admin/behavior_logs/?${queryString}`, {
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
-      }
-    });
-
-    if (!response.ok) throw new Error('Failed to fetch behavior logs');
-    const data = await response.json();
-    behaviorLogs.value = data.logs;
-
-    // 弹出用户详情界面
-    if (behaviorLogs.value.length > 0) {
-      selectedUser.value = behaviorLogs.value[0]; // 假设第一个记录为用户详情
-      userInfoDialogVisible.value = true;
-    } else {
-      ElMessage.warning('未找到相关用户行为记录');
+// Update tab change behavior to reload data
+// 添加标签页切换时重置搜索结果
+watch(activeBehaviorTab, (newTab) => {
+  // 如果有搜索内容，则应用搜索过滤
+  if (behaviorSearchQuery.value) {
+    handleBehaviorSearch();
+  } else {
+    // 否则显示该标签页的所有数据
+    if (newTab === 'login') {
+      loginRecords.value = [...allLoginRecords.value];
+    } else if (newTab === 'operation') {
+      operationRecords.value = [...allOperationRecords.value];
+    } else if (newTab === 'abnormal') {
+      abnormalRecords.value = [...allAbnormalRecords.value];
     }
-  } catch (error) {
-    console.error('Error fetching behavior logs:', error);
-    ElMessage.error('获取用户行为记录失败');
+  }
+});
+
+// 监听搜索框内容变化
+watch(behaviorSearchQuery, (newQuery) => {
+  if (!newQuery || newQuery.trim() === '') {
+    // 如果搜索框为空，恢复所有数据
+    resetBehaviorSearch();
+  }
+});
+
+// 重置搜索结果的函数
+const resetBehaviorSearch = () => {
+  // 根据当前活动的标签页恢复对应的数据
+  if (activeBehaviorTab.value === 'login') {
+    loginRecords.value = [...allLoginRecords.value];
+  } else if (activeBehaviorTab.value === 'operation') {
+    operationRecords.value = [...allOperationRecords.value];
+  } else if (activeBehaviorTab.value === 'abnormal') {
+    abnormalRecords.value = [...allAbnormalRecords.value];
   }
 };
 
@@ -1799,21 +1847,30 @@ const viewAgentDetail = (agent) => {
 };
 
 // 添加获取操作记录的函数
+// Fix the operation records function to use proper parameters
 const fetchOperationRecords = async () => {
   try {
     const response = await fetch('/user/admin/operation_records', {
+      method: 'POST',
       headers: {
+        'Content-Type': 'application/json',
         'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
       },
-      method: 'POST',
-      data:{
+      body: JSON.stringify({
         page: currentPage.value || 1,
         page_size: pageSize.value || 10
-      }
+      })
     });
+    
     if (!response.ok) throw new Error('Failed to fetch operation records');
     const data = await response.json();
-    operationRecords.value = data.records;
+    
+    // 保存所有数据
+    allOperationRecords.value = data.records;
+    // 初始显示所有数据 
+    operationRecords.value = [...allOperationRecords.value];
+    
+    totalOperationRecords.value = data.total;
   } catch (error) {
     console.error('Error fetching operation records:', error);
     ElMessage.error('获取操作记录失败');
@@ -1824,18 +1881,20 @@ const fetchOperationRecords = async () => {
 const fetchAbnormalBehaviors = async () => {
   try {
     const response = await fetch('/user/admin/abnormal_behaviors', {
+      method: 'GET',
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
-      },
-      method: 'POST',
-      data:{
-        page: currentPage.value || 1,
-        page_size: pageSize.value || 10
       }
     });
+    
     if (!response.ok) throw new Error('Failed to fetch abnormal behaviors');
     const data = await response.json();
-    abnormalRecords.value = data.records;
+    
+    // 保存所有数据
+    allAbnormalRecords.value = data.behaviors;
+    // 初始显示所有数据
+    abnormalRecords.value = [...allAbnormalRecords.value];
+    totalAbnormalRecords.value = data.total;
   } catch (error) {
     console.error('Error fetching abnormal behaviors:', error);
     ElMessage.error('获取异常行为失败');
