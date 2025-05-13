@@ -560,9 +560,9 @@ class UserOperationRecordsView(APIView):
                 'user_id':log.user.id,
                 'user_name':log.user.username,
                 'time':log.created_at.strftime('%Y-%m-%d %H:%M:%S'),
-                'action':log.action,
+                'action':log.get_action_display() if hasattr(log, 'get_action_display') else log.action,
                 'target_id':log.target_id,
-                'target_type':log.target_type
+                'target_type':log.get_target_type_display() if hasattr(log, 'get_target_type_display') else log.target_type
             }for log in userActionLogs if log.action != 'login_failed' and log.action != 'logout' and log.action != 'login'
         ]
         
@@ -1270,7 +1270,6 @@ class AgentManagementView(APIView):
             return Response({'error': '智能体不存在'}, status=status.HTTP_404_NOT_FOUND)
 
 class UserActionLogView(APIView):
-
     """用户行为日志视图"""
 
     def get(self, request):
@@ -1303,16 +1302,19 @@ class UserActionLogView(APIView):
             # 获取日志记录
             logs = UserActionLog.objects.filter(query).order_by('-created_at')
 
+
             # 返回日志数据
             data = [
                 {
                     'id': log.id,
-                    'user': log.user.username if log.user else '未知用户',
+                    'user_id': log.user.id,
+                    'user_name': log.user.username if log.user else '未知用户',
+                    # 直接使用显示值而不是代码值
                     'action': log.get_action_display() if hasattr(log, 'get_action_display') else log.action,
                     'target_id': log.target_id,
-                    'target_type': log.target_type,
+                    'target_type': log.get_target_type_display() if hasattr(log, 'get_target_type_display') else log.target_type,
                     'ip_address': log.ip_address,
-                    'created_at': log.created_at.strftime('%Y-%m-%d %H:%M:%S')
+                    'time': log.created_at.strftime('%Y-%m-%d %H:%M:%S')
                 }
                 for log in logs
             ]

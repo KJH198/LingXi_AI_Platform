@@ -437,7 +437,8 @@
                         </el-tag>
                       </template>
                     </el-table-column>
-                    <el-table-column prop="target_type" label="操作对象" />
+                    <el-table-column prop="target_id" label="操作对象ID" width="120" />
+                    <el-table-column prop="target_type" label="操作对象类型" />
                     <el-table-column label="操作" width="120">
                       <template #default="scope">
                         <el-button 
@@ -445,7 +446,7 @@
                           size="small" 
                           @click="handleViewOperationDetail(scope.row)"
                         >
-                          详情
+                          查看
                         </el-button>
                       </template>
                     </el-table-column>
@@ -473,14 +474,21 @@
                     <el-table-column prop="userId" label="用户ID" width="120" />
                     <el-table-column prop="username" label="用户名" width="150" />
                     <el-table-column prop="abnormalTime" label="发生时间" width="180" />
-                    <el-table-column prop="abnormalType" label="异常类型" width="150">
+                    <el-table-column prop="abnormalType" label="异常类型">
                       <template #default="scope">
                         <el-tag type="danger">
                           {{ getAbnormalTypeText(scope.row.abnormalType) }}
                         </el-tag>
                       </template>
                     </el-table-column>
-                    <el-table-column prop="description" label="异常描述" />
+                    <el-table-column prop="ipAddress" label="IP地址" width="150" />
+                    <el-table-column prop="isHandled" label="处理状态" width="100">
+                      <template #default="scope">
+                        <el-tag :type="scope.row.isHandled ? 'success' : 'warning'">
+                          {{ scope.row.isHandled ? '已处理' : '未处理' }}
+                        </el-tag>
+                      </template>
+                    </el-table-column>
                     <el-table-column label="操作" width="120">
                       <template #default="scope">
                         <el-button 
@@ -1347,11 +1355,16 @@ const getAbnormalTypeText = (type) => {
     frequent_login: '频繁登录',
     suspicious_ip: '可疑IP',
     unusual_operation: '异常操作',
-    system_alert: '系统告警'
+    system_alert: '系统告警',
+    login_ip_change: 'IP变动登录', // 添加新的异常类型映射
+    multiple_failures: '多次登录失败',
+    unusual_device: '异常设备登录',
+    unauthorized_access: '未授权访问'
   }
   return texts[type] || type
 }
 
+// 查看操作详情
 // 查看操作详情
 const handleViewOperationDetail = (record) => {
   ElMessageBox.alert(
@@ -1359,7 +1372,9 @@ const handleViewOperationDetail = (record) => {
 用户名: ${record.user_name}
 操作时间: ${record.time}
 操作类型: ${getOperationTypeText(record.action)}
-操作内容: ${record.target_ty}`,
+操作对象ID: ${record.target_id || '-'}
+操作对象类型: ${record.target_type || '-'}
+IP地址: ${record.ip_address || '-'}`,
     '操作详情',
     {
       confirmButtonText: '确定',
@@ -1369,13 +1384,17 @@ const handleViewOperationDetail = (record) => {
 }
 
 // 查看异常详情
+// 查看异常详情
 const handleViewAbnormalDetail = (record) => {
   ElMessageBox.alert(
     `用户ID: ${record.userId}
 用户名: ${record.username}
 发生时间: ${record.abnormalTime}
 异常类型: ${getAbnormalTypeText(record.abnormalType)}
-异常描述: ${record.description}`,
+IP地址: ${record.ipAddress || '-'}
+是否处理: ${record.isHandled ? '已处理' : '未处理'}
+处理时间: ${record.handledAt || '-'}
+处理说明: ${record.handledNotes || '-'}`,
     '异常详情',
     {
       confirmButtonText: '确定',
@@ -1408,8 +1427,8 @@ const handleBehaviorSearch = () => {
     );
   } else if (activeBehaviorTab.value === 'abnormal') {
     abnormalRecords.value = allAbnormalRecords.value.filter(record => 
-      String(record.user_id).includes(query) || 
-      record.user_name.toLowerCase().includes(query)
+      String(record.userId).includes(query) || 
+      record.username.toLowerCase().includes(query)
     );
   }
 };
@@ -1429,6 +1448,14 @@ watch(activeBehaviorTab, (newTab) => {
     } else if (newTab === 'abnormal') {
       abnormalRecords.value = [...allAbnormalRecords.value];
     }
+  }
+
+  if (newTab === 'login' && allLoginRecords.value.length === 0) {
+    fetchLoginRecords();
+  } else if (newTab === 'operation' && allOperationRecords.value.length === 0) {
+    fetchOperationRecords();
+  } else if (newTab === 'abnormal' && allAbnormalRecords.value.length === 0) {
+    fetchAbnormalBehaviors();
   }
 });
 
@@ -1890,8 +1917,20 @@ const fetchAbnormalBehaviors = async () => {
     if (!response.ok) throw new Error('Failed to fetch abnormal behaviors');
     const data = await response.json();
     
+    // 映射字段名，使后端返回的字段名与前端组件期望的字段名匹配
+    const mappedBehaviors = data.behaviors.map(item => ({
+      userId: item.user_id,
+      username: item.user_name,
+      abnormalTime: item.abnormal_time,
+      abnormalType: item.abnormal_type,
+      ipAddress: item.ip_address,
+      isHandled: item.is_handled,
+      handledAt: item.handled_at,
+      handledNotes: item.handled_notes
+    }));
+    
     // 保存所有数据
-    allAbnormalRecords.value = data.behaviors;
+    allAbnormalRecords.value = mappedBehaviors;
     // 初始显示所有数据
     abnormalRecords.value = [...allAbnormalRecords.value];
     totalAbnormalRecords.value = data.total;
