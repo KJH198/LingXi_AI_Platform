@@ -934,9 +934,9 @@
                   </div>
                 </template>
                 <div class="agent-config-content">
-                  <div v-if="nodeForm.myAgentId || nodeForm.followedAgentId" class="selected-agent-info">
+                  <div v-if="nodeForm.AgentID || nodeForm.followedAgentId" class="selected-agent-info">
                     <el-alert
-                      :title="`已选择智能体: ${nodeForm.myAgentName || nodeForm.followedAgentName}`"
+                      :title="`已选择智能体: ${nodeForm.AgentName || nodeForm.followedAgentName}`"
                       type="success"
                       :closable="false"
                       show-icon
@@ -1205,12 +1205,10 @@ const nodeForm = ref({
   // 监听节点配置
   monitorType: 'all',
   // 智能体配置
+  AgentID: null,
+  AgentName: '',
   myAgents: [],
   followedAgents: [],
-  myAgentId: null,
-  myAgentName: '',
-  followedAgentId: null,
-  followedAgentName: '',
 })
 
 // 添加表单引用
@@ -1642,10 +1640,10 @@ const handleNodeClick = (event) => {
     // 监听节点配置
     monitorType: node.data?.monitorType || 'all',
     // 智能体配置
-    myAgentId: node.data?.myAgentId || null,
-    myAgentName: node.data?.myAgentName || '',
-    followedAgentId: node.data?.followedAgentId || null,
-    followedAgentName: node.data?.followedAgentName || '',
+    AgentID: node.data?.AgentID || null,
+    AgentName: node.data?.AgentName || '',
+    myAgents: node.data?.myAgents || [],
+    followedAgents: node.data?.followedAgents || [],
   }
   
   // 保存原始数据
@@ -1756,10 +1754,10 @@ const updateNode = async () => {
         // 智能体配置
         myAgents: nodeForm.value.myAgents,
         followedAgents: nodeForm.value.followedAgents,
-        myAgentId: nodeForm.value.myAgentId,
-        myAgentName: nodeForm.value.myAgentName,
-        followedAgentId: nodeForm.value.followedAgentId,
-        followedAgentName: nodeForm.value.followedAgentName,
+        AgentID: nodeForm.value.AgentID,
+        AgentName: nodeForm.value.AgentName,
+        myAgents: nodeForm.value.myAgents,
+        followedAgents: nodeForm.value.followedAgents,
       }
       
       // 使用 Vue Flow 的 updateNode 方法更新节点
@@ -2080,6 +2078,14 @@ const saveWorkflow = async () => {
       return // 用户取消保存
     })
 
+    // 收集所有智能体节点的id
+    const agentNodes = elements.value
+      .filter(el => el.type === 'workflow')
+      .map(node => ({
+        nodeId: node.id,
+        agentId: node.data.AgentID || node.data.followedAgentId || null
+      }))
+
     // 整理工作流数据
     const workflowData = {
       userId: localStorage.getItem('userId'),
@@ -2156,6 +2162,8 @@ const saveWorkflow = async () => {
           // 监听节点配置
           monitorType: node.data.monitorType,
           // 智能体配置
+          AgentID: node.data.AgentID,
+          AgentName: node.data.AgentName,
           myAgents: node.data.myAgents,
           followedAgents: node.data.followedAgents,
           // 动态输入配置
@@ -2332,6 +2340,8 @@ const loadWorkflow = async (workflowId) => {
             // 监听节点配置
             monitorType: node.data.monitorType || 'all',
             // 智能体配置
+            AgentID: node.data.AgentID,
+            AgentName: node.data.AgentName,
             myAgents: node.data.myAgents || [],
             followedAgents: node.data.followedAgents || [],
             // 样式配置
@@ -2450,22 +2460,22 @@ onMounted(() => {
       const node = elements.value.find(el => el.id === nodeId)
       if (node) {
         if (agent.type === 'my') {
-          nodeForm.value.myAgentId = agent.id
-          nodeForm.value.myAgentName = agent.name
+          nodeForm.value.AgentID = agent.id
+          nodeForm.value.AgentName = agent.name
           nodeForm.value.followedAgentId = null
           nodeForm.value.followedAgentName = ''
         } else {
           nodeForm.value.followedAgentId = agent.id
           nodeForm.value.followedAgentName = agent.name
-          nodeForm.value.myAgentId = null
-          nodeForm.value.myAgentName = ''
+          nodeForm.value.AgentID = null
+          nodeForm.value.AgentName = ''
         }
         
         // 更新节点数据
         const newNodeData = {
           ...node.data,
-          myAgentId: nodeForm.value.myAgentId,
-          myAgentName: nodeForm.value.myAgentName,
+          AgentID: nodeForm.value.AgentID,
+          AgentName: nodeForm.value.AgentName,
           followedAgentId: nodeForm.value.followedAgentId,
           followedAgentName: nodeForm.value.followedAgentName
         }
@@ -2533,22 +2543,22 @@ onMounted(() => {
       const node = elements.value.find(el => el.id === nodeId)
       if (node) {
         if (agent.type === 'my') {
-          nodeForm.value.myAgentId = agent.id
-          nodeForm.value.myAgentName = agent.name
+          nodeForm.value.AgentID = agent.id
+          nodeForm.value.AgentName = agent.name
           nodeForm.value.followedAgentId = null
           nodeForm.value.followedAgentName = ''
         } else {
           nodeForm.value.followedAgentId = agent.id
           nodeForm.value.followedAgentName = agent.name
-          nodeForm.value.myAgentId = null
-          nodeForm.value.myAgentName = ''
+          nodeForm.value.AgentID = null
+          nodeForm.value.AgentName = ''
         }
         
         // 更新节点数据
         const newNodeData = {
           ...node.data,
-          myAgentId: nodeForm.value.myAgentId,
-          myAgentName: nodeForm.value.myAgentName,
+          AgentID: nodeForm.value.AgentID,
+          AgentName: nodeForm.value.AgentName,
           followedAgentId: nodeForm.value.followedAgentId,
           followedAgentName: nodeForm.value.followedAgentName
         }
@@ -2617,22 +2627,22 @@ const handleSelectAgent = (row) => {
     const node = elements.value.find(el => el.id === selectedNode.value)
     if (node) {
       if (activeAgentTab.value === 'my') {
-        nodeForm.value.myAgentId = row.id
-        nodeForm.value.myAgentName = row.name
+        nodeForm.value.AgentID = row.id
+        nodeForm.value.AgentName = row.name
         nodeForm.value.followedAgentId = null
         nodeForm.value.followedAgentName = ''
       } else {
         nodeForm.value.followedAgentId = row.id
         nodeForm.value.followedAgentName = row.name
-        nodeForm.value.myAgentId = null
-        nodeForm.value.myAgentName = ''
+        nodeForm.value.AgentID = null
+        nodeForm.value.AgentName = ''
       }
       
       // 更新节点数据
       const newNodeData = {
         ...node.data,
-        myAgentId: nodeForm.value.myAgentId,
-        myAgentName: nodeForm.value.myAgentName,
+        AgentID: nodeForm.value.AgentID,
+        AgentName: nodeForm.value.AgentName,
         followedAgentId: nodeForm.value.followedAgentId,
         followedAgentName: nodeForm.value.followedAgentName
       }
@@ -2659,16 +2669,16 @@ const clearSelectedAgent = () => {
   if (selectedNode.value) {
     const node = elements.value.find(el => el.id === selectedNode.value)
     if (node) {
-      nodeForm.value.myAgentId = null
-      nodeForm.value.myAgentName = ''
+      nodeForm.value.AgentID = null
+      nodeForm.value.AgentName = ''
       nodeForm.value.followedAgentId = null
       nodeForm.value.followedAgentName = ''
       
       // 更新节点数据
       const newNodeData = {
         ...node.data,
-        myAgentId: null,
-        myAgentName: '',
+        AgentID: null,
+        AgentName: '',
         followedAgentId: null,
         followedAgentName: ''
       }
