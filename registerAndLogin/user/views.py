@@ -157,6 +157,8 @@ def user_login(request):
                     'success': False,
                     'message': '账号封禁中：' + reason
                 })
+            user.is_active = True
+            user.save()
             
             # 生成 JWT token
             refresh = RefreshToken.for_user(user)
@@ -383,8 +385,6 @@ class AdminBanView(APIView):
                 # 将时间戳转换为datetime对象
                 from datetime import datetime, timedelta
                 user.ban_until = datetime.now() + timedelta(days=duration)
-                
-            user.is_active = False # 用户显然不应该再活跃了
             user.save()
             
             return Response({
