@@ -1,6 +1,5 @@
 <template>
     <div class="hot-kb-container">
-      <h3 class="section-title">热门知识库</h3>
       
       <!-- 加载状态 -->
       <div v-if="loading" class="loading-container">

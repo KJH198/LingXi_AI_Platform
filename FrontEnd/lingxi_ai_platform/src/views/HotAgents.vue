@@ -1,6 +1,5 @@
 <template>
     <div class="hot-agents-container">
-      <h3 class="section-title">热门智能体</h3>
       
       <!-- 加载状态 -->
       <div v-if="loading" class="loading-container">

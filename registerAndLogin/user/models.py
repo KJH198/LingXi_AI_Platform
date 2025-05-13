@@ -286,6 +286,7 @@ class PublishedAgent(models.Model):
     comments = models.IntegerField(default=0, verbose_name='评论数')
     avatar = models.CharField(max_length=255, blank=True, null=True, verbose_name='头像URL')
     followers = models.ManyToManyField(User, related_name='followed_agents', blank=True, verbose_name='关注者')
+    is_OpenSource = models.BooleanField(default=False, verbose_name='是否开源')
 
     class Meta:
         verbose_name = '已发布智能体'

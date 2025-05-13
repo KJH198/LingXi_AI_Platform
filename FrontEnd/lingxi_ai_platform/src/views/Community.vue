@@ -214,6 +214,11 @@
         <template v-else-if="activeMenu === '3'">
           <HotKnowledgeBases />
         </template>
+        
+        <!-- 开源智能体选项卡 -->
+        <template v-else-if="activeMenu === '5'">
+          <OpenSource />
+        </template>
       </el-main>
     </el-container>
 
@@ -540,6 +545,7 @@ const fetchUserInfo = async () => {
 // 添加搜索图标导入
 import { Search } from '@element-plus/icons-vue'
 import { Pointer } from '@element-plus/icons-vue'
+import OpenSource from './OpenSource.vue'
 
 // 添加搜索相关状态
 const searchQuery = ref('')

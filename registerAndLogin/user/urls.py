@@ -12,6 +12,7 @@ from .views import (
     DeleteAnnouncement,
     EditAnnouncement,
     GetAnnouncements,
+    OpenAgentView,
     Update,
     UseAgentView,
     UserGetAnnouncements,
@@ -136,8 +137,9 @@ urlpatterns = [
     path('admin/knowledgebases/<int:kb_id>', AdminGetKB.as_view(), name='kb_search'),
     path('admin/changeKBSataus/<int:kb_id>', AdminChangeKBSataus.as_view(), name='kb_list'),
     
-    # 智能体互用
+    # 智能体互用和开源
     path('useAgent/<str:agent_id>/', UseAgentView.as_view(), name='agent_edit_detail'),
+    path('OpenAgent/<str:agent_id>/', OpenAgentView.as_view(), name='open_agent'),
     
     # 智能体和知识库相关路由
     path('agents/list', UserAgentListView.as_view(), name='user_agent_list'),

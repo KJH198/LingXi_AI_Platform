@@ -3,7 +3,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth import authenticate, login
 import json
 from rest_framework.parsers import JSONParser
-from .models import AbnormalBehavior, Announcement, User
+from .models import AIAgent, AbnormalBehavior, Announcement, User
 from django.shortcuts import render
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -649,6 +649,7 @@ class AdminGetAgents(APIView):
                 'time':agent.created_at.strftime('%Y-%m-%d %H:%M:%S'),
                 'creatorID':agent.creator.id,
                 'status':agent.status,
+                'is_OpenSource':agent.is_OpenSource,
             } for agent in agents
         ]
     
@@ -1722,7 +1723,8 @@ class UserAgentListView(APIView):
                         'avatar': agent.creator.avatar
                     },
                     'followCount': follow_count,
-                    'isFollowed': is_followed
+                    'isFollowed': is_followed,
+                    'is_OpenSource': agent.is_OpenSource
                 }
                 agent_list.append(agent_data)
             
@@ -2702,6 +2704,71 @@ class UseAgentView(APIView):
                 'code': 500,
                 'message': f'获取智能体详情失败: {str(e)}',
                 'data': None
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class OpenAgentView(APIView):
+    """开源智能体"""
+    def get(self, request, agent_id):
+        try:
+            agent = PublishedAgent.objects.get(id=agent_id)
+            return Response({
+                'code': 200,
+                'is_OpenSource': agent.is_OpenSource,
+                'message': '获取开源状态成功'
+            })
+        except PublishedAgent.DoesNotExist:
+            return Response({
+                'code': 404,
+                'message': '智能体不存在',
+            }, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({
+                'code': 500,
+                'message': f'获取失败: {str(e)}',
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    def post(self, request, agent_id):
+        try:
+            # 获取智能体
+            agent = PublishedAgent.objects.get(id=agent_id, creator =request.user)
+            
+            # 检查权限（只有创建者可以修改开源状态）
+            if agent.creator != request.user:
+                return Response({
+                    'code': 403,
+                    'message': '您没有权限修改此智能体的开源状态',
+                }, status=status.HTTP_403_FORBIDDEN)
+            
+            # 获取开源状态
+            is_open = request.data.get('isOpen', False)
+            
+            # 更新开源状态
+            agent.is_OpenSource = is_open
+            agent.save()
+            
+            # 记录用户行为
+            UserActionLog.objects.create(
+                user=request.user,
+                action='change_agent_open_source',
+                target_id=agent.id,
+                target_type='agent',
+                ip_address=request.META.get('REMOTE_ADDR'),
+            )
+            
+            return Response({
+                'code': 200,
+                'message': '开源状态更新成功',
+                'is_OpenSource': agent.is_OpenSource
+            })
+        except PublishedAgent.DoesNotExist:
+            return Response({
+                'code': 404,
+                'message': '智能体不存在',
+            }, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({
+                'code': 500,
+                'message': f'更新失败: {str(e)}',
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class AgentUpdateView(APIView):

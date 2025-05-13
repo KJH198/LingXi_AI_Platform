@@ -438,12 +438,54 @@ class HotAgentsView(generics.ListAPIView):
         ).order_by('-popularity_score', '-created_at')
     
     def list(self, request, *args, **kwargs):
-        print("获取热门智能体列表请求:", request)
         queryset = self.filter_queryset(self.get_queryset())
-        print("获取热门智能体列表查询集:", queryset)
         page = self.paginate_queryset(queryset)
         
-        print("分页后的热门智能体:", page)
+        if page is not None:
+            # 标记当前用户是否已关注
+            user = request.user
+            if user.is_authenticated:
+                for agent in page:
+                    agent.is_followed = agent.followers.filter(id=user.id).exists()
+            
+            serializer = self.get_serializer(page, many=True)
+            return Response({
+                "code": 200,
+                "message": "success",
+                "data": {
+                    "items": serializer.data,
+                    "total": self.paginator.page.paginator.count
+                }
+            })
+        
+        serializer = self.get_serializer(queryset, many=True)
+        return Response({
+            "code": 200,
+            "message": "success",
+            "data": {
+                "items": serializer.data,
+                "total": len(serializer.data)
+            }
+        })
+
+# 开源智能体视图
+class OpenAgentsView(generics.ListAPIView):
+    serializer_class = HotAgentSerializer
+    pagination_class = HotItemsPagination
+    
+    def get_queryset(self):
+        # 只获取已审核通过的智能体
+        return PublishedAgent.objects.filter(
+            is_active=True, is_OpenSource=True
+        ).annotate(
+            # 计算热度分数：浏览量 + 点赞数*2 + 关注者数*4
+            popularity_score=F('views') + Count('likes')*2 + Count('followers')*4
+        ).order_by('-popularity_score', '-created_at')
+    
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        page = self.paginate_queryset(queryset)
+        
         if page is not None:
             # 标记当前用户是否已关注
             user = request.user
