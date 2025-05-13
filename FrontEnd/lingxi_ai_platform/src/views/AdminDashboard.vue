@@ -1879,6 +1879,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 20px;
+  flex: 1;
 }
 
 .header-right {
@@ -2093,6 +2094,10 @@ onMounted(() => {
 .admin-menu {
   border-bottom: none;
   margin-left: 20px;
+  flex: 1;      /* 新增，让菜单占满剩余空间 */
+  min-width: 0; /* 防止溢出时换行 */
+  overflow: hidden; /* 防止溢出 */
+  display: flex;    /* 让菜单项一行显示 */
 }
 
 .admin-menu :deep(.el-menu-item) {

@@ -9,6 +9,7 @@
             <el-menu-item index="1">首页</el-menu-item>
             <el-menu-item index="2">热门智能体</el-menu-item>
             <el-menu-item index="3">热门知识库</el-menu-item>
+            <el-menu-item index="5">开源智能体</el-menu-item>
             <el-menu-item index="4" @click="showAnnouncementList">公告</el-menu-item>
           </el-menu>
         </div>
@@ -1570,7 +1571,8 @@ fetchPosts()
   display: flex;
   align-items: center;
   gap: 20px;
-  min-width: 600px; /* 确保有足够的宽度 */
+  /* min-width: 600px; 确保有足够的宽度 */
+  flex: 1;
 }
 
 .header-left h2 {
