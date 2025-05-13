@@ -933,11 +933,34 @@
                     <span>智能体配置</span>
                   </div>
                 </template>
-                <div class="agent-buttons">
-                  <el-button type="primary" @click="selectMyAgent">
-                    <el-icon><Select /></el-icon>
-                    选择可用的智能体
-                  </el-button>
+                <div class="agent-config-content">
+                  <div v-if="nodeForm.myAgentId || nodeForm.followedAgentId" class="selected-agent-info">
+                    <el-alert
+                      :title="`已选择智能体: ${nodeForm.myAgentName || nodeForm.followedAgentName}`"
+                      type="success"
+                      :closable="false"
+                      show-icon
+                    >
+                      <template #default>
+                        <div class="agent-info-actions">
+                          <el-button type="primary" link @click="selectMyAgent">
+                            <el-icon><Edit /></el-icon>
+                            更换智能体
+                          </el-button>
+                          <el-button type="danger" link @click="clearSelectedAgent">
+                            <el-icon><Delete /></el-icon>
+                            清除选择
+                          </el-button>
+                        </div>
+                      </template>
+                    </el-alert>
+                  </div>
+                  <div v-else class="agent-buttons">
+                    <el-button type="primary" @click="selectMyAgent">
+                      <el-icon><Select /></el-icon>
+                      选择可用的智能体
+                    </el-button>
+                  </div>
                 </div>
               </el-card>
             </template>
@@ -1033,6 +1056,65 @@
           </el-button-group>
         </span>
       </template>
+    </el-dialog>
+
+    <!-- 智能体选择对话框 -->
+    <el-dialog
+      v-model="agentSelectDialogVisible"
+      title="选择智能体"
+      width="60%"
+      :close-on-click-modal="true"
+      class="agent-select-dialog"
+    >
+      <el-tabs v-model="activeAgentTab" class="agent-tabs">
+        <el-tab-pane label="我的智能体" name="my">
+          <el-table
+            :data="myAgents"
+            style="width: 100%"
+            @row-click="handleSelectAgent"
+            :row-class-name="getRowClassName"
+          >
+            <el-table-column prop="name" label="名称" />
+            <el-table-column prop="description" label="描述" show-overflow-tooltip />
+            <el-table-column prop="createTime" label="创建时间" width="180" />
+            <el-table-column label="操作" width="120" fixed="right">
+              <template #default="{ row }">
+                <el-button 
+                  type="primary" 
+                  link
+                  @click.stop="handleSelectAgent(row)"
+                >
+                  选择
+                </el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+        </el-tab-pane>
+
+        <el-tab-pane label="我关注的" name="followed">
+          <el-table
+            :data="followedAgents"
+            style="width: 100%"
+            @row-click="handleSelectAgent"
+            :row-class-name="getRowClassName"
+          >
+            <el-table-column prop="name" label="名称" />
+            <el-table-column prop="description" label="描述" show-overflow-tooltip />
+            <el-table-column prop="createTime" label="创建时间" width="180" />
+            <el-table-column label="操作" width="120" fixed="right">
+              <template #default="{ row }">
+                <el-button 
+                  type="primary" 
+                  link
+                  @click.stop="handleSelectAgent(row)"
+                >
+                  选择
+                </el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+        </el-tab-pane>
+      </el-tabs>
     </el-dialog>
   </div>
 </template>
@@ -1560,8 +1642,6 @@ const handleNodeClick = (event) => {
     // 监听节点配置
     monitorType: node.data?.monitorType || 'all',
     // 智能体配置
-    myAgents: node.data?.myAgents || [],
-    followedAgents: node.data?.followedAgents || [],
     myAgentId: node.data?.myAgentId || null,
     myAgentName: node.data?.myAgentName || '',
     followedAgentId: node.data?.followedAgentId || null,
@@ -2423,17 +2503,8 @@ watch(() => nodeForm.value.processType, (newType) => {
 
 // 添加选择智能体的方法
 const selectMyAgent = () => {
-  console.log('选择我的智能体')
-  // 保存当前节点ID到localStorage
-  localStorage.setItem('currentWorkflowNodeId', selectedNode.value)
-  // 跳转到智能体列表页面
-  router.push({
-    path: '/usable-agent-list',
-    query: {
-      type: 'my',
-      returnPath: '/create-ai'
-    }
-  })
+  agentSelectDialogVisible.value = true
+  fetchAgents()
 }
 
 const selectFollowedAgent = () => {
@@ -2493,6 +2564,124 @@ onMounted(() => {
     localStorage.removeItem('currentWorkflowNodeId')
   }
 })
+
+// 添加智能体选择相关的状态
+const agentSelectDialogVisible = ref(false)
+const activeAgentTab = ref('my')
+const myAgents = ref([])
+const followedAgents = ref([])
+
+// 获取智能体列表
+const fetchAgents = async () => {
+  try {
+    const token = localStorage.getItem('token')
+    if (!token) {
+      ElMessage.error('请先登录')
+      return
+    }
+
+    // 获取我的智能体列表
+    const myResponse = await fetch('/user/agents/list', {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
+    if (myResponse.ok) {
+      const result = await myResponse.json()
+      if (result.code === 200) {
+        myAgents.value = result.data
+      }
+    }
+
+    // 获取关注的智能体列表
+    const followedResponse = await fetch('/user/followed/agents', {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
+    if (followedResponse.ok) {
+      const result = await followedResponse.json()
+      if (result.code === 200) {
+        followedAgents.value = result.data
+      }
+    }
+  } catch (error) {
+    console.error('获取智能体列表失败:', error)
+    ElMessage.error('获取智能体列表失败')
+  }
+}
+
+// 处理选择智能体
+const handleSelectAgent = (row) => {
+  if (selectedNode.value) {
+    const node = elements.value.find(el => el.id === selectedNode.value)
+    if (node) {
+      if (activeAgentTab.value === 'my') {
+        nodeForm.value.myAgentId = row.id
+        nodeForm.value.myAgentName = row.name
+        nodeForm.value.followedAgentId = null
+        nodeForm.value.followedAgentName = ''
+      } else {
+        nodeForm.value.followedAgentId = row.id
+        nodeForm.value.followedAgentName = row.name
+        nodeForm.value.myAgentId = null
+        nodeForm.value.myAgentName = ''
+      }
+      
+      // 更新节点数据
+      const newNodeData = {
+        ...node.data,
+        myAgentId: nodeForm.value.myAgentId,
+        myAgentName: nodeForm.value.myAgentName,
+        followedAgentId: nodeForm.value.followedAgentId,
+        followedAgentName: nodeForm.value.followedAgentName
+      }
+      
+      vueFlowUpdateNode(node.id, {
+        data: newNodeData
+      })
+
+      // 显示成功消息
+      ElMessage.success(`已选择智能体: ${row.name}`)
+    }
+  }
+  
+  agentSelectDialogVisible.value = false
+}
+
+// 获取行样式
+const getRowClassName = ({ row }) => {
+  return 'agent-table-row'
+}
+
+// 添加清除选择智能体的方法
+const clearSelectedAgent = () => {
+  if (selectedNode.value) {
+    const node = elements.value.find(el => el.id === selectedNode.value)
+    if (node) {
+      nodeForm.value.myAgentId = null
+      nodeForm.value.myAgentName = ''
+      nodeForm.value.followedAgentId = null
+      nodeForm.value.followedAgentName = ''
+      
+      // 更新节点数据
+      const newNodeData = {
+        ...node.data,
+        myAgentId: null,
+        myAgentName: '',
+        followedAgentId: null,
+        followedAgentName: ''
+      }
+      
+      vueFlowUpdateNode(node.id, {
+        data: newNodeData
+      })
+
+      // 显示成功消息
+      ElMessage.success('已清除智能体选择')
+    }
+  }
+}
 </script>
 
 <style scoped>
@@ -3820,5 +4009,99 @@ onMounted(() => {
 .agent-buttons :deep(.el-button--primary:hover) {
   background: #66b1ff;
   border-color: #66b1ff;
+}
+
+/* 添加智能体选择对话框样式 */
+.agent-select-dialog :deep(.el-dialog__body) {
+  padding: 20px;
+}
+
+.agent-select-dialog :deep(.el-tabs__header) {
+  margin-bottom: 20px;
+}
+
+.agent-select-dialog :deep(.el-tabs__nav-wrap::after) {
+  height: 1px;
+}
+
+.agent-select-dialog :deep(.el-tabs__item) {
+  font-size: 16px;
+  height: 40px;
+  line-height: 40px;
+}
+
+.agent-select-dialog :deep(.el-tabs__item.is-active) {
+  font-weight: 500;
+}
+
+.agent-select-dialog :deep(.el-table) {
+  --el-table-border-color: #ebeef5;
+  --el-table-header-bg-color: #f5f7fa;
+}
+
+.agent-select-dialog :deep(.el-table th) {
+  font-weight: 500;
+  color: #606266;
+  background-color: #f5f7fa;
+}
+
+.agent-select-dialog :deep(.el-table td) {
+  color: #606266;
+}
+
+.agent-select-dialog :deep(.agent-table-row) {
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.agent-select-dialog :deep(.agent-table-row:hover) {
+  background-color: #f5f7fa;
+}
+
+.agent-select-dialog :deep(.el-button--primary.is-link) {
+  font-weight: 500;
+}
+
+.agent-select-dialog :deep(.el-button--primary.is-link:hover) {
+  color: #66b1ff;
+}
+
+/* 添加智能体配置相关样式 */
+.agent-config-content {
+  padding: 10px 0;
+}
+
+.selected-agent-info {
+  margin-bottom: 16px;
+}
+
+.agent-info-actions {
+  display: flex;
+  gap: 16px;
+  margin-top: 8px;
+}
+
+.agent-info-actions :deep(.el-button) {
+  padding: 0;
+  height: auto;
+  font-size: 14px;
+}
+
+.agent-info-actions :deep(.el-button .el-icon) {
+  margin-right: 4px;
+}
+
+:deep(.el-alert) {
+  margin-bottom: 0;
+}
+
+:deep(.el-alert__title) {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+:deep(.el-alert__content) {
+  padding: 0;
+  margin-top: 8px;
 }
 </style>
