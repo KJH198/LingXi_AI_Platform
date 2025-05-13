@@ -396,7 +396,8 @@
                     <el-table-column prop="user_id" label="用户ID" width="120" />
                     <el-table-column prop="user_name" label="用户名" width="150" />
                     <el-table-column prop="time" label="登录时间" width="180" />
-                    <el-table-column prop="user_isactive" label="活跃状态" width="100">
+                    <el-table-column prop="ip_address" label="IP地址" width="150" />
+                    <el-table-column prop="user_isactive" label="活跃状态">
                       <template #default="scope">
                         <el-tag :type="scope.row.is_active ? 'success' : 'danger'">
                           {{ scope.row.is_active ? '活跃' : '未活跃' }}
@@ -439,6 +440,7 @@
                     </el-table-column>
                     <el-table-column prop="target_id" label="操作对象ID" width="120" />
                     <el-table-column prop="target_type" label="操作对象类型" />
+                    <el-table-column prop="ip_address" label="IP地址" width="150" />
                     <el-table-column label="操作" width="120">
                       <template #default="scope">
                         <el-button 
