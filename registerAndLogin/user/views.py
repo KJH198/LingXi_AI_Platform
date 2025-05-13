@@ -558,6 +558,7 @@ class UserOperationRecordsView(APIView):
         records = [
             {
                 'user_id':log.user.id,
+                'ip_address':log.ip_address,
                 'user_name':log.user.username,
                 'time':log.created_at.strftime('%Y-%m-%d %H:%M:%S'),
                 'action':log.action,
@@ -1372,6 +1373,7 @@ class UserLoginRecordView(APIView):
             records = [
                 {
                     'user_id':userActionLog.user.id,
+                    'ip_address':userActionLog.ip_address,
                     'user_name':userActionLog.user.username,
                     'time':userActionLog.created_at.strftime('%Y-%m-%d %H:%M:%S'),
                     'is_active':userActionLog.user.is_active,
