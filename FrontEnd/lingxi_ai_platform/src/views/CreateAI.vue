@@ -500,10 +500,19 @@
             }"
           >
             <!-- 输入端口（上方） -->
-            <div style="display: flex; justify-content: center;">
+            <div style="position: relative; width: 100%; height: 20px;">
               <template v-for="(name, idx) in nodeProps.data.inputNodeNames || []" :key="'input-'+idx">
                 <el-tooltip :content="name" placement="top" :show-after="500" :hide-after="0" :effect="'light'" popper-class="flow-handle-tooltip">
-                  <Handle type="target" :position="'top'" :id="'input-'+idx" :style="{ background: '#7B68EE', margin: '0 6px' }" />
+                  <Handle
+                    type="target"
+                    position="top"
+                    :id="`input-${nodeProps.id}-${idx}`"
+                    :style="{
+                      background: '#7B68EE',
+                      left: `${(idx + 1) * (100 / (nodeProps.data.inputNodeNames.length + 1))}%`,
+                      transform: 'translateX(-50%)'
+                    }"
+                  />
                 </el-tooltip>
               </template>
             </div>
@@ -514,10 +523,19 @@
               智能体
             </div>
             <!-- 输出端口（下方） -->
-            <div style="display: flex; justify-content: center;">
+            <div style="position: relative; width: 100%; height: 20px;">
               <template v-for="(name, idx) in nodeProps.data.outputNodeNames || []" :key="'output-'+idx">
                 <el-tooltip :content="name" placement="bottom" :show-after="500" :hide-after="0" :effect="'light'" popper-class="flow-handle-tooltip">
-                  <Handle type="source" :position="'bottom'" :id="'output-'+idx" :style="{ background: '#7B68EE', margin: '0 6px' }" />
+                  <Handle
+                    type="source"
+                    position="bottom"
+                    :id="`output-${nodeProps.id}-${idx}`"
+                    :style="{
+                      background: '#7B68EE',
+                      left: `${(idx + 1) * (100 / (nodeProps.data.outputNodeNames.length + 1))}%`,
+                      transform: 'translateX(-50%)'
+                    }"
+                  />
                 </el-tooltip>
               </template>
             </div>
