@@ -2607,21 +2607,19 @@ class KnowledgeBaseDetailView(APIView):
 
 class AgentEditDetailView(APIView):
     """获取待编辑的智能体详情"""
-    permission_classes = [IsAuthenticated]
-    
     def get(self, request, agent_id):
         try:
             # 获取智能体
             agent = get_object_or_404(PublishedAgent, id=agent_id)
             print(f"获取智能体: {agent.name}")
             
-            # 检查是否是创建者
-            if request.user != agent.creator:
-                return Response({
-                    'code': 403,
-                    'message': '您没有权限编辑该智能体',
-                    'data': None
-                }, status=status.HTTP_403_FORBIDDEN)
+            # # 检查是否是创建者
+            # if request.user != agent.creator:
+            #     return Response({
+            #         'code': 403,
+            #         'message': '您没有权限编辑该智能体',
+            #         'data': None
+            #     }, status=status.HTTP_403_FORBIDDEN)
             
             print("检查权限通过")
             # 组装智能体详情数据

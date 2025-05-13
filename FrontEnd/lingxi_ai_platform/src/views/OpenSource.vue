@@ -112,7 +112,7 @@
   
   // 查看智能体详情
   const viewAgentDetail = (agentId) => {
-    router.push(`/agent-editor/${agentId}`)
+    router.push(`/agent-look/${agentId}`)
   }
   
   // 关注/取消关注智能体
