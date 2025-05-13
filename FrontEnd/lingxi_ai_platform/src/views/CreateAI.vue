@@ -933,34 +933,12 @@
                     <span>智能体配置</span>
                   </div>
                 </template>
-                <el-form-item label="我的" label-width="100px">
-                  <el-select 
-                    v-model="nodeForm.myAgents" 
-                    placeholder="请选择我的智能体"
-                    @change="handleAgentSelect('myAgents')"
-                  >
-                    <el-option
-                      v-for="agent in myAgentsList"
-                      :key="agent.id"
-                      :label="agent.name"
-                      :value="agent.id"
-                    />
-                  </el-select>
-                </el-form-item>
-                <el-form-item label="我关注的" label-width="100px">
-                  <el-select 
-                    v-model="nodeForm.followedAgents" 
-                    placeholder="请选择我关注的智能体"
-                    @change="handleAgentSelect('followedAgents')"
-                  >
-                    <el-option
-                      v-for="agent in followedAgentsList"
-                      :key="agent.id"
-                      :label="agent.name"
-                      :value="agent.id"
-                    />
-                  </el-select>
-                </el-form-item>
+                <div class="agent-buttons">
+                  <el-button type="primary" @click="selectMyAgent">
+                    <el-icon><Select /></el-icon>
+                    选择可用的智能体
+                  </el-button>
+                </div>
               </el-card>
             </template>
 
@@ -1147,6 +1125,10 @@ const nodeForm = ref({
   // 智能体配置
   myAgents: [],
   followedAgents: [],
+  myAgentId: null,
+  myAgentName: '',
+  followedAgentId: null,
+  followedAgentName: '',
 })
 
 // 添加表单引用
@@ -1580,6 +1562,10 @@ const handleNodeClick = (event) => {
     // 智能体配置
     myAgents: node.data?.myAgents || [],
     followedAgents: node.data?.followedAgents || [],
+    myAgentId: node.data?.myAgentId || null,
+    myAgentName: node.data?.myAgentName || '',
+    followedAgentId: node.data?.followedAgentId || null,
+    followedAgentName: node.data?.followedAgentName || '',
   }
   
   // 保存原始数据
@@ -1690,6 +1676,10 @@ const updateNode = async () => {
         // 智能体配置
         myAgents: nodeForm.value.myAgents,
         followedAgents: nodeForm.value.followedAgents,
+        myAgentId: nodeForm.value.myAgentId,
+        myAgentName: nodeForm.value.myAgentName,
+        followedAgentId: nodeForm.value.followedAgentId,
+        followedAgentName: nodeForm.value.followedAgentName,
       }
       
       // 使用 Vue Flow 的 updateNode 方法更新节点
@@ -2370,6 +2360,46 @@ onMounted(() => {
   if (workflowId) {
     loadWorkflow(workflowId)
   }
+  // 检查是否有从智能体列表页面返回的数据
+  const selectedAgent = localStorage.getItem('selectedAgent')
+  if (selectedAgent) {
+    const agent = JSON.parse(selectedAgent)
+    const nodeId = localStorage.getItem('currentWorkflowNodeId')
+    
+    if (nodeId) {
+      const node = elements.value.find(el => el.id === nodeId)
+      if (node) {
+        if (agent.type === 'my') {
+          nodeForm.value.myAgentId = agent.id
+          nodeForm.value.myAgentName = agent.name
+          nodeForm.value.followedAgentId = null
+          nodeForm.value.followedAgentName = ''
+        } else {
+          nodeForm.value.followedAgentId = agent.id
+          nodeForm.value.followedAgentName = agent.name
+          nodeForm.value.myAgentId = null
+          nodeForm.value.myAgentName = ''
+        }
+        
+        // 更新节点数据
+        const newNodeData = {
+          ...node.data,
+          myAgentId: nodeForm.value.myAgentId,
+          myAgentName: nodeForm.value.myAgentName,
+          followedAgentId: nodeForm.value.followedAgentId,
+          followedAgentName: nodeForm.value.followedAgentName
+        }
+        
+        vueFlowUpdateNode(node.id, {
+          data: newNodeData
+        })
+      }
+    }
+    
+    // 清除localStorage中的数据
+    localStorage.removeItem('selectedAgent')
+    localStorage.removeItem('currentWorkflowNodeId')
+  }
 })
 
 // 添加智能体选择处理方法
@@ -2388,6 +2418,79 @@ watch(() => nodeForm.value.processType, (newType) => {
     if (!nodeForm.value.name || nodeForm.value.name === '' || nodeForm.value.name === originalNodeData.value.name) {
       nodeForm.value.name = `${typeConfig.label} ${nodeTypeCounters.value.process[newType]}`
     }
+  }
+})
+
+// 添加选择智能体的方法
+const selectMyAgent = () => {
+  console.log('选择我的智能体')
+  // 保存当前节点ID到localStorage
+  localStorage.setItem('currentWorkflowNodeId', selectedNode.value)
+  // 跳转到智能体列表页面
+  router.push({
+    path: '/usable-agent-list',
+    query: {
+      type: 'my',
+      returnPath: '/create-ai'
+    }
+  })
+}
+
+const selectFollowedAgent = () => {
+  console.log('选择我关注的智能体')
+  // 保存当前节点ID到localStorage
+  localStorage.setItem('currentWorkflowNodeId', selectedNode.value)
+  // 跳转到智能体列表页面
+  router.push({
+    path: '/usable-agent-list',
+    query: {
+      type: 'followed',
+      returnPath: '/create-ai'
+    }
+  })
+}
+
+// 添加监听路由变化的方法
+onMounted(() => {
+  // 检查是否有从智能体列表页面返回的数据
+  const selectedAgent = localStorage.getItem('selectedAgent')
+  if (selectedAgent) {
+    const agent = JSON.parse(selectedAgent)
+    const nodeId = localStorage.getItem('currentWorkflowNodeId')
+    
+    if (nodeId) {
+      const node = elements.value.find(el => el.id === nodeId)
+      if (node) {
+        if (agent.type === 'my') {
+          nodeForm.value.myAgentId = agent.id
+          nodeForm.value.myAgentName = agent.name
+          nodeForm.value.followedAgentId = null
+          nodeForm.value.followedAgentName = ''
+        } else {
+          nodeForm.value.followedAgentId = agent.id
+          nodeForm.value.followedAgentName = agent.name
+          nodeForm.value.myAgentId = null
+          nodeForm.value.myAgentName = ''
+        }
+        
+        // 更新节点数据
+        const newNodeData = {
+          ...node.data,
+          myAgentId: nodeForm.value.myAgentId,
+          myAgentName: nodeForm.value.myAgentName,
+          followedAgentId: nodeForm.value.followedAgentId,
+          followedAgentName: nodeForm.value.followedAgentName
+        }
+        
+        vueFlowUpdateNode(node.id, {
+          data: newNodeData
+        })
+      }
+    }
+    
+    // 清除localStorage中的数据
+    localStorage.removeItem('selectedAgent')
+    localStorage.removeItem('currentWorkflowNodeId')
   }
 })
 </script>
@@ -3662,5 +3765,60 @@ watch(() => nodeForm.value.processType, (newType) => {
 
 :deep(.vue-flow__node[data-type="monitor"] .vue-flow__handle) {
   background: #F56C6C;
+}
+
+.agent-select-container {
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.agent-select-container :deep(.el-input) {
+  width: 100%;
+}
+
+.agent-select-container :deep(.el-input__wrapper) {
+  padding-right: 0;
+}
+
+.agent-select-container :deep(.el-input-group__append) {
+  padding: 0;
+  background-color: transparent;
+}
+
+.agent-select-container :deep(.el-button) {
+  border-radius: 0 4px 4px 0;
+  margin: 0;
+  height: 100%;
+  padding: 0 15px;
+}
+
+.agent-buttons {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.agent-buttons :deep(.el-button) {
+  min-width: 100px;
+  height: 36px;
+  border-radius: 4px;
+  transition: all 0.3s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-weight: 500;
+}
+
+.agent-buttons :deep(.el-button--primary) {
+  background: #409EFF;
+  border-color: #409EFF;
+  color: #fff;
+}
+
+.agent-buttons :deep(.el-button--primary:hover) {
+  background: #66b1ff;
+  border-color: #66b1ff;
 }
 </style>

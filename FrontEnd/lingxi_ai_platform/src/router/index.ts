@@ -130,6 +130,11 @@ const routes: RouteRecordRaw[] = [
     name: 'PostDetail',
     component: () => import('../views/PostDetail.vue')
   },
+  {
+    path: '/usable-agent-list',
+    name: 'UsableAgentList',
+    component: () => import('../views/UseableAgentList.vue')
+  },
 ]
 
 const router = createRouter({
