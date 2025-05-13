@@ -629,18 +629,18 @@
                 <el-table-column prop="agentId" label="智能体ID" width="120" />
                 <el-table-column prop="agentName" label="智能体名称" width="150" />
                 <el-table-column prop="submitTime" label="提交时间" width="180" />
-                <el-table-column prop="functionType" label="发布者ID" width="150">
+                <el-table-column label="发布者ID" width="150">
                   <template #default="scope">
-                    <el-tag :type="getFunctionTypeTag(scope.row.functionType)">
-                      {{ getFunctionTypeText(scope.row.functionType) }}
+                    <el-tag :type="'info'">
+                      {{ scope.row.creatorId }}
                     </el-tag>
                   </template>
                 </el-table-column>
-                <el-table-column prop="content" label="内容预览">
+                <el-table-column label="内容预览">
                   <template #default="scope">
                     <div class="content-preview">
-                      <el-tag size="small" :type="getContentTypeTag(scope.row.contentType)">
-                        {{ getContentTypeText(scope.row.contentType) }}
+                      <el-tag size="small" :type="getContentTypeTag(scope.row.contentType || 'template')">
+                        {{ getContentTypeText(scope.row.contentType || 'template') }}
                       </el-tag>
                       <span class="content-text">{{ scope.row.content }}</span>
                     </div>
@@ -667,6 +667,7 @@
                         type="success" 
                         size="small" 
                         @click="handleReviewAgent(scope.row, 'approve')"
+                        v-if="scope.row.status === 'pending'"
                       >
                         通过
                       </el-button>
@@ -674,6 +675,7 @@
                         type="danger" 
                         size="small" 
                         @click="handleReviewAgent(scope.row, 'reject')"
+                        v-if="scope.row.status === 'pending'"
                       >
                         拒绝
                       </el-button>
@@ -1258,13 +1260,6 @@ const fetchAnnouncements = async () => {
   }
 }
 
-// 在用户管理界面加载时调用fetchLoginRecords
-onMounted(() => {
-  handleUserSearch();
-  if (activeMenu.value === '2') {
-    fetchLoginRecords();
-  }
-});
 
 const handleLogout = () => {
   localStorage.removeItem('adminToken')
@@ -1490,7 +1485,7 @@ const handleMenuSelect = (index) => {
   } else if (index === '2') {
     fetchLoginRecords(); // 点击行为管理时加载登录记录
   } else if (index === '3') {
-    handleAgentSearch();
+    fetchAgentReviews();
   } else if (index === '4') {
     handleAnnouncementSearch();
   }
@@ -1780,44 +1775,178 @@ const handleAnnouncementSearch = async () => {
   }
 }
 
-// 修改智能体审核搜索函数
-const handleAgentSearch = async () => {
+// 修改获取智能体列表的函数
+const fetchAgentReviews = async () => {
   loading.value = true;
   try {
-    const data = await agentApi.getAgentList({ rating: 2 });
-    agentReviews.value = data.agents;
-    totalReviews.value = data.total;
-    pendingReviews.value = data.pending_count;
-    approvedAgents.value = data.approved_count;
-    rejectedAgents.value = data.rejected_count;
+    const response = await fetch('/user/admin/agents/list', {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+      }
+    });
+    
+    if (!response.ok) throw new Error('获取智能体列表失败');
+    const data = await response.json();
+    
+    // 映射返回的数据到组件期望的格式
+    agentReviews.value = data.agents.map(agent => ({
+      agentId: agent.agentID,
+      agentName: agent.name,
+      submitTime: agent.time,
+      content: agent.description,
+      contentType: 'template',  // 设置默认内容类型
+      creatorId: agent.creatorID, // 直接保留创建者ID
+      status: agent.status,
+      is_OpenSource: agent.is_OpenSource
+    }));
+    
+    totalReviews.value = data.total || agentReviews.value.length;
+    
+    // 计算不同状态的智能体数量
+    pendingReviews.value = agentReviews.value.filter(agent => agent.status === 'pending').length;
+    approvedAgents.value = agentReviews.value.filter(agent => agent.status === 'approved').length;
+    rejectedAgents.value = agentReviews.value.filter(agent => agent.status === 'rejected').length;
   } catch (error) {
     console.error('获取智能体列表失败:', error);
     ElMessage.error('获取智能体列表失败');
+    agentReviews.value = []; // 出错时清空列表
   } finally {
     loading.value = false;
   }
 };
 
-// 添加审核操作函数
+// 添加获取单个智能体的函数
+// 修改获取单个智能体的函数以匹配后端返回的数据结构
+const fetchAgentDetail = async (agentId) => {
+  loading.value = true;
+  try {
+    const response = await fetch(`/user/admin/agents/list/${agentId}`, {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+      }
+    });
+    
+    if (!response.ok) throw new Error('获取智能体详情失败');
+    const data = await response.json();
+    
+    if (data.agents && data.agents.length > 0) {
+      const agentData = data.agents[0];
+      return {
+        agentId: agentData.agentID,
+        agentName: agentData.name,
+        submitTime: agentData.time,
+        contentType: 'template',
+        functionType: agentData.creatorID, // 使用创建者ID作为功能类型显示
+        status: agentData.status,
+        content: agentData.description,
+        is_OpenSource: agentData.is_OpenSource,
+        // 以下字段后端可能未提供
+        reviewTime: '',
+        reviewer: '',
+        reviewComment: ''
+      };
+    } else {
+      throw new Error('未找到智能体详情');
+    }
+  } catch (error) {
+    console.error('获取智能体详情失败:', error);
+    throw error;
+  } finally {
+    loading.value = false;
+  }
+};
+
+const handleAgentSearch = async () => {
+  if (agentSearchQuery.value) {
+    // 搜索特定智能体
+    loading.value = true;
+    try {
+      const response = await fetch(`/user/admin/agents/list/${agentSearchQuery.value}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+        }
+      });
+      
+      if (!response.ok) throw new Error('搜索智能体失败');
+      const data = await response.json();
+      
+      if (data.agents && data.agents.length > 0) {
+        const agentData = data.agents[0];
+        selectedAgent.value = {
+          agentId: agentData.agentID,
+          agentName: agentData.name,
+          submitTime: agentData.time,
+          content: agentData.description,
+          contentType: 'template',
+          functionType: agentData.creatorID, // 使用创建者ID作为功能类型显示
+          status: agentData.status,
+          is_OpenSource: agentData.is_OpenSource
+        };
+        agentSearchResultDialogVisible.value = true;
+      } else {
+        ElMessage.warning('未找到相关智能体');
+      }
+    } catch (error) {
+      console.error('搜索智能体失败:', error);
+      ElMessage.error('搜索智能体失败');
+    } finally {
+      loading.value = false;
+    }
+  } else {
+    // 获取所有智能体列表
+    fetchAgentReviews();
+  }
+};
+
+// 修改查看详情函数
+const viewAgentDetail = async (agent) => {
+  try {
+    selectedAgent.value = await fetchAgentDetail(agent.agentId);
+    agentSearchResultDialogVisible.value = true;
+  } catch (error) {
+    ElMessage.error('获取智能体详情失败');
+  }
+};
+
 const handleReviewAgent = async (agent, decision) => {
   try {
-    const notes = await ElMessageBox.prompt(
-      `请输入审核意见：`,
+    await ElMessageBox.confirm(
+      `确定要${decision === 'approve' ? '通过' : '拒绝'}智能体 "${agent.agentName}" 吗？`,
       '审核操作',
       {
-        confirmButtonText: '提交',
+        confirmButtonText: '确定',
         cancelButtonText: '取消',
-        inputType: 'textarea'
+        type: decision === 'approve' ? 'success' : 'warning'
       }
     );
 
     loading.value = true;
-    const result = await agentApi.reviewAgent(agent.id, decision, notes.value);
-    ElMessage.success(result.message || '审核成功');
-    handleAgentSearch();
+    
+    const response = await fetch(`/user/admin/changeAgentSataus/${agent.agentId}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+      },
+      body: JSON.stringify({
+        enable: decision === 'approve' // true表示通过，false表示拒绝
+      })
+    });
+
+    if (!response.ok) throw new Error('审核智能体失败');
+    const result = await response.json();
+    
+    if (result.success) {
+      ElMessage.success(`已${decision === 'approve' ? '通过' : '拒绝'}智能体`);
+      // 刷新列表
+      fetchAgentReviews();
+    } else {
+      throw new Error(result.message || '审核失败');
+    }
   } catch (error) {
     if (error !== 'cancel') {
       console.error('审核智能体失败:', error);
+      ElMessage.error(typeof error === 'string' ? error : '审核操作失败');
     }
   } finally {
     loading.value = false;
@@ -1842,38 +1971,6 @@ const getBehaviorTypeText = (type) => {
   }
   return texts[type] || type
 }
-
-// 添加查看智能体详情的函数
-const viewAgentDetail = (agent) => {
-  // 使用mock数据展示
-  const mockAgentData = {
-    id: agent.id,
-    name: agent.agentName,
-    description: '这是一个智能体的详细描述',
-    modelId: 'gpt-4',
-    modelParams: {
-      temperature: 0.7,
-      maxTokens: 1024,
-      topP: 0.95
-    },
-    knowledgeBases: ['kb1', 'kb2'],
-    workflowId: 'wf1'
-  };
-  localStorage.setItem('agentData', JSON.stringify(mockAgentData));
-  router.push('/agent-editor');
-
-  // TODO: 实际API调用
-  // fetch(`/agent/${agent.id}`)
-  //   .then(response => response.json())
-  //   .then(data => {
-  //     localStorage.setItem('agentData', JSON.stringify(data));
-  //     router.push('/agent-editor');
-  //   })
-  //   .catch(error => {
-  //     console.error('获取智能体详情失败:', error);
-  //     ElMessage.error('获取智能体详情失败');
-  //   });
-};
 
 // 添加获取操作记录的函数
 // Fix the operation records function to use proper parameters
@@ -1947,9 +2044,15 @@ onMounted(() => {
   handleUserSearch();
   if (activeMenu.value === '2') {
     fetchLoginRecords();
+    fetchOperationRecords();
+    fetchAbnormalBehaviors();
   }
-  fetchOperationRecords();
-  fetchAbnormalBehaviors();
+  else if (activeMenu.value === '3') {
+    fetchAgentReviews(); // 使用独立的fetch函数加载数据
+  }
+  else if (activeMenu.value === '4') {
+    handleAnnouncementSearch();
+  }
 });
 </script>
 
