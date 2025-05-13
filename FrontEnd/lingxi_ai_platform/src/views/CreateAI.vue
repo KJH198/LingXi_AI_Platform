@@ -1402,9 +1402,9 @@ const addNode = (type) => {
       type,
       position,
       data: {
-        label: `工作流 ${nodeTypeCounters.value.workflow}`,
+        label: `智能体 ${nodeTypeCounters.value.workflow}`,
         type: 'workflow',
-        description: '工作流节点',
+        description: '智能体节点',
         icon: 'Share',
         color: '#7B68EE',
         bgColor: '#f0f0ff'
