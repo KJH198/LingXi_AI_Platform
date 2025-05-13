@@ -1,7 +1,7 @@
 # agents/urls.py
 from django.urls import path
 from .views import (
-    WorkflowSaveView, GetWorkflowsView, DeleteWorkflowView,
+    AgentGetInputAndOutputCountView, WorkflowSaveView, GetWorkflowsView, DeleteWorkflowView,
     WorkflowRetrieveView, GetInputAndOutputCountView, AgentAvatarUploadView,
     CleanupTempResourcesView
 )
@@ -13,6 +13,7 @@ urlpatterns = [
     path('deleteworkflow/<int:workflow_id>', DeleteWorkflowView.as_view(), name='workflow-delete'),
     path('workflowLoad/<int:workflowId>/', WorkflowRetrieveView.as_view(), name='workflow-load'),
     path('staticInputCount/<int:workflow_id>', GetInputAndOutputCountView.as_view(), name='input-num'),  # 处理没有参数的情况
+    path('AgentstaticInputCount/<int:agent_id>', AgentGetInputAndOutputCountView.as_view(), name='input-num'),  # 处理没有参数的情况
     path('staticInput', submit_static_inputs, name='submit-static-input'),
     path('staticInput/<int:workflow_id0>', submit_static_inputs, name='submit-static-input'),
     path('dynamicInput', submit_dynamic_input, name='submit-dynamic-input'),

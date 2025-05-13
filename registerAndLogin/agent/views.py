@@ -207,6 +207,54 @@ class GetInputAndOutputCountView(APIView):
                 'output_node_count': output_node_count,
                 'output_node_names': output_node_names
             }
+            print(data)
+            return Response({
+                "code": 200,
+                "message": "查询成功",  # 改了
+                "data": data
+            })
+        except Workflow.DoesNotExist:
+            return Response({
+                'code': 404,
+                'message': '该工作流不存在'
+            })
+
+class AgentGetInputAndOutputCountView(APIView):
+    def get(self, request, agent_id):  # 改成 get
+        try:
+            agent = PublishedAgent.objects.get(id=agent_id)
+            workflow_id = agent.workflow_id
+            if not workflow_id:
+                return Response({
+                    'code': 404,
+                    'message': '该智能体没有关联的工作流'
+                })
+            # 获取工作流
+            workflow = Workflow.objects.get(id=workflow_id)
+            input_nodes = Node.objects.filter(workflow=workflow, node_type='input')
+            output_nodes = Node.objects.filter(workflow=workflow, node_type='output')
+            input_node_count = input_nodes.count()
+            output_node_count = output_nodes.count()
+
+            input_node_names = []
+            for node in input_nodes:
+                node_data = node.node_data or {}
+                name = node_data.get('name', 'input')
+                input_node_names.append(name)
+
+            output_node_names = []
+            for node in output_nodes:
+                node_data = node.node_data or {}
+                name = node_data.get('name', 'input')
+                output_node_names.append(name)
+
+            data = {
+                'input_node_count': input_node_count,
+                'input_node_names': input_node_names,
+                'output_node_count': output_node_count,
+                'output_node_names': output_node_names
+            }
+            print(data)
             return Response({
                 "code": 200,
                 "message": "查询成功",  # 改了

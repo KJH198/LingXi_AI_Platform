@@ -499,32 +499,28 @@
               borderColor: '#7B68EE'
             }"
           >
-            <el-tooltip
-              content="智能体输入"
-              placement="top"
-              :show-after="500"
-              :hide-after="0"
-              :effect="'light'"
-              popper-class="flow-handle-tooltip"
-            >
-              <Handle type="target" position="top" :style="{ background: '#7B68EE' }" />
-            </el-tooltip>
+            <!-- 输入端口（上方） -->
+            <div style="display: flex; justify-content: center;">
+              <template v-for="(name, idx) in nodeProps.data.inputNodeNames || []" :key="'input-'+idx">
+                <el-tooltip :content="name" placement="top" :show-after="500" :hide-after="0" :effect="'light'" popper-class="flow-handle-tooltip">
+                  <Handle type="target" :position="'top'" :id="'input-'+idx" :style="{ background: '#7B68EE', margin: '0 6px' }" />
+                </el-tooltip>
+              </template>
+            </div>
             <el-icon :size="20" color="#7B68EE">
               <Share />
             </el-icon>
             <div class="node-label" style="color: #7B68EE">
               智能体
             </div>
-            <el-tooltip
-              content="智能体输出"
-              placement="bottom"
-              :show-after="500"
-              :hide-after="0"
-              :effect="'light'"
-              popper-class="flow-handle-tooltip"
-            >
-              <Handle type="source" position="bottom" :style="{ background: '#7B68EE' }" />
-            </el-tooltip>
+            <!-- 输出端口（下方） -->
+            <div style="display: flex; justify-content: center;">
+              <template v-for="(name, idx) in nodeProps.data.outputNodeNames || []" :key="'output-'+idx">
+                <el-tooltip :content="name" placement="bottom" :show-after="500" :hide-after="0" :effect="'light'" popper-class="flow-handle-tooltip">
+                  <Handle type="source" :position="'bottom'" :id="'output-'+idx" :style="{ background: '#7B68EE', margin: '0 6px' }" />
+                </el-tooltip>
+              </template>
+            </div>
           </div>
         </template>
 
@@ -1405,7 +1401,9 @@ const addNode = (type) => {
         description: '智能体节点',
         icon: 'Share',
         color: '#7B68EE',
-        bgColor: '#f0f0ff'
+        bgColor: '#f0f0ff',
+        inputNodeNames: [],
+        outputNodeNames: []
       }
     })
   } else if (type === 'monitor') {
@@ -2622,7 +2620,7 @@ const fetchAgents = async () => {
 }
 
 // 处理选择智能体
-const handleSelectAgent = (row) => {
+const handleSelectAgent = async (row) => {
   if (selectedNode.value) {
     const node = elements.value.find(el => el.id === selectedNode.value)
     if (node) {
@@ -2638,15 +2636,36 @@ const handleSelectAgent = (row) => {
         nodeForm.value.AgentName = ''
       }
       
+      // 新增：调用后端接口获取输入输出信息
+      let agentId = row.id
+      try {
+        console.log('获取输入输出信息:', agentId)
+        const res = await fetch(`/agent/AgentstaticInputCount/${agentId}`)
+        const result = await res.json()
+        console.log('输入输出信息:', result)
+        if (result.code === 200) {
+          // 保存输入输出名称到节点data
+          nodeForm.value.inputNodeNames = result.data.input_node_names
+          nodeForm.value.outputNodeNames = result.data.output_node_names
+          console.log('输入节点名称:', nodeForm.value.inputNodeNames)
+          console.log('输出节点名称:', nodeForm.value.outputNodeNames)
+        }
+      } catch (e) {
+        // 失败时清空
+        nodeForm.value.inputNodeNames = []
+        nodeForm.value.outputNodeNames = []
+      }
+      
       // 更新节点数据
       const newNodeData = {
         ...node.data,
         AgentID: nodeForm.value.AgentID,
         AgentName: nodeForm.value.AgentName,
         followedAgentId: nodeForm.value.followedAgentId,
-        followedAgentName: nodeForm.value.followedAgentName
+        followedAgentName: nodeForm.value.followedAgentName,
+        inputNodeNames: nodeForm.value.inputNodeNames,
+        outputNodeNames: nodeForm.value.outputNodeNames
       }
-      
       vueFlowUpdateNode(node.id, {
         data: newNodeData
       })
@@ -2655,7 +2674,6 @@ const handleSelectAgent = (row) => {
       ElMessage.success(`已选择智能体: ${row.name}`)
     }
   }
-  
   agentSelectDialogVisible.value = false
 }
 
