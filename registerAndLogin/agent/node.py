@@ -347,7 +347,7 @@ class LLMNode(BaseNode):
         return reply
 
 
-class WorkflowNode(BaseNode):
+class AgentNode(BaseNode):
     def __init__(self, node: Node):
         super().__init__(node)
 
@@ -366,7 +366,7 @@ node_type_map = {
     "batch": BatchNode,
     "aggregate": AggregateNode,
     "llm": LLMNode,
-    "workflow": WorkflowNode,
+    "workflow": AgentNode,
     "monitor": MonitorNode,
 }
 
