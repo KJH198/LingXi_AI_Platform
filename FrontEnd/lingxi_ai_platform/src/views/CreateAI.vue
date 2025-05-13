@@ -1352,7 +1352,9 @@ const addNode = (type) => {
         label: `输入 ${nodeTypeCounters.value.input}`,
         icon: 'Upload',
         color: '#409EFF',
-        bgColor: '#f0f9ff'
+        bgColor: '#f0f9ff',
+        inputNodeNames: [],
+        outputNodeNames: [],
       }
     })
   } else if (type === 'output') {
@@ -1378,7 +1380,9 @@ const addNode = (type) => {
         label: `输出 ${nodeTypeCounters.value.output}`,
         icon: 'Download',
         color: '#E6A23C',
-        bgColor: '#fdf6ec'
+        bgColor: '#fdf6ec',
+        inputNodeNames: [],
+        outputNodeNames: [],
       }
     })
   } else if (type === 'process') {
@@ -1402,7 +1406,9 @@ const addNode = (type) => {
         color: '#9B59B6',
         bgColor: '#f9f0ff',
         llmModel: 'Qwen',
-        llmPrompt: ''
+        llmPrompt: '',
+        inputNodeNames: [],
+        outputNodeNames: [],
       }
     })
   } else if (type === 'workflow') {
@@ -1421,7 +1427,7 @@ const addNode = (type) => {
         color: '#7B68EE',
         bgColor: '#f0f0ff',
         inputNodeNames: [],
-        outputNodeNames: []
+        outputNodeNames: [],
       }
     })
   } else if (type === 'monitor') {
@@ -1439,7 +1445,9 @@ const addNode = (type) => {
         icon: 'View',
         color: '#F56C6C',
         bgColor: '#fff0f0',
-        monitorType: 'all'
+        monitorType: 'all',
+        inputNodeNames: [],
+        outputNodeNames: [],
       }
     })
   } else if (type === 'dynamic-input') {
@@ -1456,7 +1464,9 @@ const addNode = (type) => {
         description: '动态输入节点',
         icon: 'Connection',
         color: '#409EFF',
-        bgColor: '#f0f9ff'
+        bgColor: '#f0f9ff',
+        inputNodeNames: [],
+        outputNodeNames: [],
       }
     })
   }
@@ -1512,7 +1522,9 @@ const confirmAddProcessNode = () => {
         label: `${selectedType.label} ${nodeTypeCounters.value.process[selectedType.value]}`,
         icon: selectedType.icon,
         color: selectedType.color,
-        bgColor: selectedType.bgColor
+        bgColor: selectedType.bgColor,
+        inputNodeNames: [],
+        outputNodeNames: [],
       }
     })
     
@@ -1660,6 +1672,8 @@ const handleNodeClick = (event) => {
     AgentName: node.data?.AgentName || '',
     myAgents: node.data?.myAgents || [],
     followedAgents: node.data?.followedAgents || [],
+    inputNodeNames: node.data.inputNodeNames || [],
+    outputNodeNames: node.data.outputNodeNames || [],
   }
   
   // 保存原始数据
@@ -1774,6 +1788,8 @@ const updateNode = async () => {
         AgentName: nodeForm.value.AgentName,
         myAgents: nodeForm.value.myAgents,
         followedAgents: nodeForm.value.followedAgents,
+        inputNodeNames: node.data.inputNodeNames || [],
+        outputNodeNames: node.data.outputNodeNames || [],
       }
       
       // 使用 Vue Flow 的 updateNode 方法更新节点
@@ -2191,7 +2207,9 @@ const saveWorkflow = async () => {
           // 样式配置
           icon: node.data.icon,
           color: node.data.color,
-          bgColor: node.data.bgColor
+          bgColor: node.data.bgColor,
+          inputNodeNames: node.data.inputNodeNames || [],
+          outputNodeNames: node.data.outputNodeNames || [],
         }
       })),
       edges: elements.value.filter(el => el.type === 'smoothstep').map(edge => ({
@@ -2363,7 +2381,9 @@ const loadWorkflow = async (workflowId) => {
             // 样式配置
             icon: icon,
             color: color,
-            bgColor: bgColor
+            bgColor: bgColor,
+            inputNodeNames: node.data.inputNodeNames || [],
+            outputNodeNames: node.data.outputNodeNames || [],
           }
         })
       })
