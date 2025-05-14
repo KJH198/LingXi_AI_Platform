@@ -506,7 +506,7 @@
                   <Handle
                     type="target"
                     position="top"
-                    :id="`input-${nodeProps.id}-${idx}`"
+                    :id="`input-${name}`"
                     :style="{
                       background: '#7B68EE',
                       left: `${(idx + 1) * (100 / (nodeProps.data.inputNodeNames.length + 1))}%`,
@@ -529,7 +529,7 @@
                   <Handle
                     type="source"
                     position="bottom"
-                    :id="`output-${nodeProps.id}-${idx}`"
+                    :id="`output-${name}`"
                     :style="{
                       background: '#7B68EE',
                       left: `${(idx + 1) * (100 / (nodeProps.data.outputNodeNames.length + 1))}%`,
@@ -1985,62 +1985,56 @@ const handleNodeDragStop = (node) => {
 const handleConnect = (params) => {
   // 检查源节点是否是选择器节点、循环节点或批处理节点
   const sourceNode = elements.value.find(el => el.id === params.source);
-  if (sourceNode) {
-    if (sourceNode.data.processType === 'loop') {
-      // 如果是循环节点，需要检查连接点的ID
-      const handleId = params.sourceHandle;
-      if (!handleId || (handleId !== 'loop-entry' && handleId !== 'loop-exit' && handleId !== 'default')) {
-        ElMessage.warning('请选择有效的循环连接点');
+  const targetNode = elements.value.find(el => el.id === params.target);
+  
+  if (sourceNode && targetNode) {
+    // 如果源节点是智能体节点
+    if (sourceNode.type === 'workflow') {
+      // 验证sourceHandle是否是有效的输出端口
+      if (!params.sourceHandle || !params.sourceHandle.startsWith('output-')) {
+        ElMessage.warning('请选择有效的智能体输出端口');
         return;
-      }
-      
-      // 检查目标节点
-      const targetNode = elements.value.find(el => el.id === params.target);
-      if (targetNode) {
-        // 如果源连接点是循环出口，不允许连接到循环入口
-        if (handleId === 'loop-exit' && params.targetHandle === 'loop-entry') {
-          ElMessage.warning('循环出口不能直接连接到循环入口');
-          return;
-        }
       }
     }
-    if (sourceNode.data.processType === 'selector') {
-      // 如果是选择器节点，需要检查连接点的ID
-      const handleId = params.sourceHandle;
-      if (!handleId) {
-        ElMessage.warning('请选择有效的输出连接点');
+    
+    // 如果目标节点是智能体节点
+    if (targetNode.type === 'workflow') {
+      // 验证targetHandle是否是有效的输入端口
+      if (!params.targetHandle || !params.targetHandle.startsWith('input-')) {
+        ElMessage.warning('请选择有效的智能体输入端口');
         return;
       }
-    } else if (sourceNode.data.processType === 'loop') {
-      // 如果是循环节点，需要检查连接点的ID
+    }
+    
+    // 其他节点类型的验证逻辑保持不变
+    if (sourceNode.data.processType === 'loop') {
       const handleId = params.sourceHandle;
       if (!handleId || (handleId !== 'loop-entry' && handleId !== 'loop-exit' && handleId !== 'default')) {
         ElMessage.warning('请选择有效的循环连接点');
         return;
       }
       
-      // 检查目标节点是否是循环节点
-      const targetNode = elements.value.find(el => el.id === params.target);
-      if (targetNode && targetNode.data.processType === 'loop') {
-        // 如果目标也是循环节点，检查连接点
+      if (targetNode.data.processType === 'loop') {
         const targetHandleId = params.targetHandle;
         if (targetHandleId === 'loop-entry' || targetHandleId === 'loop-exit') {
           ElMessage.warning('循环节点之间不能直接连接入口或出口');
           return;
         }
       }
+    } else if (sourceNode.data.processType === 'selector') {
+      const handleId = params.sourceHandle;
+      if (!handleId) {
+        ElMessage.warning('请选择有效的输出连接点');
+        return;
+      }
     } else if (sourceNode.data.processType === 'batch') {
-      // 如果是批处理节点，需要检查连接点的ID
       const handleId = params.sourceHandle;
       if (!handleId || (handleId !== 'batch-entry' && handleId !== 'batch-exit' && handleId !== 'default')) {
         ElMessage.warning('请选择有效的批处理连接点');
         return;
       }
       
-      // 检查目标节点是否是批处理节点
-      const targetNode = elements.value.find(el => el.id === params.target);
-      if (targetNode && targetNode.data.processType === 'batch') {
-        // 如果目标也是批处理节点，检查连接点
+      if (targetNode.data.processType === 'batch') {
         const targetHandleId = params.targetHandle;
         if (targetHandleId === 'batch-entry' || targetHandleId === 'batch-exit') {
           ElMessage.warning('批处理节点之间不能直接连接入口或出口');
@@ -2050,28 +2044,8 @@ const handleConnect = (params) => {
     }
   }
 
-  // 检查目标节点是否是循环节点或批处理节点
-  const targetNode = elements.value.find(el => el.id === params.target);
-  if (targetNode) {
-    if (targetNode.data.processType === 'loop') {
-      // 如果目标是循环节点，检查连接点
-      const targetHandleId = params.targetHandle;
-      if (targetHandleId === 'loop-entry') {
-        ElMessage.warning('不能直接连接到循环节点的入口');
-        return;
-      }
-    } else if (targetNode.data.processType === 'batch') {
-      // 如果目标是批处理节点，检查连接点
-      const targetHandleId = params.targetHandle;
-      if (targetHandleId === 'batch-entry') {
-        ElMessage.warning('不能直接连接到批处理节点的入口');
-        return;
-      }
-    }
-  }
-
   elements.value.push({
-    id: `edge-${params.source}-${params.target}-${params.sourceHandle || ''}`,
+    id: `edge-${params.source}-${params.target}-${params.sourceHandle || ''}-${params.targetHandle || ''}`,
     source: params.source,
     target: params.target,
     sourceHandle: params.sourceHandle,
