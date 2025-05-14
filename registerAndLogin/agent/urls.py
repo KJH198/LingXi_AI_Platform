@@ -5,7 +5,8 @@ from .views import (
     WorkflowRetrieveView, GetInputAndOutputCountView, AgentAvatarUploadView,
     CleanupTempResourcesView
 )
-from .node import submit_static_inputs,submit_dynamic_input,start_preview, check_next_input
+from .workflow import submit_static_inputs,submit_dynamic_input
+from .agent import start_preview, check_next_input
 
 urlpatterns = [
     path('workflowSave/', WorkflowSaveView.as_view(), name='workflow-save'),

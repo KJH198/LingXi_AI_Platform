@@ -9,7 +9,7 @@ import django
 django.setup()
 
 from agent.models import Workflow
-from agent.node import run_workflow_from_output_node
+from agent.workflow import run_workflow_from_output_node
 
 def main():
     workflow = Workflow.objects.get(id=3)  # 你想测试哪个 workflow 自己改 id
