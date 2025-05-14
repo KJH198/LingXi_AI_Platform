@@ -704,7 +704,7 @@
         return;
       }
       
-      const response = await fetch('/knowledge_base/', {
+      const response = await fetch('/knowledge_base/create_knowledgebase/', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -723,25 +723,20 @@
           router.push('/login');
           return;
         }
-        throw new Error('创建知识库失败');
+        throw new Error('创建知识库失败', response);
       }
       
       const result = await response.json();
-      
-      if (result.code === 201) {
-        // 重置表单
-        newKnowledgeBase.name = '';
-        newKnowledgeBase.description = '';
-        newKnowledgeBase.type = 'text';
-        createKnowledgeDialogVisible.value = false;
+
+      newKnowledgeBase.name = '';
+      newKnowledgeBase.description = '';
+      newKnowledgeBase.type = 'text';
+      createKnowledgeDialogVisible.value = false;
         
-        // 刷新知识库列表
-        await fetchKnowledgeBases();
+      // 刷新知识库列表
+      await fetchKnowledgeBases();
         
-        ElMessage.success('知识库创建成功');
-      } else {
-        throw new Error(result.message || '创建知识库失败');
-      }
+      ElMessage.success('知识库创建成功');
     } catch (error) {
       console.error('创建知识库失败:', error);
       ElMessage.error('创建知识库失败，请稍后重试');
@@ -870,6 +865,7 @@
     margin: 0;
     display: -webkit-box;
     -webkit-line-clamp: 2;
+    line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
   }

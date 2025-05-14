@@ -360,7 +360,10 @@
       
       const response = await fetch(`/user/favorite/post/${postId.value}/`, {
         method,
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
       })
       
       if (!response.ok) {
@@ -370,8 +373,8 @@
       const result = await response.json()
       
       if (result.code === 200) {
+        postData.value.favorites = postData.value.isFavorited ? (postData.value.favorites - 1) : (postData.value.favorites + 1)
         postData.value.isFavorited = !postData.value.isFavorited
-        postData.value.favorites = result.data.favoriteCount
         ElMessage.success(postData.value.isFavorited ? '收藏成功' : '取消收藏成功')
       } else {
         throw new Error(result.message || '操作失败')

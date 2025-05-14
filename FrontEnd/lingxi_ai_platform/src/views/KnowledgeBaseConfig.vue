@@ -464,7 +464,9 @@ const canUpload = computed(() => {
 
 // 检查知识库是否被选择
 const isKnowledgeBaseSelected = (id: string): boolean => {
-  return props.agentData.knowledgeBases.includes(id);
+  console.log('检查知识库是否被选择:', id);
+  console.log('当前选择的知识库ID:', selectKnowledgebasesid.value);
+  return selectKnowledgebasesid.value.some(kbId => String(kbId) === String(id));
 };
 
 // 添加或移除知识库
@@ -477,15 +479,39 @@ const toggleKnowledgeBase = (kb: KnowledgeBaseType): void => {
 };
 
 const addKnowledgeBase = (id: string): void => {
-  if (!props.agentData.knowledgeBases.includes(id)) {
+  // 检查是否已存在，使用字符串比较
+  if (!selectKnowledgebasesid.value.some(kbId => String(kbId) === String(id))) {
+    // 更新本地状态
+    selectKnowledgebasesid.value.push(id);
+    
+    // 更新父组件状态
     const newKnowledgeBases = [...props.agentData.knowledgeBases, id];
     emit('update:knowledgeBases', newKnowledgeBases);
+    
+    // 更新详情信息
+    updateSelectedKnowledgeBases();
   }
 };
 
 const removeKnowledgeBase = (id: string): void => {
-  const newKnowledgeBases = props.agentData.knowledgeBases.filter(kbId => kbId !== id);
+  // 更新本地状态 - 使用字符串比较
+  selectKnowledgebasesid.value = selectKnowledgebasesid.value.filter(
+    kbId => String(kbId) !== String(id)
+  );
+  
+  // 更新父组件状态 - 使用字符串比较
+  const newKnowledgeBases = props.agentData.knowledgeBases.filter(
+    kbId => String(kbId) !== String(id)
+  );
   emit('update:knowledgeBases', newKnowledgeBases);
+  
+  // 更新详情信息
+  updateSelectedKnowledgeBases();
+  
+  console.log('移除知识库后:', {
+    local: selectKnowledgebasesid.value,
+    parent: newKnowledgeBases
+  });
 };
 
 // 创建知识库
@@ -1135,12 +1161,23 @@ const fetchKnowledgeBases = async (forceRefresh = false): Promise<void> => {
   }
 };
 
+const updateSelectedKnowledgeBases = () => {
+  selectedKnowledgeBasesInfo.value = props.agentData.knowledgeBases
+    .map(id => {
+      const found = knowledgeBases.value.find(kb => String(kb.id) === String(id));
+      if (!found) console.log(`未找到ID为${id}的知识库`);
+      return found;
+    })
+    .filter(kb => kb !== undefined) as KnowledgeBaseType[];
+  console.log('更新后的已选择知识库:', selectedKnowledgeBasesInfo.value);
+};
+
 // 监听知识库配置步骤激活
 watch(() => props.agentData, () => {
   console.log('Agent数据变化');
   if (props.agentData.knowledgeBases.length > 0) {
     selectKnowledgebasesid.value = props.agentData.knowledgeBases;
-    selectedKnowledgeBasesInfo.value = props.agentData.knowledgeBases.map(id => knowledgeBases.value.find(kb => kb.id === id)).filter(kb => kb !== undefined) as KnowledgeBaseType[];
+    selectedKnowledgeBasesInfo.value = props.agentData.knowledgeBases.map(id => knowledgeBases.value.find(kb => String(kb.id) === String(id))).filter(kb => kb !== undefined) as KnowledgeBaseType[];
   } else {
     selectedKnowledgeBasesInfo.value = [];
   }
@@ -1153,9 +1190,16 @@ watch(() => props.active, (isActive) => {
   }
   if (isActive && props.agentData.knowledgeBases.length > 0) {
     selectKnowledgebasesid.value = props.agentData.knowledgeBases;
-    selectedKnowledgeBasesInfo.value = props.agentData.knowledgeBases.map(id => knowledgeBases.value.find(kb => kb.id === id)).filter(kb => kb !== undefined) as KnowledgeBaseType[];
+    selectedKnowledgeBasesInfo.value = props.agentData.knowledgeBases.map(id => knowledgeBases.value.find(kb => String(kb.id) === String(id))).filter(kb => kb !== undefined) as KnowledgeBaseType[];
   } 
 }, { immediate: true });
+
+// 当知识库列表加载完成后，重新计算已选择列表
+watch(() => knowledgeBases.value, () => {
+  if (knowledgeBases.value.length > 0 && props.agentData.knowledgeBases.length > 0) {
+    updateSelectedKnowledgeBases();
+  }
+}, { deep: true });
 </script>
 
 <style scoped>

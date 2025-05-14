@@ -650,7 +650,7 @@ const toggleKnowledgeBaseFollow = async (kb) => {
 // 使用智能体
 const useAgent = (agent) => {
   // 跳转到智能体使用页面
-  router.push(`/editor?agent=${agent.id}`)
+  router.push('/chat/' + agent.id)
 }
 
 // 查看智能体详情
