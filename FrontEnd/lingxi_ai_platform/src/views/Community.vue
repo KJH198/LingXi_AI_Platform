@@ -9,6 +9,7 @@
             <el-menu-item index="1">首页</el-menu-item>
             <el-menu-item index="2">热门智能体</el-menu-item>
             <el-menu-item index="3">热门知识库</el-menu-item>
+            <el-menu-item index="5">开源智能体</el-menu-item>
             <el-menu-item index="4" @click="showAnnouncementList">公告</el-menu-item>
           </el-menu>
         </div>
@@ -61,33 +62,35 @@
           <div v-else>
             <!-- 空状态提示 -->
             <el-empty v-if="posts.length === 0" description="暂无内容" />
-            
+
             <!-- 帖子列表内容 -->
             <div v-else class="post-list">
               <el-card v-for="post in posts" :key="post.id" class="post-card">
                 <template #header>
                   <div class="post-header">
-                    <div class="post-title" @click="viewUserProfile(post.userId)">
-                      <el-avatar :size="32" :src="post.avatar" />
-                      <span class="username">{{ post.username }}</span>
+                    <div class="post-title">
+                      <el-avatar :size="32" :src="post.avatar" @click="viewUserProfile(post.userId)" />
+                      <span class="username" @click="viewUserProfile(post.userId)">{{ post.username }}</span>
+                      <el-button 
+                        size="small" 
+                        :type="post.isFollowed ? 'success' : 'default'" 
+                        plain
+                        class="follow-button"
+                        @click="followUser(post.userId)"
+                      >
+                        {{ post.isFollowed ? '已关注' : '关注' }}
+                      </el-button>
                       <span class="time">{{ post.time }}</span>
                     </div>
-                    <el-dropdown>
-                      <el-button type="text">
-                        <el-icon><More /></el-icon>
-                      </el-button>
-                      <template #dropdown>
-                        <el-dropdown-menu>
-                          <el-dropdown-item @click="followUser(post.userId)">
-                            {{ post.isFollowed ? '取消关注' : '关注' }}
-                          </el-dropdown-item>
-                          <el-dropdown-item @click="favoritePost(post)">
-                            {{ post.isFavorited ? '取消收藏' : '收藏' }}
-                          </el-dropdown-item>
-                          <el-dropdown-item @click="reportPost(post.id)">举报</el-dropdown-item>
-                        </el-dropdown-menu>
-                      </template>
-                    </el-dropdown>
+                    <el-button 
+                      type="danger" 
+                      plain 
+                      size="small" 
+                      @click="reportPost(post.id)" 
+                      class="report-button"
+                    >
+                      <el-icon><Warning /></el-icon> 举报
+                    </el-button>
                   </div>
                 </template>
                 
@@ -164,8 +167,7 @@
                       </div>
                     </div>
                   </div>
-                </div>
-                
+                </div><!-- End of post-content -->
                 <div class="post-footer">
                   <div class="post-actions">
                     <el-button 
@@ -178,6 +180,13 @@
                     <el-button type="text" @click="showCommentDialog(post)">
                       <el-icon><ChatDotRound /></el-icon>
                       {{ post.comments.length }}
+                    </el-button>
+                    <el-button 
+                      :type="post.isFavorited ? 'warning' : 'text'" 
+                      @click="favoritePost(post)"
+                    >
+                      <el-icon><Star /></el-icon>
+                      {{ post.isFavorited ? '已收藏' : '收藏' }}
                     </el-button>
                     <el-button type="text" @click="sharePost(post)">
                       <el-icon><Share /></el-icon>
@@ -212,6 +221,11 @@
         <!-- 热门知识库选项卡 -->
         <template v-else-if="activeMenu === '3'">
           <HotKnowledgeBases />
+        </template>
+        
+        <!-- 开源智能体选项卡 -->
+        <template v-else-if="activeMenu === '5'">
+          <OpenSource />
         </template>
       </el-main>
     </el-container>
@@ -539,6 +553,7 @@ const fetchUserInfo = async () => {
 // 添加搜索图标导入
 import { Search } from '@element-plus/icons-vue'
 import { Pointer } from '@element-plus/icons-vue'
+import OpenSource from './OpenSource.vue'
 
 // 添加搜索相关状态
 const searchQuery = ref('')
@@ -1362,7 +1377,7 @@ const reportPost = (postId) => {
 
 // 分享帖子
 const sharePost = (post) => {
-  const shareUrl = `${window.location.origin}/post/${post.id}`
+  const shareUrl = `${window.location.origin}/#/post/${post.id}`
   // 复制链接到剪贴板
   navigator.clipboard.writeText(shareUrl).then(() => {
     ElMessage.success('链接已复制到剪贴板')
@@ -1570,7 +1585,8 @@ fetchPosts()
   display: flex;
   align-items: center;
   gap: 20px;
-  min-width: 600px; /* 确保有足够的宽度 */
+  /* min-width: 600px; 确保有足够的宽度 */
+  flex: 1;
 }
 
 .header-left h2 {

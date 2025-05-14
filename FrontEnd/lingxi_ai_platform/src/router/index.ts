@@ -34,6 +34,11 @@ const routes: RouteRecordRaw[] = [
     component: () => import('../views/AgentEditor.vue')
   },
   {
+    path: '/agent-look',
+    name: 'AgentLook',
+    component: () => import('../views/AgentLook.vue')
+  },
+  {
     path: '/create-ai',
     name: 'CreateAI',
     component: () => import('../views/CreateAI.vue')
@@ -100,6 +105,12 @@ const routes: RouteRecordRaw[] = [
     path: '/agent-editor/:id',
     name: 'AgentEditorWithId',
     component: () => import('../views/AgentEditor.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/agent-look/:id',
+    name: 'AgentLookWithId',
+    component: () => import('../views/AgentLook.vue'),
     meta: { requiresAuth: true }
   },
   {

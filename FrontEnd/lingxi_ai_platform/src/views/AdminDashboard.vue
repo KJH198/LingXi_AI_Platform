@@ -329,6 +329,7 @@
                     class="search-input"
                     clearable
                     @keyup.enter="handleBehaviorSearch"
+                    @clear="resetBehaviorSearch"
                   >
                     <template #append>
                       <el-button @click="handleBehaviorSearch">搜索</el-button>
@@ -395,7 +396,8 @@
                     <el-table-column prop="user_id" label="用户ID" width="120" />
                     <el-table-column prop="user_name" label="用户名" width="150" />
                     <el-table-column prop="time" label="登录时间" width="180" />
-                    <el-table-column prop="user_isactive" label="活跃状态" width="100">
+                    <el-table-column prop="ip_address" label="IP地址" width="150" />
+                    <el-table-column prop="user_isactive" label="活跃状态">
                       <template #default="scope">
                         <el-tag :type="scope.row.is_active ? 'success' : 'danger'">
                           {{ scope.row.is_active ? '活跃' : '未活跃' }}
@@ -436,7 +438,9 @@
                         </el-tag>
                       </template>
                     </el-table-column>
-                    <el-table-column prop="target_type" label="操作对象" />
+                    <el-table-column prop="target_id" label="操作对象ID" width="120" />
+                    <el-table-column prop="target_type" label="操作对象类型" />
+                    <el-table-column prop="ip_address" label="IP地址" width="150" />
                     <el-table-column label="操作" width="120">
                       <template #default="scope">
                         <el-button 
@@ -444,7 +448,7 @@
                           size="small" 
                           @click="handleViewOperationDetail(scope.row)"
                         >
-                          详情
+                          查看
                         </el-button>
                       </template>
                     </el-table-column>
@@ -472,14 +476,21 @@
                     <el-table-column prop="userId" label="用户ID" width="120" />
                     <el-table-column prop="username" label="用户名" width="150" />
                     <el-table-column prop="abnormalTime" label="发生时间" width="180" />
-                    <el-table-column prop="abnormalType" label="异常类型" width="150">
+                    <el-table-column prop="abnormalType" label="异常类型">
                       <template #default="scope">
                         <el-tag type="danger">
                           {{ getAbnormalTypeText(scope.row.abnormalType) }}
                         </el-tag>
                       </template>
                     </el-table-column>
-                    <el-table-column prop="description" label="异常描述" />
+                    <el-table-column prop="ipAddress" label="IP地址" width="150" />
+                    <el-table-column prop="isHandled" label="处理状态" width="100">
+                      <template #default="scope">
+                        <el-tag :type="scope.row.isHandled ? 'success' : 'warning'">
+                          {{ scope.row.isHandled ? '已处理' : '未处理' }}
+                        </el-tag>
+                      </template>
+                    </el-table-column>
                     <el-table-column label="操作" width="120">
                       <template #default="scope">
                         <el-button 
@@ -618,18 +629,18 @@
                 <el-table-column prop="agentId" label="智能体ID" width="120" />
                 <el-table-column prop="agentName" label="智能体名称" width="150" />
                 <el-table-column prop="submitTime" label="提交时间" width="180" />
-                <el-table-column prop="functionType" label="发布者ID" width="150">
+                <el-table-column label="发布者ID" width="150">
                   <template #default="scope">
-                    <el-tag :type="getFunctionTypeTag(scope.row.functionType)">
-                      {{ getFunctionTypeText(scope.row.functionType) }}
+                    <el-tag :type="'info'">
+                      {{ scope.row.creatorId }}
                     </el-tag>
                   </template>
                 </el-table-column>
-                <el-table-column prop="content" label="内容预览">
+                <el-table-column label="内容预览">
                   <template #default="scope">
                     <div class="content-preview">
-                      <el-tag size="small" :type="getContentTypeTag(scope.row.contentType)">
-                        {{ getContentTypeText(scope.row.contentType) }}
+                      <el-tag size="small" :type="getContentTypeTag(scope.row.contentType || 'template')">
+                        {{ getContentTypeText(scope.row.contentType || 'template') }}
                       </el-tag>
                       <span class="content-text">{{ scope.row.content }}</span>
                     </div>
@@ -656,6 +667,7 @@
                         type="success" 
                         size="small" 
                         @click="handleReviewAgent(scope.row, 'approve')"
+                        v-if="scope.row.status === 'pending'"
                       >
                         通过
                       </el-button>
@@ -663,6 +675,7 @@
                         type="danger" 
                         size="small" 
                         @click="handleReviewAgent(scope.row, 'reject')"
+                        v-if="scope.row.status === 'pending'"
                       >
                         拒绝
                       </el-button>
@@ -828,7 +841,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { User, UserFilled, Warning, Timer, Document, Check, Close } from '@element-plus/icons-vue'
@@ -894,6 +907,11 @@ const behaviorSearchResultDialogVisible = ref(false)
 const agentSearchResultDialogVisible = ref(false)
 const selectedBehavior = ref(null)
 const selectedAgent = ref(null)
+
+// 原始数据
+const allLoginRecords = ref([]);
+const allOperationRecords = ref([]);
+const allAbnormalRecords = ref([]);
 
 // API 请求函数
 const api = {
@@ -1192,22 +1210,29 @@ const fetchLoginRecords = async () => {
   loading.value = true;
   try {
     const response = await fetch('/user/admin/login_records', {
+      method: 'POST',
       headers: {
+        'Content-Type': 'application/json',
         'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
       },
-      method: 'POST',
       body: JSON.stringify({
         page: currentPage.value || 1,
         page_size: pageSize.value || 10
       })
     });
+    
     if (!response.ok) throw new Error('获取登录记录失败');
     const data = await response.json();
-    loginRecords.value = data.records;
+    
+    // 保存所有数据
+    allLoginRecords.value = data.records;
+    // 初始显示所有数据
+    loginRecords.value = [...allLoginRecords.value];
+    
     totalRecords.value = data.total;
-    todayLogins.value= data.total_login_times
-    avgLoginDuration.value= data.total_online_duration
-    abnormalLogins.value= data.total_unexpected_operation_times
+    todayLogins.value = data.total_login_times;
+    avgLoginDuration.value = data.total_online_duration;
+    abnormalLogins.value = data.total_unexpected_operation_times;
   } catch (error) {
     console.error('获取登录记录失败:', error);
     ElMessage.error('获取登录记录失败');
@@ -1235,13 +1260,6 @@ const fetchAnnouncements = async () => {
   }
 }
 
-// 在用户管理界面加载时调用fetchLoginRecords
-onMounted(() => {
-  handleUserSearch();
-  if (activeMenu.value === '2') {
-    fetchLoginRecords();
-  }
-});
 
 const handleLogout = () => {
   localStorage.removeItem('adminToken')
@@ -1334,11 +1352,16 @@ const getAbnormalTypeText = (type) => {
     frequent_login: '频繁登录',
     suspicious_ip: '可疑IP',
     unusual_operation: '异常操作',
-    system_alert: '系统告警'
+    system_alert: '系统告警',
+    login_ip_change: 'IP变动登录', // 添加新的异常类型映射
+    multiple_failures: '多次登录失败',
+    unusual_device: '异常设备登录',
+    unauthorized_access: '未授权访问'
   }
   return texts[type] || type
 }
 
+// 查看操作详情
 // 查看操作详情
 const handleViewOperationDetail = (record) => {
   ElMessageBox.alert(
@@ -1346,7 +1369,9 @@ const handleViewOperationDetail = (record) => {
 用户名: ${record.user_name}
 操作时间: ${record.time}
 操作类型: ${getOperationTypeText(record.action)}
-操作内容: ${record.target_ty}`,
+操作对象ID: ${record.target_id || '-'}
+操作对象类型: ${record.target_type || '-'}
+IP地址: ${record.ip_address || '-'}`,
     '操作详情',
     {
       confirmButtonText: '确定',
@@ -1356,13 +1381,17 @@ const handleViewOperationDetail = (record) => {
 }
 
 // 查看异常详情
+// 查看异常详情
 const handleViewAbnormalDetail = (record) => {
   ElMessageBox.alert(
     `用户ID: ${record.userId}
 用户名: ${record.username}
 发生时间: ${record.abnormalTime}
 异常类型: ${getAbnormalTypeText(record.abnormalType)}
-异常描述: ${record.description}`,
+IP地址: ${record.ipAddress || '-'}
+是否处理: ${record.isHandled ? '已处理' : '未处理'}
+处理时间: ${record.handledAt || '-'}
+处理说明: ${record.handledNotes || '-'}`,
     '异常详情',
     {
       confirmButtonText: '确定',
@@ -1372,35 +1401,78 @@ const handleViewAbnormalDetail = (record) => {
 }
 
 // 修改行为搜索函数
-const handleBehaviorSearch = async () => {
-  try {
-    const params = {};
-    if (behaviorSearchQuery.value) params.user_id = behaviorSearchQuery.value;
-    if (selectedAction.value) params.action = selectedAction.value;
-    if (startDate.value) params.start_date = startDate.value;
-    if (endDate.value) params.end_date = endDate.value;
+// Update behavior search to filter lists instead of showing user details
+const handleBehaviorSearch = () => {
+  const query = behaviorSearchQuery.value.toLowerCase().trim();
+  
+  if (!query) {
+    // 如果搜索框为空，显示所有数据
+    resetBehaviorSearch();
+    return;
+  }
+  
+  // 根据当前标签页过滤对应的数据
+  if (activeBehaviorTab.value === 'login') {
+    loginRecords.value = allLoginRecords.value.filter(record => 
+      String(record.user_id).includes(query) || 
+      record.user_name.toLowerCase().includes(query)
+    );
+  } else if (activeBehaviorTab.value === 'operation') {
+    operationRecords.value = allOperationRecords.value.filter(record => 
+      String(record.user_id).includes(query) || 
+      record.user_name.toLowerCase().includes(query)
+    );
+  } else if (activeBehaviorTab.value === 'abnormal') {
+    abnormalRecords.value = allAbnormalRecords.value.filter(record => 
+      String(record.userId).includes(query) || 
+      record.username.toLowerCase().includes(query)
+    );
+  }
+};
 
-    const queryString = new URLSearchParams(params).toString();
-    const response = await fetch(`/user/admin/behavior_logs/?${queryString}`, {
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
-      }
-    });
-
-    if (!response.ok) throw new Error('Failed to fetch behavior logs');
-    const data = await response.json();
-    behaviorLogs.value = data.logs;
-
-    // 弹出用户详情界面
-    if (behaviorLogs.value.length > 0) {
-      selectedUser.value = behaviorLogs.value[0]; // 假设第一个记录为用户详情
-      userInfoDialogVisible.value = true;
-    } else {
-      ElMessage.warning('未找到相关用户行为记录');
+// Update tab change behavior to reload data
+// 添加标签页切换时重置搜索结果
+watch(activeBehaviorTab, (newTab) => {
+  // 如果有搜索内容，则应用搜索过滤
+  if (behaviorSearchQuery.value) {
+    handleBehaviorSearch();
+  } else {
+    // 否则显示该标签页的所有数据
+    if (newTab === 'login') {
+      loginRecords.value = [...allLoginRecords.value];
+    } else if (newTab === 'operation') {
+      operationRecords.value = [...allOperationRecords.value];
+    } else if (newTab === 'abnormal') {
+      abnormalRecords.value = [...allAbnormalRecords.value];
     }
-  } catch (error) {
-    console.error('Error fetching behavior logs:', error);
-    ElMessage.error('获取用户行为记录失败');
+  }
+
+  if (newTab === 'login' && allLoginRecords.value.length === 0) {
+    fetchLoginRecords();
+  } else if (newTab === 'operation' && allOperationRecords.value.length === 0) {
+    fetchOperationRecords();
+  } else if (newTab === 'abnormal' && allAbnormalRecords.value.length === 0) {
+    fetchAbnormalBehaviors();
+  }
+});
+
+// 监听搜索框内容变化
+watch(behaviorSearchQuery, (newQuery) => {
+  if (!newQuery || newQuery.trim() === '') {
+    // 如果搜索框为空，恢复所有数据
+    resetBehaviorSearch();
+  }
+});
+
+// 重置搜索结果的函数
+const resetBehaviorSearch = () => {
+  // 根据当前活动的标签页恢复对应的数据
+  if (activeBehaviorTab.value === 'login') {
+    loginRecords.value = [...allLoginRecords.value];
+  } else if (activeBehaviorTab.value === 'operation') {
+    operationRecords.value = [...allOperationRecords.value];
+  } else if (activeBehaviorTab.value === 'abnormal') {
+    abnormalRecords.value = [...allAbnormalRecords.value];
   }
 };
 
@@ -1413,7 +1485,7 @@ const handleMenuSelect = (index) => {
   } else if (index === '2') {
     fetchLoginRecords(); // 点击行为管理时加载登录记录
   } else if (index === '3') {
-    handleAgentSearch();
+    fetchAgentReviews();
   } else if (index === '4') {
     handleAnnouncementSearch();
   }
@@ -1703,44 +1775,178 @@ const handleAnnouncementSearch = async () => {
   }
 }
 
-// 修改智能体审核搜索函数
-const handleAgentSearch = async () => {
+// 修改获取智能体列表的函数
+const fetchAgentReviews = async () => {
   loading.value = true;
   try {
-    const data = await agentApi.getAgentList({ rating: 2 });
-    agentReviews.value = data.agents;
-    totalReviews.value = data.total;
-    pendingReviews.value = data.pending_count;
-    approvedAgents.value = data.approved_count;
-    rejectedAgents.value = data.rejected_count;
+    const response = await fetch('/user/admin/agents/list', {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+      }
+    });
+    
+    if (!response.ok) throw new Error('获取智能体列表失败');
+    const data = await response.json();
+    
+    // 映射返回的数据到组件期望的格式
+    agentReviews.value = data.agents.map(agent => ({
+      agentId: agent.agentID,
+      agentName: agent.name,
+      submitTime: agent.time,
+      content: agent.description,
+      contentType: 'template',  // 设置默认内容类型
+      creatorId: agent.creatorID, // 直接保留创建者ID
+      status: agent.status,
+      is_OpenSource: agent.is_OpenSource
+    }));
+    
+    totalReviews.value = data.total || agentReviews.value.length;
+    
+    // 计算不同状态的智能体数量
+    pendingReviews.value = agentReviews.value.filter(agent => agent.status === 'pending').length;
+    approvedAgents.value = agentReviews.value.filter(agent => agent.status === 'approved').length;
+    rejectedAgents.value = agentReviews.value.filter(agent => agent.status === 'rejected').length;
   } catch (error) {
     console.error('获取智能体列表失败:', error);
     ElMessage.error('获取智能体列表失败');
+    agentReviews.value = []; // 出错时清空列表
   } finally {
     loading.value = false;
   }
 };
 
-// 添加审核操作函数
+// 添加获取单个智能体的函数
+// 修改获取单个智能体的函数以匹配后端返回的数据结构
+const fetchAgentDetail = async (agentId) => {
+  loading.value = true;
+  try {
+    const response = await fetch(`/user/admin/agents/list/${agentId}`, {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+      }
+    });
+    
+    if (!response.ok) throw new Error('获取智能体详情失败');
+    const data = await response.json();
+    
+    if (data.agents && data.agents.length > 0) {
+      const agentData = data.agents[0];
+      return {
+        agentId: agentData.agentID,
+        agentName: agentData.name,
+        submitTime: agentData.time,
+        contentType: 'template',
+        functionType: agentData.creatorID, // 使用创建者ID作为功能类型显示
+        status: agentData.status,
+        content: agentData.description,
+        is_OpenSource: agentData.is_OpenSource,
+        // 以下字段后端可能未提供
+        reviewTime: '',
+        reviewer: '',
+        reviewComment: ''
+      };
+    } else {
+      throw new Error('未找到智能体详情');
+    }
+  } catch (error) {
+    console.error('获取智能体详情失败:', error);
+    throw error;
+  } finally {
+    loading.value = false;
+  }
+};
+
+const handleAgentSearch = async () => {
+  if (agentSearchQuery.value) {
+    // 搜索特定智能体
+    loading.value = true;
+    try {
+      const response = await fetch(`/user/admin/agents/list/${agentSearchQuery.value}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+        }
+      });
+      
+      if (!response.ok) throw new Error('搜索智能体失败');
+      const data = await response.json();
+      
+      if (data.agents && data.agents.length > 0) {
+        const agentData = data.agents[0];
+        selectedAgent.value = {
+          agentId: agentData.agentID,
+          agentName: agentData.name,
+          submitTime: agentData.time,
+          content: agentData.description,
+          contentType: 'template',
+          functionType: agentData.creatorID, // 使用创建者ID作为功能类型显示
+          status: agentData.status,
+          is_OpenSource: agentData.is_OpenSource
+        };
+        agentSearchResultDialogVisible.value = true;
+      } else {
+        ElMessage.warning('未找到相关智能体');
+      }
+    } catch (error) {
+      console.error('搜索智能体失败:', error);
+      ElMessage.error('搜索智能体失败');
+    } finally {
+      loading.value = false;
+    }
+  } else {
+    // 获取所有智能体列表
+    fetchAgentReviews();
+  }
+};
+
+// 修改查看详情函数
+const viewAgentDetail = async (agent) => {
+  try {
+    selectedAgent.value = await fetchAgentDetail(agent.agentId);
+    agentSearchResultDialogVisible.value = true;
+  } catch (error) {
+    ElMessage.error('获取智能体详情失败');
+  }
+};
+
 const handleReviewAgent = async (agent, decision) => {
   try {
-    const notes = await ElMessageBox.prompt(
-      `请输入审核意见：`,
+    await ElMessageBox.confirm(
+      `确定要${decision === 'approve' ? '通过' : '拒绝'}智能体 "${agent.agentName}" 吗？`,
       '审核操作',
       {
-        confirmButtonText: '提交',
+        confirmButtonText: '确定',
         cancelButtonText: '取消',
-        inputType: 'textarea'
+        type: decision === 'approve' ? 'success' : 'warning'
       }
     );
 
     loading.value = true;
-    const result = await agentApi.reviewAgent(agent.id, decision, notes.value);
-    ElMessage.success(result.message || '审核成功');
-    handleAgentSearch();
+    
+    const response = await fetch(`/user/admin/changeAgentSataus/${agent.agentId}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+      },
+      body: JSON.stringify({
+        enable: decision === 'approve' // true表示通过，false表示拒绝
+      })
+    });
+
+    if (!response.ok) throw new Error('审核智能体失败');
+    const result = await response.json();
+    
+    if (result.success) {
+      ElMessage.success(`已${decision === 'approve' ? '通过' : '拒绝'}智能体`);
+      // 刷新列表
+      fetchAgentReviews();
+    } else {
+      throw new Error(result.message || '审核失败');
+    }
   } catch (error) {
     if (error !== 'cancel') {
       console.error('审核智能体失败:', error);
+      ElMessage.error(typeof error === 'string' ? error : '审核操作失败');
     }
   } finally {
     loading.value = false;
@@ -1766,54 +1972,31 @@ const getBehaviorTypeText = (type) => {
   return texts[type] || type
 }
 
-// 添加查看智能体详情的函数
-const viewAgentDetail = (agent) => {
-  // 使用mock数据展示
-  const mockAgentData = {
-    id: agent.id,
-    name: agent.agentName,
-    description: '这是一个智能体的详细描述',
-    modelId: 'gpt-4',
-    modelParams: {
-      temperature: 0.7,
-      maxTokens: 1024,
-      topP: 0.95
-    },
-    knowledgeBases: ['kb1', 'kb2'],
-    workflowId: 'wf1'
-  };
-  localStorage.setItem('agentData', JSON.stringify(mockAgentData));
-  router.push('/agent-editor');
-
-  // TODO: 实际API调用
-  // fetch(`/agent/${agent.id}`)
-  //   .then(response => response.json())
-  //   .then(data => {
-  //     localStorage.setItem('agentData', JSON.stringify(data));
-  //     router.push('/agent-editor');
-  //   })
-  //   .catch(error => {
-  //     console.error('获取智能体详情失败:', error);
-  //     ElMessage.error('获取智能体详情失败');
-  //   });
-};
-
 // 添加获取操作记录的函数
+// Fix the operation records function to use proper parameters
 const fetchOperationRecords = async () => {
   try {
     const response = await fetch('/user/admin/operation_records', {
+      method: 'POST',
       headers: {
+        'Content-Type': 'application/json',
         'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
       },
-      method: 'POST',
-      data:{
+      body: JSON.stringify({
         page: currentPage.value || 1,
         page_size: pageSize.value || 10
-      }
+      })
     });
+    
     if (!response.ok) throw new Error('Failed to fetch operation records');
     const data = await response.json();
-    operationRecords.value = data.records;
+    
+    // 保存所有数据
+    allOperationRecords.value = data.records;
+    // 初始显示所有数据 
+    operationRecords.value = [...allOperationRecords.value];
+    
+    totalOperationRecords.value = data.total;
   } catch (error) {
     console.error('Error fetching operation records:', error);
     ElMessage.error('获取操作记录失败');
@@ -1824,18 +2007,32 @@ const fetchOperationRecords = async () => {
 const fetchAbnormalBehaviors = async () => {
   try {
     const response = await fetch('/user/admin/abnormal_behaviors', {
+      method: 'GET',
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
-      },
-      method: 'POST',
-      data:{
-        page: currentPage.value || 1,
-        page_size: pageSize.value || 10
       }
     });
+    
     if (!response.ok) throw new Error('Failed to fetch abnormal behaviors');
     const data = await response.json();
-    abnormalRecords.value = data.records;
+    
+    // 映射字段名，使后端返回的字段名与前端组件期望的字段名匹配
+    const mappedBehaviors = data.behaviors.map(item => ({
+      userId: item.user_id,
+      username: item.user_name,
+      abnormalTime: item.abnormal_time,
+      abnormalType: item.abnormal_type,
+      ipAddress: item.ip_address,
+      isHandled: item.is_handled,
+      handledAt: item.handled_at,
+      handledNotes: item.handled_notes
+    }));
+    
+    // 保存所有数据
+    allAbnormalRecords.value = mappedBehaviors;
+    // 初始显示所有数据
+    abnormalRecords.value = [...allAbnormalRecords.value];
+    totalAbnormalRecords.value = data.total;
   } catch (error) {
     console.error('Error fetching abnormal behaviors:', error);
     ElMessage.error('获取异常行为失败');
@@ -1847,9 +2044,15 @@ onMounted(() => {
   handleUserSearch();
   if (activeMenu.value === '2') {
     fetchLoginRecords();
+    fetchOperationRecords();
+    fetchAbnormalBehaviors();
   }
-  fetchOperationRecords();
-  fetchAbnormalBehaviors();
+  else if (activeMenu.value === '3') {
+    fetchAgentReviews(); // 使用独立的fetch函数加载数据
+  }
+  else if (activeMenu.value === '4') {
+    handleAnnouncementSearch();
+  }
 });
 </script>
 
@@ -1879,6 +2082,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 20px;
+  flex: 1;
 }
 
 .header-right {
@@ -2093,6 +2297,10 @@ onMounted(() => {
 .admin-menu {
   border-bottom: none;
   margin-left: 20px;
+  flex: 1;      /* 新增，让菜单占满剩余空间 */
+  min-width: 0; /* 防止溢出时换行 */
+  overflow: hidden; /* 防止溢出 */
+  display: flex;    /* 让菜单项一行显示 */
 }
 
 .admin-menu :deep(.el-menu-item) {

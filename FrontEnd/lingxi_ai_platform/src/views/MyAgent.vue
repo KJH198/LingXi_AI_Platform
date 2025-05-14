@@ -75,6 +75,14 @@
                 <el-button type="info" size="small" @click="shareAgent(agent)">
                   <el-icon class="el-icon--left"><Share /></el-icon>分享
                 </el-button>
+                <el-button 
+                  :type="agent.isOpenSource ? 'success' : 'default'" 
+                  size="small" 
+                  @click="toggleOpenSource(agent)"
+                >
+                  <el-icon class="el-icon--left"><Link /></el-icon>
+                  {{ agent.isOpenSource ? '已开源' : '未开源' }}
+                </el-button>
               </div>
             </div>
           </el-card>
@@ -123,7 +131,8 @@ import {
   Delete, 
   Share, 
   Plus,
-  Picture
+  Picture,
+  Link
 } from '@element-plus/icons-vue'
 
 const router = useRouter()
@@ -167,15 +176,14 @@ const fetchAgents = async () => {
     
     if (result.code === 200) {
       agents.value = (result.data || []).map(item => ({
-      id: item.id,
-      name: item.name || '未命名智能体',
-      description: item.description || '暂无描述',
-      // API返回的coverImage可能位于不同路径，需要适配
-      coverImage: item.avatar || 'https://picsum.photos/300/200',
-      // 统计数据适配
-      views: item.viewCount || item.views || 0,
-      likes: item.likeCount || item.likes || 0,
-      comments: item.commentCount || item.comments || 0
+        id: item.id,
+        name: item.name || '未命名智能体',
+        description: item.description || '暂无描述',
+        coverImage: item.avatar || 'https://picsum.photos/300/200',
+        views: item.viewCount || item.views || 0,
+        likes: item.likeCount || item.likes || 0,
+        comments: item.commentCount || item.comments || 0,
+        isOpenSource: item.is_OpenSource || false
       }))
       console.log('智能体列表:', agents.value)
       total.value = Math.ceil(agents.value.length / pageSize.value) || 0
@@ -195,7 +203,8 @@ const fetchAgents = async () => {
         coverImage: 'https://picsum.photos/300/200',
         views: 1000,
         likes: 500,
-        comments: 200
+        comments: 200,
+        isOpenSource: false
       },
       {
         id: 2,
@@ -204,7 +213,8 @@ const fetchAgents = async () => {
         coverImage: 'https://picsum.photos/300/200',
         views: 2500,
         likes: 1200,
-        comments: 450
+        comments: 450,
+        isOpenSource: false
       },
       {
         id: 3,
@@ -213,7 +223,8 @@ const fetchAgents = async () => {
         coverImage: 'https://picsum.photos/300/200',
         views: 1800,
         likes: 800,
-        comments: 300
+        comments: 300,
+        isOpenSource: false
       },
       {
         id: 4,
@@ -222,7 +233,8 @@ const fetchAgents = async () => {
         coverImage: 'https://picsum.photos/300/200',
         views: 1500,
         likes: 700,
-        comments: 250
+        comments: 250,
+        isOpenSource: false
       },
       {
         id: 5,
@@ -231,7 +243,8 @@ const fetchAgents = async () => {
         coverImage: 'https://picsum.photos/300/200',
         views: 2000,
         likes: 900,
-        comments: 350
+        comments: 350,
+        isOpenSource: false
       },
       {
         id: 6,
@@ -240,7 +253,8 @@ const fetchAgents = async () => {
         coverImage: 'https://picsum.photos/300/200',
         views: 3000,
         likes: 1500,
-        comments: 600
+        comments: 600,
+        isOpenSource: false
       }
     ]
     total.value = agents.value.length
@@ -351,6 +365,46 @@ const shareAgent = (agent) => {
   } catch (error) {
     console.error('分享失败:', error)
     ElMessage.error('分享失败，请手动复制链接')
+  }
+}
+
+// 切换开源状态
+const toggleOpenSource = async (agent) => {
+  try {
+    const token = localStorage.getItem('token')
+    if (!token) {
+      ElMessage.error('请先登录')
+      router.push('/login')
+      return
+    }
+
+    const response = await fetch(`/user/OpenAgent/${agent.id}/`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        isOpen: !agent.isOpenSource
+      })
+    })
+
+    if (!response.ok) {
+      throw new Error('更新开源状态失败')
+    }
+
+    const result = await response.json()
+    
+    if (result.code === 200) {
+      ElMessage.success(result.message || '开源状态更新成功')
+      // 更新本地状态
+      agent.isOpenSource = result.is_OpenSource
+    } else {
+      throw new Error(result.message || '更新开源状态失败')
+    }
+  } catch (error) {
+    console.error('更新开源状态失败:', error)
+    ElMessage.error(`更新失败: ${error.message || '请稍后重试'}`)
   }
 }
 

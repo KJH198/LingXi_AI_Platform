@@ -1506,6 +1506,7 @@ const loadDraftData = async (draftId) => {
   
   // 设置知识库
   agentData.knowledgeBases = data.knowledge_bases || []
+  console.log('知识库数据:', agentData.knowledgeBases)
   
   // 设置工作流
   agentData.workflowId = data.workflow_id || ''
@@ -1595,6 +1596,7 @@ const loadAgentData = async (agentId) => {
   
   // 设置知识库
   agentData.knowledgeBases = data.knowledgeBases || []
+  console.log('知识库数据:', agentData.knowledgeBases)
   
   // 设置工作流
   agentData.workflowId = data.workflowId || ''

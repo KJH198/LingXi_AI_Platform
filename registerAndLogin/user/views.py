@@ -3,7 +3,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth import authenticate, login
 import json
 from rest_framework.parsers import JSONParser
-from .models import AbnormalBehavior, Announcement, User
+from .models import AIAgent, AbnormalBehavior, Announcement, User
 from django.shortcuts import render
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -157,6 +157,8 @@ def user_login(request):
                     'success': False,
                     'message': '账号封禁中：' + reason
                 })
+            user.is_active = True
+            user.save()
             
             # 生成 JWT token
             refresh = RefreshToken.for_user(user)
@@ -383,8 +385,6 @@ class AdminBanView(APIView):
                 # 将时间戳转换为datetime对象
                 from datetime import datetime, timedelta
                 user.ban_until = datetime.now() + timedelta(days=duration)
-                
-            user.is_active = False # 用户显然不应该再活跃了
             user.save()
             
             return Response({
@@ -558,11 +558,12 @@ class UserOperationRecordsView(APIView):
         records = [
             {
                 'user_id':log.user.id,
+                'ip_address':log.ip_address,
                 'user_name':log.user.username,
                 'time':log.created_at.strftime('%Y-%m-%d %H:%M:%S'),
-                'action':log.action,
+                'action':log.get_action_display() if hasattr(log, 'get_action_display') else log.action,
                 'target_id':log.target_id,
-                'target_type':log.target_type
+                'target_type':log.get_target_type_display() if hasattr(log, 'get_target_type_display') else log.target_type
             }for log in userActionLogs if log.action != 'login_failed' and log.action != 'logout' and log.action != 'login'
         ]
         
@@ -649,6 +650,7 @@ class AdminGetAgents(APIView):
                 'time':agent.created_at.strftime('%Y-%m-%d %H:%M:%S'),
                 'creatorID':agent.creator.id,
                 'status':agent.status,
+                'is_OpenSource':agent.is_OpenSource,
             } for agent in agents
         ]
     
@@ -1269,7 +1271,6 @@ class AgentManagementView(APIView):
             return Response({'error': '智能体不存在'}, status=status.HTTP_404_NOT_FOUND)
 
 class UserActionLogView(APIView):
-
     """用户行为日志视图"""
 
     def get(self, request):
@@ -1302,16 +1303,19 @@ class UserActionLogView(APIView):
             # 获取日志记录
             logs = UserActionLog.objects.filter(query).order_by('-created_at')
 
+
             # 返回日志数据
             data = [
                 {
                     'id': log.id,
-                    'user': log.user.username if log.user else '未知用户',
+                    'user_id': log.user.id,
+                    'user_name': log.user.username if log.user else '未知用户',
+                    # 直接使用显示值而不是代码值
                     'action': log.get_action_display() if hasattr(log, 'get_action_display') else log.action,
                     'target_id': log.target_id,
-                    'target_type': log.target_type,
+                    'target_type': log.get_target_type_display() if hasattr(log, 'get_target_type_display') else log.target_type,
                     'ip_address': log.ip_address,
-                    'created_at': log.created_at.strftime('%Y-%m-%d %H:%M:%S')
+                    'time': log.created_at.strftime('%Y-%m-%d %H:%M:%S')
                 }
                 for log in logs
             ]
@@ -1371,6 +1375,7 @@ class UserLoginRecordView(APIView):
             records = [
                 {
                     'user_id':userActionLog.user.id,
+                    'ip_address':userActionLog.ip_address,
                     'user_name':userActionLog.user.username,
                     'time':userActionLog.created_at.strftime('%Y-%m-%d %H:%M:%S'),
                     'is_active':userActionLog.user.is_active,
@@ -1722,7 +1727,8 @@ class UserAgentListView(APIView):
                         'avatar': agent.creator.avatar
                     },
                     'followCount': follow_count,
-                    'isFollowed': is_followed
+                    'isFollowed': is_followed,
+                    'is_OpenSource': agent.is_OpenSource
                 }
                 agent_list.append(agent_data)
             
@@ -2601,21 +2607,19 @@ class KnowledgeBaseDetailView(APIView):
 
 class AgentEditDetailView(APIView):
     """获取待编辑的智能体详情"""
-    permission_classes = [IsAuthenticated]
-    
     def get(self, request, agent_id):
         try:
             # 获取智能体
             agent = get_object_or_404(PublishedAgent, id=agent_id)
             print(f"获取智能体: {agent.name}")
             
-            # 检查是否是创建者
-            if request.user != agent.creator:
-                return Response({
-                    'code': 403,
-                    'message': '您没有权限编辑该智能体',
-                    'data': None
-                }, status=status.HTTP_403_FORBIDDEN)
+            # # 检查是否是创建者
+            # if request.user != agent.creator:
+            #     return Response({
+            #         'code': 403,
+            #         'message': '您没有权限编辑该智能体',
+            #         'data': None
+            #     }, status=status.HTTP_403_FORBIDDEN)
             
             print("检查权限通过")
             # 组装智能体详情数据
@@ -2702,6 +2706,71 @@ class UseAgentView(APIView):
                 'code': 500,
                 'message': f'获取智能体详情失败: {str(e)}',
                 'data': None
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class OpenAgentView(APIView):
+    """开源智能体"""
+    def get(self, request, agent_id):
+        try:
+            agent = PublishedAgent.objects.get(id=agent_id)
+            return Response({
+                'code': 200,
+                'is_OpenSource': agent.is_OpenSource,
+                'message': '获取开源状态成功'
+            })
+        except PublishedAgent.DoesNotExist:
+            return Response({
+                'code': 404,
+                'message': '智能体不存在',
+            }, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({
+                'code': 500,
+                'message': f'获取失败: {str(e)}',
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    def post(self, request, agent_id):
+        try:
+            # 获取智能体
+            agent = PublishedAgent.objects.get(id=agent_id, creator =request.user)
+            
+            # 检查权限（只有创建者可以修改开源状态）
+            if agent.creator != request.user:
+                return Response({
+                    'code': 403,
+                    'message': '您没有权限修改此智能体的开源状态',
+                }, status=status.HTTP_403_FORBIDDEN)
+            
+            # 获取开源状态
+            is_open = request.data.get('isOpen', False)
+            
+            # 更新开源状态
+            agent.is_OpenSource = is_open
+            agent.save()
+            
+            # 记录用户行为
+            UserActionLog.objects.create(
+                user=request.user,
+                action='change_agent_open_source',
+                target_id=agent.id,
+                target_type='agent',
+                ip_address=request.META.get('REMOTE_ADDR'),
+            )
+            
+            return Response({
+                'code': 200,
+                'message': '开源状态更新成功',
+                'is_OpenSource': agent.is_OpenSource
+            })
+        except PublishedAgent.DoesNotExist:
+            return Response({
+                'code': 404,
+                'message': '智能体不存在',
+            }, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({
+                'code': 500,
+                'message': f'更新失败: {str(e)}',
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class AgentUpdateView(APIView):
