@@ -1271,7 +1271,7 @@ const handlePublish = async (): Promise<void> => {
     if (error === 'cancel') return
     
     console.error(`${isPublished.value ? '更新' : '发布'}智能体失败:`, error)
-    ElMessage.error(`${isPublished.value ? '更新' : '发布'}智能体失败，请修改任意内容后提交`)
+    ElMessage.error(`${isPublished.value ? '更新' : '发布'}智能体失败，请稍后重试`)
   }
 }
 
@@ -1549,7 +1549,7 @@ const loadDraftData = async (draftId) => {
   });
 }
 
-// 添加 loadAgentData 函数
+// 恢复已发布的智能体
 const loadAgentData = async (agentId) => {
   const token = localStorage.getItem('token')
   if (!token) {
@@ -1576,6 +1576,7 @@ const loadAgentData = async (agentId) => {
 
   // 更新状态
   const data = result.data
+  console.log('获取智能体数据111:', data)
   
   // 设置基本信息
   agentData.id = data.id
