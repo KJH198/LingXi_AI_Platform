@@ -322,7 +322,11 @@ class LLMNode(BaseNode):
         super().__init__(node, agent)
         self.llm_model = node.node_data.get('llmModel', '')
         self.llm_prompt = node.node_data.get('llmPrompt', '')
-        self.llm_knowledge = send_kb_files_to_llm(self.agent.knowledge_bases) if self.agent.knowledge_bases else ""
+        if agent.is_outer_agent:
+            self.llm_knowledge = send_kb_files_to_llm(self.agent.knowledge_bases) if self.agent.knowledge_bases else ""
+        else:
+            self.llm_knowledge = send_kb_files_to_llm(
+                self.agent.knowledge_bases.all()) if self.agent.knowledge_bases.exists() else ""
         self.llm_messages = [
             {"role": "system", "content": self.llm_prompt + self.llm_knowledge},
         ]
@@ -663,7 +667,7 @@ def run_workflow_from_output_node(agent):
 def send_kb_files_to_llm(knowledge_bases):
     # 取出这些知识库下的所有文件
     # print(f"knowledge_base:", knowledge_bases)
-    files = KnowledgeBaseFile.objects.filter(knowledge_base_id__in=knowledge_bases.all())
+    files = KnowledgeBaseFile.objects.filter(knowledge_base_id__in=knowledge_bases)
     # print(f"files:",files)
     # 读取文件内容
     all_text = ''
