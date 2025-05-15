@@ -568,11 +568,11 @@ const handleSendStaticInputs = async () => {
         input.value = ''
       })
     } else {
-      throw new Error(result.message || '工作流执行失败')
+      throw new Error(result.message || '工作流执行失败，请检查工作流配置')
     }
   } catch (error) {
     console.error('发送静态输入失败:', error)
-    ElMessage.error(error instanceof Error ? error.message : '工作流执行失败')
+    ElMessage.error(error instanceof Error ? error.message : '工作流执行失败，请检查工作流配置')
   }
 }
 
@@ -1757,7 +1757,7 @@ const startPreview = async () => {
     }
   } catch (error) {
     console.error('启动预览失败:', error)
-    ElMessage.error('启动预览失败，请稍后重试')
+    ElMessage.error('工作流执行失败，请检查工作流配置')
   }
 }
 
