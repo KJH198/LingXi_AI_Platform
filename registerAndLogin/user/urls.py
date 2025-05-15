@@ -15,6 +15,7 @@ from .views import (
     OpenAgentView,
     Update,
     UseAgentView,
+    UserFollowedAgentsView,
     UserGetAnnouncements,
     register,
     user_login,
@@ -140,6 +141,7 @@ urlpatterns = [
     # 智能体互用和开源
     path('useAgent/<str:agent_id>/', UseAgentView.as_view(), name='agent_edit_detail'),
     path('OpenAgent/<str:agent_id>/', OpenAgentView.as_view(), name='open_agent'),
+    path('followed/agents', UserFollowedAgentsView.as_view(), name='agent_detail'),
     
     # 智能体和知识库相关路由
     path('agents/list', UserAgentListView.as_view(), name='user_agent_list'),

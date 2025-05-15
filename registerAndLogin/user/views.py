@@ -2773,6 +2773,54 @@ class OpenAgentView(APIView):
                 'message': f'更新失败: {str(e)}',
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+class UserFollowedAgentsView(APIView):
+    """获取用户关注的智能体列表"""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            # 获取当前用户关注的智能体
+            agents = PublishedAgent.objects.filter(followers=request.user)
+            
+            # 构建响应数据
+            agent_list = []
+            for agent in agents:
+                # 获取关注数量
+                follow_count = agent.followers.count() if hasattr(agent, 'followers') else 0
+                
+                # 检查当前用户是否已关注该智能体
+                is_followed = False
+                if hasattr(agent, 'followers'):
+                    is_followed = agent.followers.filter(id=request.user.id).exists()
+                
+                agent_data = {
+                    'id': str(agent.id),
+                    'name': agent.name,
+                    'description': agent.description,
+                    'avatar': agent.avatar,
+                    'creator': {
+                        'id': agent.creator.id,
+                        'username': agent.creator.username,
+                        'avatar': agent.creator.avatar
+                    },
+                    'followCount': follow_count,
+                    'isFollowed': is_followed,
+                    'is_OpenSource': agent.is_OpenSource
+                }
+                agent_list.append(agent_data)
+            
+            return Response({
+                'code': 200,
+                'message': '获取成功',
+                'data': agent_list
+            })
+            
+        except Exception as e:
+            return Response({
+                'code': 500,
+                'message': f'获取智能体列表失败: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 class AgentUpdateView(APIView):
     """更新智能体"""
     permission_classes = [IsAuthenticated]
