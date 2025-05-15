@@ -467,3 +467,26 @@ class KnowledgeBaseUrlUploadView(APIView):
                 'message': f'处理 URL 上传失败: {str(e)}',
                 'data': None
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            
+class KnowledgeBaseInfoView(APIView):
+    def get(self, request, kbId):
+        try:
+            knowledge_base = KnowledgeBase.objects.get(id=kbId)
+            return Response({
+                'code': 200,
+                'message': '获取知识库信息成功',
+                'data': {
+                    'id': knowledge_base.id,
+                    'name': knowledge_base.name,
+                    'description': knowledge_base.description,
+                    'type': knowledge_base.type,
+                    'status': knowledge_base.status,
+                    'createdAt': knowledge_base.created_at,
+                }
+            })
+        except KnowledgeBase.DoesNotExist:
+            return Response({
+                'code': 404,
+                'message': '知识库不存在',
+                'data': None
+            }, status=status.HTTP_404_NOT_FOUND)

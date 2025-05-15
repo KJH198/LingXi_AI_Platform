@@ -12,4 +12,6 @@ urlpatterns = [
     
     path('my-list', views.MyKnowledgeBaseListView.as_view(), name='my-knowledge-base-list'),
     path('knowledgebase/<str:knowledgeBaseId>/upload_url/', views.KnowledgeBaseUrlUploadView.as_view(), name='knowledge-base-upload-url'),
+    # 获取某个知识库的信息
+    path('<str:kbId>/', views.KnowledgeBaseInfoView.as_view(), name='knowledge-base-info'),
 ]

@@ -1149,7 +1149,48 @@ const fetchKnowledgeBases = async (forceRefresh = false): Promise<void> => {
     
     const data = await response.json();
     console.log('知识库列表:', data);
-    knowledgeBases.value = data || [];
+    
+    // 获取当前选择的知识库信息
+    const selectedKBs = props.agentData.knowledgeBases;
+    if (selectedKBs && selectedKBs.length > 0) {
+      // 先用接口返回的知识库列表
+      let baseList = data || [];
+      // 记录已存在的知识库ID
+      const baseListIds = baseList.map(kb => String(kb.id));
+      // 只获取不在 baseList 里的选中知识库详情
+      const missingSelectedKBs = selectedKBs.filter(kbId => !baseListIds.includes(String(kbId)));
+      let selectedKBDetails = [];
+      if (missingSelectedKBs.length > 0) {
+        selectedKBDetails = await Promise.all(
+          missingSelectedKBs.map(async (kbId) => {
+            try {
+              const kbResponse = await fetch(`/knowledge_base/${kbId}/`, {
+                headers: {
+                  'Authorization': `Bearer ${token}`
+                }
+              });
+              if (kbResponse.ok) {
+                const kbData = await kbResponse.json();
+                return kbData.data; // 只返回data部分
+              }
+            } catch (error) {
+              console.error(`获取知识库 ${kbId} 详情失败:`, error);
+            }
+            return null;
+          })
+        );
+      }
+      // 过滤掉获取失败的知识库
+      const validSelectedKBs = selectedKBDetails.filter(kb => kb !== null);
+      // 只在不在原列表时才加到前面
+      knowledgeBases.value = [
+        ...validSelectedKBs,
+        ...baseList
+      ];
+    } else {
+      knowledgeBases.value = data || [];
+    }
+    
     console.log('知识库列表:', knowledgeBases.value);
     knowledgeBasesLoaded.value = true;
     console.log('selected:', selectKnowledgebasesid.value);
