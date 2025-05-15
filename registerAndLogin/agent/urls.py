@@ -1,7 +1,7 @@
 # agents/urls.py
 from django.urls import path
 from .views import (
-    AgentGetInputAndOutputCountView, WorkflowSaveView, GetWorkflowsView, DeleteWorkflowView,
+    AgentGetInputAndOutputCountView, GetSelectedWorkflowView, WorkflowSaveView, GetWorkflowsView, DeleteWorkflowView,
     WorkflowRetrieveView, GetInputAndOutputCountView, AgentAvatarUploadView,
     CleanupTempResourcesView
 )
@@ -11,6 +11,7 @@ from .agent import start_preview, check_next_input
 urlpatterns = [
     path('workflowSave/', WorkflowSaveView.as_view(), name='workflow-save'),
     path('workflows/', GetWorkflowsView.as_view(), name='workflow-list'),
+    path('workflow/<int:workflow_id>/', GetSelectedWorkflowView.as_view(), name='workflow-list'),
     path('deleteworkflow/<int:workflow_id>', DeleteWorkflowView.as_view(), name='workflow-delete'),
     path('workflowLoad/<int:workflowId>/', WorkflowRetrieveView.as_view(), name='workflow-load'),
     path('staticInputCount/<int:workflow_id>', GetInputAndOutputCountView.as_view(), name='input-num'),  # 处理没有参数的情况

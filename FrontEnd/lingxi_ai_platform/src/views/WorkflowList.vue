@@ -122,7 +122,39 @@ const fetchWorkflows = async () => {
     const result = await response.json()
     
     if (result.code === 200 && result.data) {
-      workflows.value = result.data
+      // 获取当前选择的工作流ID
+      const selectedWorkflowId = currentSelectedWorkflowId.value
+      
+      if (selectedWorkflowId) {
+        // 先用接口返回的工作流列表
+        let workflowList = result.data
+        // 记录已存在的工作流ID
+        const workflowListIds = workflowList.map(wf => String(wf.id))
+        
+        // 如果选中的工作流不在列表中，获取其详情
+        if (!workflowListIds.includes(String(selectedWorkflowId))) {
+          try {
+            const wfResponse = await fetch(`/agent/workflow/${selectedWorkflowId}/`, {
+              headers: {
+                'Authorization': `Bearer ${token}`
+              }
+            })
+            if (wfResponse.ok) {
+              const wfData = await wfResponse.json()
+              if (wfData.code === 200 && wfData.data) {
+                // 将选中的工作流添加到列表最前面
+                workflowList = [wfData.data, ...workflowList]
+              }
+            }
+          } catch (error) {
+            console.error(`获取工作流 ${selectedWorkflowId} 详情失败:`, error)
+          }
+        }
+        
+        workflows.value = workflowList
+      } else {
+        workflows.value = result.data
+      }
     } else {
       throw new Error(result.message || '获取工作流数据失败')
     }

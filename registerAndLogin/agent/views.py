@@ -133,14 +133,15 @@ class GetWorkflowsView(APIView):
             # 获取当前用户的 ID
             user_id = request.user.id
 
-            # 过滤工作流
+            # 获取当前用户的所有工作流
             workflows = Workflow.objects.filter(user_id=user_id)
 
             data = []
             for workflow in workflows:
                 data.append({
-                    'id': workflow.id,
+                    'id': str(workflow.id),  # 确保 id 是字符串类型
                     'name': workflow.name,
+                    'structure': workflow.structure  # 添加完整的工作流结构
                 })
 
             return Response({
@@ -160,6 +161,29 @@ class GetWorkflowsView(APIView):
                 'code': 500,
                 'message': f'发生未知错误: {str(e)}'
             }, status=500)
+
+class GetSelectedWorkflowView(APIView):
+    def get(self, request, workflow_id):
+        try:
+            workflow = Workflow.objects.get(id=workflow_id)
+            return Response({
+                "code": 200,
+                "data": {
+                    "id": str(workflow.id),
+                    "name": workflow.name,
+                    "structure": workflow.structure
+                }
+            }, status=status.HTTP_200_OK)
+        except Workflow.DoesNotExist:
+            return Response({
+                "code": 404,
+                "message": "工作流不存在"
+            }, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({
+                "code": 500,
+                "message": str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class DeleteWorkflowView(APIView):
