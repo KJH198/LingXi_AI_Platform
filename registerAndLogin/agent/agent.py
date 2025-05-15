@@ -27,6 +27,7 @@ class Agent:
         self.static_inputs = {}
         self.pending_inputs = {}
         self.results = {}
+        self.node_dict = {}
 
         self.global_count = 0  # 如果你有计数需求
         self.is_outer_agent = True

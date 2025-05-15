@@ -6,7 +6,7 @@ from agent.agent import get_agent, Agent, select_model
 from pathlib import Path
 import types
 import fitz
-
+import re
 import websockets
 import asyncio
 import json
@@ -30,7 +30,7 @@ class BaseNode:
         self.successors = node.successors
         self.agent = agent
 
-    async def run(self, inputs, node_dict, handle, count):
+    async def run(self, inputs, handle, count):
         raise NotImplementedError("Each node must implement its own run method.")
 
 class InputNode(BaseNode):
@@ -38,7 +38,7 @@ class InputNode(BaseNode):
         super().__init__(node, agent)
         self.name = node.node_data.get('name', 'input')
 
-    def run(self, inputs, node_dict, handle, count):
+    def run(self, inputs, handle, count):
         print(f"读取静态输入: {self.name}")
 
         # 从全局 static_inputs 字典取出对应输入
@@ -89,7 +89,7 @@ class DynamicInputNode(BaseNode):
         super().__init__(node, agent)
         self.name = node.node_data.get('name', 'dynamic-input')
 
-    def run(self, inputs, node_dict, handle, count):
+    def run(self, inputs, handle, count):
         print(f"等待前端输入: {self.name}")
 
         # 第一步：通知前端需要输入
@@ -136,8 +136,9 @@ class OutputNode(BaseNode):
         super().__init__(node, agent)
         self.name = node.node_data.get('name', 'output')
 
-    def run(self, inputs, node_dict, handle, count):
-        print(inputs)
+    def run(self, inputs, handle, count):
+        # print(inputs)
+        # print(f"[运行智能体] agent_id={self.agent.agent_id}, is_outer_agent={self.agent.is_outer_agent}")
         if self.agent.is_outer_agent:
             asyncio.run(send_output_to_frontend(self.name, inputs, self.agent, count))
         return inputs
@@ -148,7 +149,7 @@ class MonitorNode(BaseNode):
         super().__init__(node, agent)
         self.name = node.node_data.get('name', 'monitor')
 
-    def run(self, inputs, node_dict, handle, count):
+    def run(self, inputs, handle, count):
         asyncio.run(send_output_to_frontend(self.name, inputs, self.agent, count))
         return inputs
 
@@ -202,7 +203,7 @@ class CodeNode(BaseNode):
         super().__init__(node, agent)
         self.code_content = node.node_data.get('codeContent', '')
 
-    def run(self, inputs, node_dict, handle, count):
+    def run(self, inputs, handle, count):
         print(inputs)
         try:
             # 准备执行环境
@@ -243,7 +244,7 @@ class SelectorNode(BaseNode):
                 return pred.get('sourceHandle')
         return None  # fallback
 
-    def run(self, inputs, node_dict, handle, count):
+    def run(self, inputs, handle, count):
         # print(handle)
         if isinstance(inputs, list):
             input_text = "\n".join(map(str, inputs))  # 将列表转换为字符串，每个元素换行
@@ -263,7 +264,7 @@ class SelectorNode(BaseNode):
 
         for suc in self.successors:
             target_id = suc['target']
-            source_handle = self.get_source_handle(self.id, node_dict[target_id])
+            source_handle = self.get_source_handle(self.id, self.agent.node_dict[target_id])
             # print(source_handle)
 
             cache_key = (self.id, source_handle)
@@ -283,7 +284,7 @@ class LoopNode(BaseNode):
         self.loop_count = node.node_data.get('loopCount', '')
         self.loop_condition = node.node_data.get('loopCondition', '')
 
-    def run(self, inputs, node_dict, handle, count):
+    def run(self, inputs, handle, count):
         return inputs
 
 
@@ -294,7 +295,7 @@ class BatchNode(BaseNode):
         self.loop_count = 1
         self.inputs = ''
 
-    def run(self, inputs, node_dict, handle, count):
+    def run(self, inputs, handle, count):
         self.inputs = inputs
         # print("批处理")
         # print(inputs)
@@ -308,7 +309,7 @@ class AggregateNode(BaseNode):
         self.aggregate_type = node.node_data.get('aggregateType', '')
         self.aggregate_field = node.node_data.get('aggregateField', '')
 
-    def run(self, inputs, node_dict, handle, count):
+    def run(self, inputs, handle, count):
         if isinstance(inputs, list):
             input_text = "\n".join(map(str, inputs))  # 将列表转换为字符串，每个元素换行
         else:
@@ -326,7 +327,7 @@ class LLMNode(BaseNode):
             {"role": "system", "content": self.llm_prompt + self.llm_knowledge},
         ]
 
-    def run(self, inputs, node_dict, handle, count):
+    def run(self, inputs, handle, count):
         input_text = inputs
         if isinstance(input_text, list):
             input_text = "\n".join(map(str, input_text))
@@ -340,8 +341,19 @@ class AgentNode(BaseNode):
     def __init__(self, node: Node, agent):
         super().__init__(node, agent)
         self.inner_agent_id = node.node_data.get('AgentID')
+        self.internal_to_external_id = {} # {内部输入节点名：外部输入节点id}
+        self.external_id_to_inputs = {} # {外部输入节点id：输入内容}
+        self.internal_id_to_outputs = {} # {内部输出节点id：输出内容}
+        self.internal_to_outputs = {} # {内部输出节点名：输出内容}
 
-    def run(self, inputs, node_dict, handle, count):
+    @staticmethod
+    def get_source_handle(source_id, target_node):
+        for pred in target_node.predecessors:
+            if pred['source'] == source_id:
+                return pred.get('sourceHandle')
+        return None  # fallback
+
+    def run(self, inputs, handle, count):
         # 从数据库加载 inner_agent 的信息，并构建 Agent 实例
         if self.inner_agent_id:
             try:
@@ -355,13 +367,79 @@ class AgentNode(BaseNode):
                     knowledge_bases=agent_model.knowledge_bases,
                 )
                 print(f"智能体节点输入：",inputs)
-                self.inner_agent.static_inputs={}  # 要利用inputs列表构建static_inputs字典
-                self.inner_agent.pending_inputs=None
+                self.inner_agent.static_inputs={}  # {内部输入节点名：输入内容}
+                self.inner_agent.pending_inputs={}
                 self.inner_agent.results={}
                 self.inner_agent.global_count=0
                 self.inner_agent.is_outer_agent=False  # 明确标记为内部智能体
 
-                run_workflow_from_output_node(self.inner_agent)
+                print(f"[调试] 智能体节点 {self.id} 开始执行 run()")
+
+                # 1. 找到当前智能体节点对象（本身）
+                current_node = self.agent.node_dict[self.id]
+
+                # 2. 获取所有前驱节点 ID（这些是外部传进来的数据来源）
+                predecessors = current_node.predecessors or []  # list of dicts
+                input_node_ids = [pred["source"] for pred in predecessors]
+
+                # 3. 遍历这些前驱节点，找到连向当前智能体节点的 targetHandle（输入名）
+                self.internal_to_external_id = {}  # 清空
+
+                for pred_id in input_node_ids:
+                    pred_node = self.agent.node_dict.get(pred_id)
+                    if not pred_node:
+                        continue
+
+                    # 在 pred_node.successors 中查找连到当前 workflow 的那条边
+                    for succ in pred_node.successors:
+                        if succ["target"] == self.id:
+                            raw_name = succ["targetHandle"]  # 例如 input-内部输入1
+                            match = re.match(r'^[a-zA-Z]+-(.+)', raw_name)
+                            if not match:
+                                continue
+                            cleaned_name = match.group(1)  # 内部输入1
+                            self.internal_to_external_id[cleaned_name] = pred_id
+                            break
+
+                # print("\n[调试] self.internal_to_external_id（内部输入名 → 外部输入节点ID）:")
+                # for internal_name, external_id in self.internal_to_external_id.items():
+                #     print(f"  {internal_name}  -->  {external_id}")
+                #
+                # print("\n[调试] self.external_id_to_inputs（外部输入节点ID → 输入内容）:")
+                # for external_id, input_value in self.external_id_to_inputs.items():
+                #     print(f"  {external_id}  -->  {input_value}")
+
+                self.inner_agent.static_inputs = {
+                    internal_name: self.external_id_to_inputs[external_id]
+                    for internal_name, external_id in self.internal_to_external_id.items()
+                    if external_id in self.external_id_to_inputs  # 安全判断，防止缺失
+                }
+
+                # print(f"[调试] 构造 inner_agent.static_inputs: {self.inner_agent.static_inputs}")
+                # print(f"[运行智能体] agent_id={self.inner_agent.agent_id}, is_outer_agent={self.inner_agent.is_outer_agent}")
+
+                self.internal_id_to_outputs = run_workflow_from_output_node(self.inner_agent)
+                for internal_id in self.internal_id_to_outputs:
+                    internal_output_node = self.inner_agent.node_dict[internal_id]
+                    internal_name = internal_output_node.node.node_data.get('name')
+                    self.internal_to_outputs[internal_name] = self.internal_id_to_outputs[internal_id]
+
+                for suc in self.successors:
+                    target_id = suc['target']
+                    source_handle = self.get_source_handle(self.id, self.agent.node_dict[target_id])
+                    # print(source_handle)
+                    raw_name = source_handle # 例如 input-内部输入1
+                    match = re.match(r'^[a-zA-Z]+-(.+)', raw_name)
+                    if not match:
+                        continue
+                    cleaned_name = match.group(1)  # 内部输入1
+
+                    cache_key = (self.id, source_handle)
+                    self.agent.results[cache_key] = self.internal_to_outputs[cleaned_name]
+
+                cache_key = (self.id, handle)
+                return self.agent.results[cache_key]
+
             except Exception as e:
                 traceback.print_exc()
                 print(f"无法加载内部智能体 {self.inner_agent_id}：{e}")
@@ -369,7 +447,6 @@ class AgentNode(BaseNode):
         else:
             self.inner_agent = None
 
-        return inputs
 
 
 node_type_map = {
@@ -396,7 +473,7 @@ def build_node_instance(node_model_instance, agent):
     return NodeClass(node_model_instance, agent)
 
 
-def execute_node(node_id, node_dict, count, source_handle=None, agent=None, is_loop=False):
+def execute_node(node_id, count, source_handle=None, agent=None, is_loop=False):
     cache_key = (node_id, source_handle)
     if cache_key in agent.results:
         print("在result里")
@@ -408,7 +485,7 @@ def execute_node(node_id, node_dict, count, source_handle=None, agent=None, is_l
         # print(f"global_count:", global_count)
         return
 
-    node_instance = node_dict[node_id]
+    node_instance = agent.node_dict[node_id]
     inputs = []
     normal_preds = []
     loop_pred = None
@@ -417,7 +494,7 @@ def execute_node(node_id, node_dict, count, source_handle=None, agent=None, is_l
     if node_instance.type == 'batch' or node_instance.type == 'loop':
         for pred in node_instance.predecessors:
             pred_id = pred['source']
-            pred_node = node_dict[pred_id]
+            pred_node = agent.node_dict[pred_id]
             is_loop = any(
                 succ['target'] == node_id and (
                             succ['targetHandle'] == 'batch-exit' or succ['targetHandle'] == 'loop-exit')
@@ -433,37 +510,42 @@ def execute_node(node_id, node_dict, count, source_handle=None, agent=None, is_l
     for pred in normal_preds:
         pred_id = pred['source']
         pred_handle = pred['sourceHandle']  # 这个 pred 是当前节点的一个输入来源
-        pred_output = execute_node(pred_id, node_dict, count, pred_handle, agent, is_loop)  # 只要其中一个分支的输出
+        pred_output = execute_node(pred_id, count, pred_handle, agent, is_loop)  # 只要其中一个分支的输出
         inputs.append(pred_output)
+        if node_instance.type == 'workflow':
+            node_instance.external_id_to_inputs[pred_id] = pred_output
 
     if inputs == [None]:
         return None
-    output = node_instance.run(inputs, node_dict, source_handle, count)
+    output = node_instance.run(inputs, source_handle, count)
+
+    if node_instance.type == 'workflow':
+        print("智能体节点的输出：",output)
 
     if loop_pred and node_instance.type == 'loop':
         if node_instance.loop_type == 'fixed':
             for i in range(node_instance.loop_count):
-                output = execute_loop(loop_pred['source'], node_dict, output, agent, count)
+                output = execute_loop(loop_pred['source'], output, agent, count)
         else:
             loop_counter = 0
             while chat_with_condition(node_instance.loop_condition, output, agent.general_model) and loop_counter < 100:  # 防止死循环
-                output = execute_loop(loop_pred['source'], node_dict, output, agent, count)
+                output = execute_loop(loop_pred['source'], output, agent, count)
                 loop_counter += 1
 
     if loop_pred and node_instance.type == 'batch':
-        output = execute_batch(loop_pred['source'], node_dict, output, agent, count)
+        output = execute_batch(loop_pred['source'], output, agent, count)
 
     if not is_loop:
         agent.results[cache_key] = output
     return output
 
 
-def execute_batch(current_id, node_dict, inputs, agent, count):
+def execute_batch(current_id, inputs, agent, count):
     if count != agent.global_count:
         # print(f"count:", count)
         # print(f"global_count:", global_count)
         return
-    current_node = node_dict[current_id]
+    current_node = agent.node_dict[current_id]
 
     for pred in current_node.predecessors:
         pred_id = pred['source']
@@ -478,13 +560,13 @@ def execute_batch(current_id, node_dict, inputs, agent, count):
                 if single_input is None:
                     output = None
                 else:
-                    output = current_node.run(single_input, node_dict, pred_handle, count)
+                    output = current_node.run(single_input, pred_handle, count)
                 outputs.append(output)
             return outputs
 
         else:
             # 先递归执行上一个节点（一路向上）
-            prev_output = execute_batch(pred_id, node_dict, inputs, agent, count)
+            prev_output = execute_batch(pred_id, inputs, agent, count)
             # 再用上一个节点的输出执行当前节点
             # print(f"[Loop Step] 执行 {current_node.type} {current_id}")
             outputs = []
@@ -494,19 +576,19 @@ def execute_batch(current_id, node_dict, inputs, agent, count):
                 if single_prev_input is None:
                     output = None
                 else:
-                    output = current_node.run(single_prev_input, node_dict, pred_handle, count)
+                    output = current_node.run(single_prev_input, pred_handle, count)
                 outputs.append(output)
             return outputs
 
     return None
 
 
-def execute_loop(current_id, node_dict, inputs, agent, count):
+def execute_loop(current_id, inputs, agent, count):
     if count != agent.global_count:
         # print(f"count:", count)
         # print(f"global_count:", global_count)
         return
-    current_node = node_dict[current_id]
+    current_node = agent.node_dict[current_id]
 
     for pred in current_node.predecessors:
         pred_id = pred['source']
@@ -515,7 +597,7 @@ def execute_loop(current_id, node_dict, inputs, agent, count):
         if pred_handle == 'loop-entry':
             # 找到批处理入口，使用 inputs 执行该入口节点
             print(f"[Entry] 执行 {current_node.type} {current_id}")
-            output = current_node.run(inputs, node_dict, pred_handle, count)
+            output = current_node.run(inputs, pred_handle, count)
             if len(current_node.predecessors) > 1:  # 有不止一个前驱
                 normal_inputs = []
                 for normal_pred in current_node.predecessors:
@@ -523,18 +605,18 @@ def execute_loop(current_id, node_dict, inputs, agent, count):
                     normal_pred_handle = normal_pred['sourceHandle']
                     if normal_pred_handle != 'loop-entry':  # 遍历其余前驱
                         print(f"normal_pred:", normal_pred)
-                        normal_pred_output = execute_node(normal_pred_id, node_dict, count, normal_pred_handle, agent, True)
+                        normal_pred_output = execute_node(normal_pred_id, count, normal_pred_handle, agent, True)
                         normal_inputs.append(normal_pred_output)
-                        output = current_node.run(normal_inputs, node_dict, normal_pred_handle, count)
+                        output = current_node.run(normal_inputs, normal_pred_handle, count)
             print(output)
             return output
         else:
             # 先递归执行上一个节点（一路向上）
-            prev_output = execute_loop(pred_id, node_dict, inputs, agent, count)
+            prev_output = execute_loop(pred_id, inputs, agent, count)
 
             # 再用上一个节点的输出执行当前节点
             print(f"[Loop Step] 执行 {current_node.type} {current_id}")
-            output = current_node.run(prev_output, node_dict, pred_handle, count)
+            output = current_node.run(prev_output, pred_handle, count)
             print(output)
             return output
 
@@ -551,7 +633,7 @@ def run_workflow_from_output_node(agent):
     agent.global_count += 1
     workflow = agent.workflow
     # 加载所有节点，并创建实例
-    node_dict = {
+    agent.node_dict = {
         node.node_id: build_node_instance(node, agent)
         for node in Node.objects.filter(workflow=workflow)
     }
@@ -571,7 +653,7 @@ def run_workflow_from_output_node(agent):
         source_handle = output_node.predecessors[0].get('sourceHandle')
 
         # 递归执行
-        result = execute_node(output_node_id, node_dict, agent.global_count, source_handle, agent, False)
+        result = execute_node(output_node_id, agent.global_count, source_handle, agent, False)
 
         # 保存结果
         final_result[output_node_id] = result
@@ -581,7 +663,7 @@ def run_workflow_from_output_node(agent):
 def send_kb_files_to_llm(knowledge_bases):
     # 取出这些知识库下的所有文件
     # print(f"knowledge_base:", knowledge_bases)
-    files = KnowledgeBaseFile.objects.filter(knowledge_base_id__in=knowledge_bases)
+    files = KnowledgeBaseFile.objects.filter(knowledge_base_id__in=knowledge_bases.all())
     # print(f"files:",files)
     # 读取文件内容
     all_text = ''
