@@ -568,11 +568,11 @@ const handleSendStaticInputs = async () => {
         input.value = ''
       })
     } else {
-      throw new Error(result.message || '发送静态输入失败')
+      throw new Error(result.message || '工作流执行失败')
     }
   } catch (error) {
     console.error('发送静态输入失败:', error)
-    ElMessage.error(error instanceof Error ? error.message : '发送静态输入失败')
+    ElMessage.error(error instanceof Error ? error.message : '工作流执行失败')
   }
 }
 

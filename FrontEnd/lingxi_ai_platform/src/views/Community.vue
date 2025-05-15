@@ -1186,7 +1186,7 @@ const followUser = async (userId) => {
     }
   } catch (error) {
     console.error('关注用户操作失败:', error)
-    ElMessage.error('操作失败，请稍后重试')
+    ElMessage.error('不能关注自己')
   }
 }
 
