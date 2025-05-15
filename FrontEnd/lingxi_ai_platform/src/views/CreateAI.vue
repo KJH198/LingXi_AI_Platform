@@ -501,7 +501,7 @@
           >
             <!-- 输入端口（上方） -->
             <div style="position: relative; width: 100%; height: 20px;">
-              <template v-for="(name, idx) in nodeProps.data.inputNodeNames || []" :key="'input-' + name">
+              <template v-for="(name, idx) in (nodeProps.data.inputNodeNames || []).slice().sort((a, b) => a.localeCompare(b))" :key="'input-' + name">
                 <el-tooltip :content="name" placement="top" :show-after="500" :hide-after="0" :effect="'light'" popper-class="flow-handle-tooltip">
                   <Handle
                     type="target"
@@ -524,7 +524,7 @@
             </div>
             <!-- 输出端口（下方） -->
             <div style="position: relative; width: 100%; height: 20px;">
-              <template v-for="(name, idx) in nodeProps.data.outputNodeNames || []" :key="'output-' + name">
+              <template v-for="(name, idx) in (nodeProps.data.outputNodeNames || []).slice().sort((a, b) => a.localeCompare(b))" :key="'output-' + name">
                 <el-tooltip :content="name" placement="bottom" :show-after="500" :hide-after="0" :effect="'light'" popper-class="flow-handle-tooltip">
                   <Handle
                     type="source"
