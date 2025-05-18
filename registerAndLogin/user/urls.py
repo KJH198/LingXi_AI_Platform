@@ -67,7 +67,8 @@ from .views import (
     UserProfileView, 
     UserPostsView, 
     UserPublicAgentsView, 
-    UserPublicKnowledgeBasesView, 
+    UserPublicKnowledgeBasesView,
+    PostDeleteView,
 )
 
 urlpatterns = [
@@ -155,6 +156,7 @@ urlpatterns = [
     path('like/post/<int:postId>/', PostLikeView.as_view(), name='post_like'),
     path('favorite/post/<int:postId>/', PostFavoriteView.as_view(), name='post_favorite'),
     path('comment/post/<int:postId>/', PostCommentView.as_view(), name='post_comment'),
+    path('post/<int:postId>/delete/', PostDeleteView.as_view(), name='post_delete'),
     
     # 关注相关路由
     path('follow/agent/<int:agentId>/', AgentFollowView.as_view(), name='agent_follow'),
