@@ -994,13 +994,13 @@ const submitComment = async () => {
       
       // 添加新评论
       const newComment = {
-        id: Date.now(), // 临时ID
+        id: result.commentId,
         user: {
           id: userData.id,
           username: userData.username,
           avatar: userData.avatar
         },
-        time: new Date().toLocaleString(),
+        time: result.time || new Date().toLocaleString(),
         content: commentContent.value,
         likes: 0,
         replies: []

@@ -74,9 +74,6 @@
             <el-button @click="handleShare">
               <el-icon><Share /></el-icon> 分享
             </el-button>
-            <el-button @click="handleReport">
-              <el-icon><Warning /></el-icon> 举报
-            </el-button>
           </div>
         </div>
       </el-card>
@@ -789,13 +786,13 @@ const submitComment = async () => {
       
       // 添加新评论
       const newComment = {
-        id: Date.now(), // 临时ID
+        id: result.commentId, // 临时ID
         user: {
           id: userData.id,
           username: userData.username,
           avatar: userData.avatar
         },
-        time: new Date().toLocaleString(),
+        time: result.time || new Date().toLocaleString(),
         content: commentContent.value,
         likes: 0,
         replies: []

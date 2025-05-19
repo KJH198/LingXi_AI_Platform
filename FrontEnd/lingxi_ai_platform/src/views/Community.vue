@@ -1553,10 +1553,10 @@ const handleCommentSubmit = async () => {
     if (result.code === 200) {
       // 添加新评论到列表
       const newComment = {
-        id: Date.now(), // 临时ID
+        id: result.commentId, // 临时ID
         username: userInfo.username,
         avatar: userInfo.avatar,
-        time: new Date().toLocaleString(),
+        time: result.time || new Date().toLocaleString(),
         content: commentContent.value
       }
       
@@ -2062,7 +2062,7 @@ const navigateToItem = (item) => {
         router.push(`/agent-drafts/edit/${item.id}`)
       } else {
         // 已发布的智能体
-        router.push(`/agent-editor?id=${item.id}`)
+        router.push(`/edit-agent/publish/${item.id}`)
       }
       break
     case 'kb':

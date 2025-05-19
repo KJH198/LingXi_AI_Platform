@@ -67,16 +67,12 @@ from .views import (
     UserProfileView, 
     UserPostsView, 
     UserPublicAgentsView, 
-<<<<<<< HEAD
-    UserPublicKnowledgeBasesView, 
+    UserPublicKnowledgeBasesView,
+    PostDeleteView,
     UserFollowedKnowledgeBasesView,
     PostCommentDeleteView,
     AgentCommentDeleteView,
     KnowledgeBaseCommentDeleteView,
-=======
-    UserPublicKnowledgeBasesView,
-    PostDeleteView,
->>>>>>> 5ab3070642ed9c3dc80caf85077266d407f54680
 )
 
 urlpatterns = [
