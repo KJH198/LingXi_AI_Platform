@@ -67,11 +67,16 @@ from .views import (
     UserProfileView, 
     UserPostsView, 
     UserPublicAgentsView, 
+<<<<<<< HEAD
     UserPublicKnowledgeBasesView, 
     UserFollowedKnowledgeBasesView,
     PostCommentDeleteView,
     AgentCommentDeleteView,
     KnowledgeBaseCommentDeleteView,
+=======
+    UserPublicKnowledgeBasesView,
+    PostDeleteView,
+>>>>>>> 5ab3070642ed9c3dc80caf85077266d407f54680
 )
 
 urlpatterns = [
@@ -163,6 +168,8 @@ urlpatterns = [
     path('comment/post/delete/<int:commentId>/', PostCommentDeleteView.as_view(), name='delete_post_comment'),
     path('comment/agent/<int:commentId>/', AgentCommentDeleteView.as_view(), name='delete_agent_comment'),
     path('comment/knowledge-base/<int:commentId>/', KnowledgeBaseCommentDeleteView.as_view(), name='delete_knowledge_base_comment'),
+    path('post/<int:postId>/delete/', PostDeleteView.as_view(), name='post_delete'),
+    
     # 关注相关路由
     path('follow/agent/<int:agentId>/', AgentFollowView.as_view(), name='agent_follow'),
     path('follow/knowledge-base/<int:kbId>/', KnowledgeBaseFollowView.as_view(), name='knowledge_base_follow'),

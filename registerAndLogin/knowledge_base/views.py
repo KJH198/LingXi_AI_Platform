@@ -54,7 +54,7 @@ class KnowledgeBaseDetailView(generics.RetrieveAPIView):
     
     def get_object(self):
         knowledge_base_id = self.kwargs.get('knowledgeBaseId')
-        return get_object_or_404(KnowledgeBase, id=knowledge_base_id, user=self.request.user)
+        return get_object_or_404(KnowledgeBase, id=knowledge_base_id)
 
 class KnowledgeBaseUploadView(generics.CreateAPIView):
     serializer_class = KnowledgeBaseFileSerializer
@@ -135,7 +135,6 @@ class FileContentView(APIView):
             file = KnowledgeBaseFile.objects.get(
                 id=fileId,
                 knowledge_base_id=knowledgeBaseId,
-                knowledge_base__user=request.user
             )
             
             if not os.path.exists(file.file.path):

@@ -4173,6 +4173,39 @@ class AgentCommentDeleteView(APIView):
             
             # 删除当前评论
             comment.delete()
+class PostDeleteView(APIView):
+    """删除帖子视图"""
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, postId):
+        try:
+            # 获取帖子
+            post = Post.objects.get(id=postId)
+            
+            # 验证权限：只有帖子作者可以删除
+            if post.user != request.user:
+                return Response({
+                    'code': 403,
+                    'message': '您没有权限删除此帖子'
+                }, status=status.HTTP_403_FORBIDDEN)
+            
+            # 删除相关的图片
+            post.images.all().delete()
+            
+            # 删除相关的点赞记录
+            PostLike.objects.filter(post=post).delete()
+            
+            # 删除相关的收藏记录
+            PostFavorite.objects.filter(post=post).delete()
+            
+            # 删除相关的评论
+            PostComment.objects.filter(post=post).delete()
+            
+            # 删除相关的智能体关联
+            PostAgent.objects.filter(post=post).delete()
+            
+            # 删除相关的知识库关联
+            PostKnowledgeBase.objects.filter(post=post).delete()
             
             # 记录用户行为
             UserActionLog.objects.create(
@@ -4310,3 +4343,28 @@ class PostCommentDeleteView(APIView):
                 'data': None
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+                action='delete_post',
+                target_id=post.id,
+                target_type='post',
+                ip_address=request.META.get('REMOTE_ADDR'),
+            )
+            
+            # 删除帖子本身
+            post.delete()
+            
+            return Response({
+                'code': 200,
+                'message': '帖子删除成功',
+                'data': None
+            })
+            
+        except Post.DoesNotExist:
+            return Response({
+                'code': 404,
+                'message': '帖子不存在'
+            }, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({
+                'code': 500,
+                'message': f'删除帖子失败：{str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
