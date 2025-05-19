@@ -196,21 +196,31 @@
             <el-empty v-if="postData.comments.length === 0" description="暂无评论" />
             
             <div v-else class="comment-item" v-for="comment in postData.comments" :key="comment.id">
-              <el-avatar 
-                :src="comment.avatar" 
-                class="comment-avatar" 
-                @click="viewUserProfile(comment.userId)"
-              >
-                {{ getAvatarFallback(comment.username) }}
-              </el-avatar>
-              <div class="comment-content">
+              <div class="comment-avatar">
+                <el-avatar :size="40" :src="comment.avatar" @click="viewUserProfile(comment.userId)">
+                  {{ comment.username.charAt(0) }}
+                </el-avatar>
+              </div>
+              <div class="comment-body">
                 <div class="comment-header">
                   <span class="comment-username" @click="viewUserProfile(comment.userId)">
                     {{ comment.username }}
                   </span>
-                  <span class="comment-time">{{ comment.time }}</span>
+                  <div class="comment-actions">
+                    <span class="comment-time">{{ comment.time }}</span>
+                    <!-- 添加删除按钮，仅对评论作者或帖子作者显示 -->
+                    <el-button 
+                      v-if="canDeleteComment(comment)" 
+                      text 
+                      type="danger" 
+                      size="small" 
+                      @click="confirmDeleteComment(comment)"
+                    >
+                      <el-icon><Delete /></el-icon> 删除
+                    </el-button>
+                  </div>
                 </div>
-                <div class="comment-text">{{ comment.content }}</div>
+                <div class="comment-content">{{ comment.content }}</div>
               </div>
             </div>
           </div>
@@ -241,7 +251,8 @@
     Pointer, 
     Star, 
     ChatDotRound, 
-    View 
+    View,
+    Delete
   } from '@element-plus/icons-vue'
   import DOMPurify from 'dompurify'
   import { marked } from 'marked'
@@ -594,13 +605,98 @@
     return username ? username.charAt(0).toUpperCase() : 'U'
   }
   // 格式化帖子内容，支持Markdown和防XSS
-  // 格式化帖子内容，支持Markdown和防XSS
   const formatContent = (content) => {
     if (!content) return ''
   
     // 使用类型断言
     const rawHtml = marked.parse(content) as string
     return DOMPurify.sanitize(rawHtml)
+}
+  
+  // 检查评论是否可以删除
+const canDeleteComment = (comment) => {
+  const userId = getCurrentUserId()
+  return comment.userId === userId || postData.value.author.id === userId
+}
+
+// 获取当前用户ID
+const getCurrentUserId = () => {
+  try {
+    
+    // 其次尝试从本地存储获取
+    const storedUserId = localStorage.getItem('userId');
+    if (storedUserId) {
+      return parseInt(storedUserId, 10);
+    }
+    
+    // 最后尝试从 token 解析
+    const token = localStorage.getItem('token');
+    if (token) {
+      // 如果使用JWT，可以尝试解析token获取用户ID
+      // 注意: 这种方法只适用于JWT，且ID需要包含在payload中
+      try {
+        const base64Url = token.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const payload = JSON.parse(window.atob(base64));
+        if (payload.userId || payload.user_id || payload.id) {
+          return payload.userId || payload.user_id || payload.id;
+        }
+      } catch (tokenError) {
+        console.error('解析token失败:', tokenError);
+      }
+    }
+    
+    // 所有方法都失败，返回null表示未登录或获取失败
+    console.warn('无法获取当前用户ID，用户可能未登录');
+    return null;
+  } catch (error) {
+    console.error('获取当前用户ID时发生错误:', error);
+    return null;
+  }
+};
+
+// 确认删除评论
+const confirmDeleteComment = (comment) => {
+  ElMessageBox.confirm('确定要删除这条评论吗？', '删除评论', {
+    confirmButtonText: '确定',
+    cancelButtonText: '取消',
+    type: 'warning'
+  }).then(async () => {
+    try {
+      const token = localStorage.getItem('token')
+      if (!token) {
+        ElMessage.error('请先登录')
+        return
+      }
+      
+      // 删除评论请求
+      const response = await fetch(`/user/comment/post/delete/${comment.id}/`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+      
+      if (!response.ok) {
+        throw new Error('删除评论失败')
+      }
+      
+      const result = await response.json()
+      if (result.code === 200) {
+        ElMessage.success('评论已删除')
+        
+        // 更新评论列表
+        postData.value.comments = postData.value.comments.filter(c => c.id !== comment.id)
+        postData.value.commentCount -= 1
+      } else {
+        throw new Error(result.message || '删除评论失败')
+      }
+    } catch (error) {
+      console.error('删除评论失败:', error)
+      ElMessage.error('删除评论失败，请稍后重试')
+    }
+  }).catch(() => {})
 }
   
   // 加载帖子数据

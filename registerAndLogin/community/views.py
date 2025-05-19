@@ -13,7 +13,7 @@ from rest_framework.pagination import PageNumberPagination
 
 from .models import Post, PostImage, PostLike, PostFavorite, PostComment, PostAgent, PostKnowledgeBase
 from .serializers import HotAgentSerializer, HotKnowledgeBaseSerializer
-from user.models import User, PublishedAgent
+from user.models import User, PublishedAgent, AgentDraft
 from knowledge_base.models import KnowledgeBase
 
 User = get_user_model()
@@ -759,4 +759,124 @@ class PostCommentsView(APIView):
                 'code': 500,
                 'message': f'获取帖子评论失败: {str(e)}',
                 'data': None
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class UserRecentEditedView(APIView):
+    """获取用户最近编辑的内容"""
+    def get(self, request):
+        try:
+            # 获取查询参数
+            limit = int(request.query_params.get('limit', 5))
+            
+            # 获取最近编辑的智能体
+            recent_agents = []
+            # 获取最近编辑的发布智能体
+            user_agents = PublishedAgent.objects.filter(
+                creator=request.user
+            ).order_by('-updated_at')[:limit]
+            
+            for agent in user_agents:
+                recent_agents.append({
+                    'id': str(agent.id),
+                    'name': agent.name,
+                    'type': 'agent',
+                    'is_draft': False,
+                    'lastEditTime': agent.updated_at.strftime('%Y-%m-%d %H:%M')
+                })
+            
+            # 获取最近编辑的智能体草稿
+            user_drafts = AgentDraft.objects.filter(
+                creator=request.user
+            ).order_by('-updated_at')[:limit]
+            
+            for draft in user_drafts:
+                recent_agents.append({
+                    'id': str(draft.id),
+                    'name': draft.name or '未命名智能体',
+                    'type': 'agent',
+                    'is_draft': True,
+                    'lastEditTime': draft.updated_at.strftime('%Y-%m-%d %H:%M')
+                })
+            
+            # 获取最近编辑的知识库
+            user_kbs = KnowledgeBase.objects.filter(
+                user=request.user
+            ).order_by('-updated_at' if hasattr(KnowledgeBase, 'updated_at') else '-created_at')[:limit]
+            
+            for kb in user_kbs:
+                recent_agents.append({
+                    'id': str(kb.id),
+                    'name': kb.name,
+                    'type': 'kb',
+                    'lastEditTime': (kb.updated_at if hasattr(kb, 'updated_at') else kb.created_at).strftime('%Y-%m-%d %H:%M')
+                })
+            
+            # 按最近编辑时间排序并限制返回数量
+            from operator import itemgetter
+            sorted_items = sorted(recent_agents, key=lambda x: x['lastEditTime'], reverse=True)[:limit]
+            
+            return Response({
+                'code': 200,
+                'message': '获取成功',
+                'data': sorted_items
+            })
+            
+        except Exception as e:
+            print(f"获取最近编辑内容失败: {str(e)}")
+            return Response({
+                'code': 500,
+                'message': f'获取最近编辑内容失败: {str(e)}',
+                'data': []
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class UserFavoritePostsView(APIView):
+    """获取用户收藏的帖子列表"""
+    def get(self, request):
+        try:
+            # 获取查询参数
+            limit = int(request.query_params.get('limit', 10))
+            
+            # 获取用户收藏的帖子
+            # 通过PostFavorite模型查询，按收藏时间倒序排列
+            favorites = PostFavorite.objects.filter(
+                user=request.user
+            ).select_related('post').order_by('-created_at')[:limit]
+            
+            # 构建响应数据
+            post_list = []
+            for favorite in favorites:
+                post = favorite.post
+                post_list.append({
+                    'id': post.id,
+                    'title': post.title,
+                    'favoriteTime': favorite.created_at.strftime('%Y-%m-%d'),
+                    'content': post.content[:100],  # 截取前100个字符作为预览
+                    'authorId': post.user.id,
+                    'authorName': post.user.username,
+                    'likeCount': post.like_count,
+                    'commentCount': post.comment_count,
+                })
+            
+            return Response({
+                'code': 200,
+                'message': '获取成功',
+                'data': post_list
+            })
+            
+        except ValueError as e:
+            return Response({
+                'code': 400,
+                'message': f'参数错误: {str(e)}',
+                'data': []
+            }, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            # 详细记录错误信息
+            import traceback
+            print(f"获取收藏帖子失败: {str(e)}")
+            traceback.print_exc()
+            
+            return Response({
+                'code': 500,
+                'message': f'获取收藏帖子失败: {str(e)}',
+                'data': []
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

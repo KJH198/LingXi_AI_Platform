@@ -18,88 +18,177 @@
             <el-icon class="el-icon--left"><Plus /></el-icon>创建新知识库
           </el-button>
         </el-header>
+
+        <!-- 添加标签页 -->
+        <el-tabs v-model="activeTab" class="kb-tabs">
+          <el-tab-pane label="我创建的" name="created"></el-tab-pane>
+          <el-tab-pane label="我关注的" name="followed"></el-tab-pane>
+        </el-tabs>
   
         <el-main>
-          <!-- 知识库列表 -->
-          <div class="kb-grid" v-if="knowledgeBases.length > 0">
-            <el-card v-for="kb in knowledgeBases" :key="kb.id" class="kb-card" shadow="hover">
-              <div class="kb-content">
-                <!-- 知识库标题和图标 -->
-                <div class="kb-header">
-                  <div class="kb-icon">
-                    <el-icon size="24"><Folder /></el-icon>
+          <!-- 我创建的知识库 -->
+          <template v-if="activeTab === 'created'">
+            <!-- 知识库列表 -->
+            <div class="kb-grid" v-if="knowledgeBases.length > 0">
+              <el-card v-for="kb in knowledgeBases" :key="kb.id" class="kb-card" shadow="hover">
+                <div class="kb-content">
+                  <!-- 知识库标题和图标 -->
+                  <div class="kb-header">
+                    <div class="kb-icon">
+                      <el-icon size="24"><Folder /></el-icon>
+                    </div>
+                    <h3 class="kb-name" @click="viewKnowledgeBase(kb)">{{ kb.name }}</h3>
                   </div>
-                  <h3 class="kb-name" @click="viewKnowledgeBase(kb)">{{ kb.name }}</h3>
-                </div>
-                
-                <!-- 知识库描述 -->
-                <p class="kb-description">{{ kb.description }}</p>
-                
-                <!-- 知识库统计 -->
-                <div class="kb-stats">
-                  <div class="kb-stat">
-                    <el-icon><Document /></el-icon>
-                    <span>{{ kb.fileCount }} 个文件</span>
+                  
+                  <!-- 知识库描述 -->
+                  <p class="kb-description">{{ kb.description }}</p>
+                  
+                  <!-- 知识库统计 -->
+                  <div class="kb-stats">
+                    <div class="kb-stat">
+                      <el-icon><Document /></el-icon>
+                      <span>{{ kb.fileCount }} 个文件</span>
+                    </div>
+                    <div class="kb-stat">
+                      <el-icon><View /></el-icon>
+                      <span>{{ kb.views }} 次浏览</span>
+                    </div>
+                    <div class="kb-stat">
+                      <el-icon><Star /></el-icon>
+                      <span>{{ kb.followers }} 人关注</span>
+                    </div>
                   </div>
-                  <div class="kb-stat">
-                    <el-icon><View /></el-icon>
-                    <span>{{ kb.views }} 次浏览</span>
+                  
+                  <!-- 最后更新时间 -->
+                  <div class="kb-update-time">
+                    <el-icon><Timer /></el-icon>
+                    <span>更新于 {{ kb.lastUpdated }}</span>
                   </div>
-                  <div class="kb-stat">
-                    <el-icon><Star /></el-icon>
-                    <span>{{ kb.followers }} 人关注</span>
+                  
+                  <!-- 知识库操作 -->
+                  <div class="kb-actions">
+                    <el-button type="primary" size="small" @click="viewKnowledgeBase(kb)">
+                      <el-icon class="el-icon--left"><View /></el-icon>查看
+                    </el-button>
+                    <el-button type="success" size="small" @click="openUploadDialogForKb(kb)">
+                      <el-icon class="el-icon--left"><UploadFilled /></el-icon>上传文件
+                    </el-button>
+                    <el-button type="danger" size="small" @click="deleteKnowledgeBase(kb)">
+                      <el-icon class="el-icon--left"><Delete /></el-icon>删除
+                    </el-button>
+                    <el-button type="info" size="small" @click="shareKnowledgeBase(kb)">
+                      <el-icon class="el-icon--left"><Share /></el-icon>分享
+                    </el-button>
                   </div>
                 </div>
-                
-                <!-- 最后更新时间 -->
-                <div class="kb-update-time">
-                  <el-icon><Timer /></el-icon>
-                  <span>更新于 {{ kb.lastUpdated }}</span>
-                </div>
-                
-                <!-- 知识库操作 -->
-                <div class="kb-actions">
-                  <el-button type="primary" size="small" @click="viewKnowledgeBase(kb)">
-                    <el-icon class="el-icon--left"><View /></el-icon>查看
-                  </el-button>
-                  <el-button type="success" size="small" @click="openUploadDialogForKb(kb)">
-                    <el-icon class="el-icon--left"><UploadFilled /></el-icon>上传文件
-                  </el-button>
-                  <el-button type="danger" size="small" @click="deleteKnowledgeBase(kb)">
-                    <el-icon class="el-icon--left"><Delete /></el-icon>删除
-                  </el-button>
-                  <el-button type="info" size="small" @click="shareKnowledgeBase(kb)">
-                    <el-icon class="el-icon--left"><Share /></el-icon>分享
-                  </el-button>
-                </div>
-              </div>
-            </el-card>
-          </div>
+              </el-card>
+            </div>
   
-          <!-- 空状态展示 -->
-          <el-empty 
-            v-else 
-            description="暂无知识库" 
-            :image-size="200"
-          >
-            <el-button type="primary" @click="createKnowledgeDialogVisible = true">
-              <el-icon class="el-icon--left"><Plus /></el-icon>创建第一个知识库
-            </el-button>
-          </el-empty>
+            <!-- 空状态展示 -->
+            <el-empty 
+              v-else 
+              description="暂无知识库" 
+              :image-size="200"
+            >
+              <el-button type="primary" @click="createKnowledgeDialogVisible = true">
+                <el-icon class="el-icon--left"><Plus /></el-icon>创建第一个知识库
+              </el-button>
+            </el-empty>
   
-          <!-- 分页 -->
-          <div class="pagination" v-if="knowledgeBases.length > 0">
-            <el-pagination
-              v-model:current-page="currentPage"
-              v-model:page-size="pageSize"
-              :page-sizes="[12, 24, 36, 48]"
-              layout="total, sizes, prev, pager, next"
-              :total="total"
-              @size-change="handleSizeChange"
-              @current-change="handleCurrentChange"
-              background
-            />
-          </div>
+            <!-- 分页 -->
+            <div class="pagination" v-if="knowledgeBases.length > 0">
+              <el-pagination
+                v-model:current-page="currentPage"
+                v-model:page-size="pageSize"
+                :page-sizes="[12, 24, 36, 48]"
+                layout="total, sizes, prev, pager, next"
+                :total="total"
+                @size-change="handleSizeChange"
+                @current-change="handleCurrentChange"
+                background
+              />
+            </div>
+          </template>
+  
+          <!-- 我关注的知识库 -->
+          <template v-else>
+            <el-skeleton :rows="3" animated v-if="loadingFollowed" />
+            
+            <!-- 知识库列表 -->
+            <div class="kb-grid" v-if="followedKnowledgeBases.length > 0">
+              <el-card v-for="kb in followedKnowledgeBases" :key="kb.id" class="kb-card" shadow="hover">
+                <div class="kb-content">
+                  <!-- 知识库标题和图标 -->
+                  <div class="kb-header">
+                    <div class="kb-icon">
+                      <el-icon size="24"><Folder /></el-icon>
+                    </div>
+                    <h3 class="kb-name" @click="viewKnowledgeBase(kb)">{{ kb.name }}</h3>
+                  </div>
+                  
+                  <!-- 知识库描述 -->
+                  <p class="kb-description">{{ kb.description }}</p>
+                  
+                  <!-- 知识库统计 -->
+                  <div class="kb-stats">
+                    <div class="kb-stat">
+                      <el-icon><Document /></el-icon>
+                      <span>{{ kb.fileCount }} 个文件</span>
+                    </div>
+                    <div class="kb-stat">
+                      <el-icon><View /></el-icon>
+                      <span>{{ kb.views }} 次浏览</span>
+                    </div>
+                    <div class="kb-stat">
+                      <el-icon><Star /></el-icon>
+                      <span>{{ kb.followers }} 人关注</span>
+                    </div>
+                  </div>
+                  
+                  <!-- 创建者信息 -->
+                  <div class="kb-creator" v-if="kb.creator">
+                    <el-icon><User /></el-icon>
+                    <span>创建者: {{ kb.creator.username }}</span>
+                  </div>
+                  
+                  <!-- 知识库操作 -->
+                  <div class="kb-actions">
+                    <el-button type="primary" size="small" @click="viewKnowledgeBase(kb)">
+                      <el-icon class="el-icon--left"><View /></el-icon>查看
+                    </el-button>
+                    <el-button type="danger" size="small" @click="unfollowKnowledgeBase(kb)">
+                      <el-icon class="el-icon--left"><Star /></el-icon>取消关注
+                    </el-button>
+                  </div>
+                </div>
+              </el-card>
+            </div>
+  
+            <!-- 空状态展示 -->
+            <el-empty 
+              v-else-if="!loadingFollowed" 
+              description="暂无关注的知识库" 
+              :image-size="200"
+            >
+              <el-button type="primary" @click="router.push('/community')">
+                去社区发现知识库
+              </el-button>
+            </el-empty>
+  
+            <!-- 分页 -->
+            <div class="pagination" v-if="followedKnowledgeBases.length > 0">
+              <el-pagination
+                v-model:current-page="followedCurrentPage"
+                v-model:page-size="followedPageSize"
+                :page-sizes="[12, 24, 36, 48]"
+                layout="total, sizes, prev, pager, next"
+                :total="followedTotal"
+                @size-change="handleFollowedSizeChange"
+                @current-change="handleFollowedCurrentChange"
+                background
+              />
+            </div>
+          </template>
         </el-main>
       </el-container>
       
@@ -297,7 +386,7 @@
   </template>
   
   <script setup>
-  import { ref, reactive, onMounted } from 'vue'
+  import { ref, reactive, onMounted, watch } from 'vue'
   import { useRouter } from 'vue-router'
   import { ElMessage, ElMessageBox } from 'element-plus'
   import { 
@@ -312,7 +401,8 @@
     Folder, 
     Timer,
     Check,
-    UploadFilled
+    UploadFilled,
+    User
   } from '@element-plus/icons-vue'
   
   const router = useRouter()
@@ -351,6 +441,14 @@
     description: '',
     type: 'text' // 默认为文本类型
   });
+
+  // 活动标签页
+  const activeTab = ref('created')
+  const followedKnowledgeBases = ref([])
+  const followedCurrentPage = ref(1)
+  const followedPageSize = ref(12)
+  const followedTotal = ref(0)
+  const loadingFollowed = ref(false)
 
   // 获取用户知识库列表
   const fetchKnowledgeBases = async () => {
@@ -402,6 +500,86 @@
       ElMessage.error('获取知识库列表失败，请稍后重试')
       
       // 开发阶段模拟数据可以保留，但生产环境应移除
+    }
+  }
+  
+  // 获取关注的知识库列表
+  const fetchFollowedKnowledgeBases = async () => {
+    try {
+      loadingFollowed.value = true
+      const token = localStorage.getItem('token')
+      if (!token) {
+        ElMessage.error('请先登录')
+        router.push('/login')
+        return
+      }
+  
+      // 构建请求参数
+      const params = new URLSearchParams({
+        page: followedCurrentPage.value.toString(),
+        size: followedPageSize.value.toString()
+      })
+      
+      // 发送请求
+      const response = await fetch(`/user/followed/knowledge-bases?${params.toString()}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+      
+      if (!response.ok) {
+        throw new Error('获取关注的知识库列表失败')
+      }
+      
+      const result = await response.json()
+      
+      if (result.code === 200) {
+        followedKnowledgeBases.value = result.data.items.map(item => ({
+          id: item.id,
+          name: item.name,
+          description: item.description,
+          fileCount: item.fileCount || 0,
+          views: item.views || 0,
+          followers: item.followers || 0,
+          lastUpdated: item.lastUpdated,
+          creator: item.creator
+        }))
+        followedTotal.value = result.data.total || 0
+      } else {
+        throw new Error(result.message || '获取关注的知识库列表失败')
+      }
+    } catch (error) {
+      console.error('获取关注的知识库列表失败:', error)
+      ElMessage.error('获取关注的知识库列表失败，请稍后重试')
+      
+      // 开发阶段模拟数据
+      followedKnowledgeBases.value = [
+        {
+          id: 101,
+          name: '人工智能入门',
+          description: '包含AI基础知识、算法、应用案例等内容',
+          fileCount: 25,
+          views: 1200,
+          followers: 450,
+          lastUpdated: '2023-10-15',
+          creator: { username: '技术专家A' }
+        },
+        {
+          id: 102,
+          name: '机器学习资料库',
+          description: '收集了各类机器学习模型、技术文档和实践案例',
+          fileCount: 48,
+          views: 2800,
+          followers: 1200,
+          lastUpdated: '2023-11-05',
+          creator: { username: '数据科学家B' }
+        }
+      ]
+      followedTotal.value = followedKnowledgeBases.value.length
+    } finally {
+      loadingFollowed.value = false
     }
   }
   
@@ -549,14 +727,9 @@
 
       const result = await response.json()
 
-      if (result.code === 200) {
-        ElMessage.success('文件上传成功')
-        uploadDialogVisible.value = false
-        uploadFileList.value = []
-        fetchKnowledgeBaseDetail(currentKnowledgeBase.id)
-      } else {
-        throw new Error(result.message || '上传文件失败')
-      }
+      ElMessage.success('文件上传成功')
+      uploadDialogVisible.value = false
+      uploadFileList.value = []
     } catch (error) {
       console.error('上传文件失败:', error)
       ElMessage.error('上传文件失败，请稍后重试')
@@ -760,9 +933,33 @@
     currentPage.value = val
     fetchKnowledgeBases()
   }
+
+  // 关注的知识库分页处理
+  const handleFollowedSizeChange = (val) => {
+    followedPageSize.value = val
+    fetchFollowedKnowledgeBases()
+  }
+  
+  const handleFollowedCurrentChange = (val) => {
+    followedCurrentPage.value = val
+    fetchFollowedKnowledgeBases()
+  }
+  
+  // 标签页切换处理
+  watch(() => activeTab.value, (newVal) => {
+    if (newVal === 'followed') {
+      fetchFollowedKnowledgeBases()
+    } else {
+      // 留在原页签时不重新加载，避免不必要的请求
+      if (knowledgeBases.value.length === 0) {
+        fetchKnowledgeBases()
+      }
+    }
+  })
   
   onMounted(() => {
     fetchKnowledgeBases()
+    fetchFollowedKnowledgeBases() // 初始加载关注的知识库
   })
   </script>
   
@@ -792,6 +989,10 @@
     font-size: 24px;
     font-weight: 600;
     color: #303133;
+  }
+  
+  .kb-tabs {
+    margin-bottom: 24px;
   }
   
   .kb-grid {
@@ -1055,4 +1256,18 @@
       padding: 2px 6px;
     }
   }
+
+.kb-tabs {
+  margin-bottom: 20px;
+}
+
+.kb-creator {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  color: #606266;
+  margin-top: 8px;
+}
+
   </style>

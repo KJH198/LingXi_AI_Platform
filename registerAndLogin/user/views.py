@@ -2821,6 +2821,56 @@ class UserFollowedAgentsView(APIView):
                 'message': f'获取智能体列表失败: {str(e)}'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+class UserFollowedKnowledgeBasesView(APIView):
+    """获取用户关注的知识库列表"""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            # 获取当前用户关注的知识库
+            knowledge_bases = KnowledgeBase.objects.filter(followers=request.user)
+            
+            # 构建响应数据
+            kb_list = []
+            for kb in knowledge_bases:
+                # 获取关注数量
+                follow_count = kb.followers.count() if hasattr(kb, 'followers') else 0
+                
+                # 检查当前用户是否已关注该知识库
+                is_followed = True  # 这里肯定是True，因为我们是筛选出用户关注的知识库
+                
+                kb_data = {
+                    'id': str(kb.id),
+                    'name': kb.name,
+                    'description': kb.description,
+                    'creator': {
+                        'id': kb.user.id,
+                        'username': kb.user.username,
+                        'avatar': kb.user.avatar if hasattr(kb.user, 'avatar') else None
+                    },
+                    'fileCount': kb.files.count() if hasattr(kb, 'files') else 0,
+                    'followers': follow_count,
+                    'isFollowed': is_followed,
+                    'lastUpdated': kb.created_at.strftime('%Y-%m-%d') if hasattr(kb, 'created_at') else None,
+                    'type': kb.type if hasattr(kb, 'type') else 'text'
+                }
+                kb_list.append(kb_data)
+            
+            return Response({
+                'code': 200,
+                'message': '获取成功',
+                'data': {
+                    'items': kb_list,
+                    'total': len(kb_list)
+                }
+            })
+            
+        except Exception as e:
+            return Response({
+                'code': 500,
+                'message': f'获取知识库列表失败: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 class AgentUpdateView(APIView):
     """更新智能体"""
     permission_classes = [IsAuthenticated]
@@ -3037,6 +3087,54 @@ class AgentCommentLikeView(APIView):
             return Response({
                 'code': 500,
                 'message': f'点赞失败：{str(e)}',
+                'data': None
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    def delete(self, request, commentId):
+        """取消点赞评论"""
+        try:
+            # 获取评论
+            try:
+                comment = AgentComment.objects.get(id=commentId)
+            except AgentComment.DoesNotExist:
+                return Response({
+                    'code': 404,
+                    'message': '评论不存在',
+                    'data': None
+                }, status=status.HTTP_404_NOT_FOUND)
+
+            # 检查是否已经点赞
+            if not comment.likes.filter(id=request.user.id).exists():
+                return Response({
+                    'code': 400,
+                    'message': '还没有点赞',
+                    'data': None
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            # 取消点赞
+            comment.likes.remove(request.user)
+
+            # 记录用户行为
+            UserActionLog.objects.create(
+                user=request.user,
+                action='unlike_comment',
+                target_id=comment.id,
+                target_type='comment',
+                ip_address=request.META.get('REMOTE_ADDR'),
+            )
+
+            return Response({
+                'code': 200,
+                'message': '取消点赞成功',
+                'data': {
+                    'commentId': comment.id,
+                    'likes': comment.likes.count()
+                }
+            })
+
+        except Exception as e:
+            return Response({
+                'code': 500,
+                'message': f'取消点赞失败：{str(e)}',
                 'data': None
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
@@ -4037,3 +4135,178 @@ class UserPublicKnowledgeBasesView(APIView):
                 'message': f'获取用户知识库失败: {str(e)}',
                 'data': []
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class AgentCommentDeleteView(APIView):
+    """删除智能体评论视图"""
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, commentId):
+        try:
+            # 查找评论
+            try:
+                comment = AgentComment.objects.get(id=commentId)
+            except AgentComment.DoesNotExist:
+                return Response({
+                    'code': 404,
+                    'message': '评论不存在',
+                    'data': None
+                }, status=status.HTTP_404_NOT_FOUND)
+            
+            # 权限检查：评论作者或智能体创建者
+            if request.user.id != comment.user.id and request.user.id != comment.agent.creator.id:
+                return Response({
+                    'code': 403,
+                    'message': '没有权限删除此评论',
+                    'data': None
+                }, status=status.HTTP_403_FORBIDDEN)
+            
+            # 删除评论及其回复
+            # 如果是父评论，则同时删除所有子评论(回复)
+            if comment.parent is None:
+                # 找到所有子评论(回复)
+                replies = AgentComment.objects.filter(parent=comment)
+                reply_count = replies.count()
+                # 删除回复
+                replies.delete()
+            else:
+                reply_count = 0
+            
+            # 删除当前评论
+            comment.delete()
+            
+            # 记录用户行为
+            UserActionLog.objects.create(
+                user=request.user,
+                action='delete_agent_comment',
+                target_id=commentId,
+                target_type='agent_comment',
+                ip_address=request.META.get('REMOTE_ADDR'),
+            )
+            
+            return Response({
+                'code': 200,
+                'message': '评论已删除',
+                'data': None
+            })
+            
+        except Exception as e:
+            print(f"删除评论失败: {str(e)}")
+            return Response({
+                'code': 500,
+                'message': f'删除评论失败: {str(e)}',
+                'data': None
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class KnowledgeBaseCommentDeleteView(APIView):
+    """删除知识库评论视图"""
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, commentId):
+        try:
+            # 查找评论
+            try:
+                comment = KnowledgeBaseComment.objects.get(id=commentId)
+            except KnowledgeBaseComment.DoesNotExist:
+                return Response({
+                    'code': 404,
+                    'message': '评论不存在',
+                    'data': None
+                }, status=status.HTTP_404_NOT_FOUND)
+            
+            # 权限检查：评论作者或知识库创建者
+            if request.user.id != comment.user.id and request.user.id != comment.knowledge_base.user.id:
+                return Response({
+                    'code': 403,
+                    'message': '没有权限删除此评论',
+                    'data': None
+                }, status=status.HTTP_403_FORBIDDEN)
+            
+            # 删除评论
+            comment.delete()
+            
+            # 记录用户行为
+            UserActionLog.objects.create(
+                user=request.user,
+                action='delete_knowledge_base_comment',
+                target_id=commentId,
+                target_type='knowledge_base_comment',
+                ip_address=request.META.get('REMOTE_ADDR'),
+            )
+            
+            return Response({
+                'code': 200,
+                'message': '评论已删除',
+                'data': None
+            })
+            
+        except Exception as e:
+            print(f"删除评论失败: {str(e)}")
+            return Response({
+                'code': 500,
+                'message': f'删除评论失败: {str(e)}',
+                'data': None
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class PostCommentDeleteView(APIView):
+    """删除帖子评论视图"""
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, commentId):
+        try:
+            # 查找评论
+            print(f"尝试删除评论ID: {commentId}")
+            print(f"请求用户ID: {request.user.id}")
+            try:
+                comment = PostComment.objects.get(id=commentId)
+            except PostComment.DoesNotExist:
+                return Response({
+                    'code': 404,
+                    'message': '评论不存在',
+                    'data': None
+                }, status=status.HTTP_404_NOT_FOUND)
+            
+            # 权限检查：评论作者或帖子作者
+            if request.user.id != comment.user.id and request.user.id != comment.post.user.id:
+                print(f"用户 {request.user.id} 没有权限删除评论 {commentId}")
+                print(f"帖子作者: {comment.post.user.id}, 评论作者: {comment.user.id}")
+                print(f"帖子ID: {comment.post.id}")
+                print(f"请求用户ID: {request.user.id}")
+                return Response({
+                    'code': 403,
+                    'message': '没有权限删除此评论',
+                    'data': None
+                }, status=status.HTTP_403_FORBIDDEN)
+            
+            # 获取关联的帖子进行评论计数更新
+            post = comment.post
+            
+            # 删除评论
+            comment.delete()
+            
+            # 更新帖子评论数
+            post.comment_count = max(0, post.comment_count - 1)
+            post.save()
+            
+            # 记录用户行为
+            UserActionLog.objects.create(
+                user=request.user,
+                action='delete_post_comment',
+                target_id=commentId,
+                target_type='post_comment',
+                ip_address=request.META.get('REMOTE_ADDR'),
+            )
+            
+            return Response({
+                'code': 200,
+                'message': '评论已删除',
+                'data': None
+            })
+            
+        except Exception as e:
+            print(f"删除评论失败: {str(e)}")
+            return Response({
+                'code': 500,
+                'message': f'删除评论失败: {str(e)}',
+                'data': None
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+

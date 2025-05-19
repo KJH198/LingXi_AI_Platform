@@ -12,4 +12,7 @@ urlpatterns = [
     path('knowledge-bases/hot/', views.HotKnowledgeBasesView.as_view(), name='hot-knowledge-bases'),
     path('posts/<int:post_id>/', views.PostDetailView.as_view(), name='post_detail'),
     path('posts/<int:post_id>/comments/', views.PostCommentsView.as_view(), name='post_comments'),
+    path('recent-edited', views.UserRecentEditedView.as_view(), name='user_recent_edited'),
+    # 在urlpatterns列表中添加以下路由
+    path('favorites/posts', views.UserFavoritePostsView.as_view(), name='user_favorite_posts'),
 ]

@@ -56,9 +56,6 @@
                 <el-button @click="copyUserLink">
                   <el-icon><Share /></el-icon> 分享
                 </el-button>
-                <el-button @click="reportUser" type="danger" plain>
-                  <el-icon><Warning /></el-icon> 举报
-                </el-button>
               </div>
             </div>
           </el-card>

@@ -19,106 +19,203 @@
         </el-button>
       </el-header>
 
+      <!-- 在 el-header 下方添加标签页 -->
+      <el-tabs v-model="activeTab" class="agent-tabs">
+        <el-tab-pane label="我创建的" name="created"></el-tab-pane>
+        <el-tab-pane label="我关注的" name="followed"></el-tab-pane>
+      </el-tabs>
+
+      <!-- 修改 el-main 部分，根据标签页显示不同内容 -->
       <el-main>
-        <el-skeleton :rows="3" animated v-if="loading" />
-        
-        <div v-else class="agent-grid">
-          <el-card v-for="agent in agents" :key="agent.id" class="agent-card" shadow="hover">
-            <div class="agent-content">
-              <!-- 智能体封面图 -->
-              <div class="agent-cover-wrapper" @click="viewAgentDetails(agent)">
-                <el-image 
-                  :src="agent.coverImage" 
-                  fit="cover" 
-                  class="agent-cover"
-                  :preview-src-list="[agent.coverImage]"
-                >
-                  <template #error>
-                    <div class="image-placeholder">
-                      <el-icon :size="40"><Picture /></el-icon>
+        <!-- 我创建的智能体 -->
+        <template v-if="activeTab === 'created'">
+          <el-skeleton :rows="3" animated v-if="loading" />
+          
+          <div v-else class="agent-grid">
+            <!-- 保持原有的智能体卡片内容不变 -->
+            <el-card v-for="agent in agents" :key="agent.id" class="agent-card" shadow="hover">
+              <div class="agent-content">
+                <!-- 智能体封面图 -->
+                <div class="agent-cover-wrapper" @click="viewAgentDetails(agent)">
+                  <el-image 
+                    :src="agent.coverImage" 
+                    fit="cover" 
+                    class="agent-cover"
+                    :preview-src-list="[agent.coverImage]"
+                  >
+                    <template #error>
+                      <div class="image-placeholder">
+                        <el-icon :size="40"><Picture /></el-icon>
+                      </div>
+                    </template>
+                  </el-image>
+                  <div class="agent-stats-overlay">
+                    <div class="stat-item">
+                      <el-icon><View /></el-icon>
+                      <span>{{ agent.views }}</span>
                     </div>
-                  </template>
-                </el-image>
-                <div class="agent-stats-overlay">
-                  <div class="stat-item">
-                    <el-icon><View /></el-icon>
-                    <span>{{ agent.views }}</span>
-                  </div>
-                  <div class="stat-item">
-                    <el-icon><Star /></el-icon>
-                    <span>{{ agent.likes }}</span>
-                  </div>
-                  <div class="stat-item">
-                    <el-icon><ChatDotRound /></el-icon>
-                    <span>{{ agent.comments }}</span>
+                    <div class="stat-item">
+                      <el-icon><Star /></el-icon>
+                      <span>{{ agent.likes }}</span>
+                    </div>
+                    <div class="stat-item">
+                      <el-icon><ChatDotRound /></el-icon>
+                      <span>{{ agent.comments }}</span>
+                    </div>
                   </div>
                 </div>
+                
+                <!-- 智能体名称和描述 -->
+                <div class="agent-info">
+                  <h3 class="agent-name" @click="viewAgentDetails(agent)">{{ agent.name }}</h3>
+                  <p class="agent-description">{{ agent.description }}</p>
+                </div>
+                
+                <!-- 操作按钮 -->
+                <div class="agent-actions">
+                  <el-button type="primary" size="small" @click="router.push(`/chat/${agent.id}`)">
+                    <el-icon class="el-icon--left"><ChatDotRound /></el-icon>对话
+                  </el-button>
+                  <el-button type="warning" size="small" @click="editAgent(agent)">
+                    <el-icon class="el-icon--left"><Edit /></el-icon>编辑
+                  </el-button>
+                  <el-button type="danger" size="small" @click="deleteAgent(agent)">
+                    <el-icon class="el-icon--left"><Delete /></el-icon>删除
+                  </el-button>
+                  <el-button type="info" size="small" @click="shareAgent(agent)">
+                    <el-icon class="el-icon--left"><Share /></el-icon>分享
+                  </el-button>
+                  <el-button 
+                    :type="agent.isOpenSource ? 'success' : 'default'" 
+                    size="small" 
+                    @click="toggleOpenSource(agent)"
+                  >
+                    <el-icon class="el-icon--left"><Link /></el-icon>
+                    {{ agent.isOpenSource ? '已开源' : '未开源' }}
+                  </el-button>
+                </div>
               </div>
-              
-              <!-- 智能体名称和描述 -->
-              <div class="agent-info">
-                <h3 class="agent-name" @click="viewAgentDetails(agent)">{{ agent.name }}</h3>
-                <p class="agent-description">{{ agent.description }}</p>
-              </div>
-              
-              <!-- 操作按钮 -->
-              <div class="agent-actions">
-                <el-button type="primary" size="small" @click="router.push(`/chat/${agent.id}`)">
-                  <el-icon class="el-icon--left"><ChatDotRound /></el-icon>对话
-                </el-button>
-                <el-button type="warning" size="small" @click="editAgent(agent)">
-                  <el-icon class="el-icon--left"><Edit /></el-icon>编辑
-                </el-button>
-                <el-button type="danger" size="small" @click="deleteAgent(agent)">
-                  <el-icon class="el-icon--left"><Delete /></el-icon>删除
-                </el-button>
-                <el-button type="info" size="small" @click="shareAgent(agent)">
-                  <el-icon class="el-icon--left"><Share /></el-icon>分享
-                </el-button>
-                <el-button 
-                  :type="agent.isOpenSource ? 'success' : 'default'" 
-                  size="small" 
-                  @click="toggleOpenSource(agent)"
-                >
-                  <el-icon class="el-icon--left"><Link /></el-icon>
-                  {{ agent.isOpenSource ? '已开源' : '未开源' }}
-                </el-button>
-              </div>
-            </div>
-          </el-card>
-        </div>
-        
-        <!-- 空状态展示 -->
-        <el-empty 
-          v-if="!loading && agents.length === 0" 
-          description="暂无智能体" 
-          :image-size="200"
-        >
-          <el-button type="primary" @click="router.push('/agent-editor')" :icon="Plus">
-            创建第一个智能体
-          </el-button>
-        </el-empty>
+            </el-card>
+          </div>
+          
+          <!-- 原有的空状态展示 -->
+          <el-empty 
+            v-if="!loading && agents.length === 0" 
+            description="暂无智能体" 
+            :image-size="200"
+          >
+            <el-button type="primary" @click="router.push('/agent-editor')" :icon="Plus">
+              创建第一个智能体
+            </el-button>
+          </el-empty>
 
-        <!-- 分页 -->
-        <div class="pagination" v-if="agents.length > 0">
-          <el-pagination
-            v-model:current-page="currentPage"
-            v-model:page-size="pageSize"
-            :page-sizes="[12, 24, 36, 48]"
-            layout="total, sizes, prev, pager, next, jumper"
-            :total="total"
-            @size-change="handleSizeChange"
-            @current-change="handleCurrentChange"
-            background
-          />
-        </div>
+          <!-- 原有的分页 -->
+          <div class="pagination" v-if="agents.length > 0">
+            <el-pagination
+              v-model:current-page="currentPage"
+              v-model:page-size="pageSize"
+              :page-sizes="[12, 24, 36, 48]"
+              layout="total, sizes, prev, pager, next, jumper"
+              :total="total"
+              @size-change="handleSizeChange"
+              @current-change="handleCurrentChange"
+              background
+            />
+          </div>
+        </template>
+
+        <!-- 我关注的智能体 -->
+        <template v-else>
+          <el-skeleton :rows="3" animated v-if="loadingFollowed" />
+          
+          <div v-else class="agent-grid">
+            <el-card v-for="agent in followedAgents" :key="agent.id" class="agent-card" shadow="hover">
+              <div class="agent-content">
+                <!-- 智能体封面图 -->
+                <div class="agent-cover-wrapper" @click="viewAgentDetails(agent)">
+                  <el-image 
+                    :src="agent.coverImage" 
+                    fit="cover" 
+                    class="agent-cover"
+                    :preview-src-list="[agent.coverImage]"
+                  >
+                    <template #error>
+                      <div class="image-placeholder">
+                        <el-icon :size="40"><Picture /></el-icon>
+                      </div>
+                    </template>
+                  </el-image>
+                  <div class="agent-stats-overlay">
+                    <div class="stat-item">
+                      <el-icon><View /></el-icon>
+                      <span>{{ agent.views }}</span>
+                    </div>
+                    <div class="stat-item">
+                      <el-icon><Star /></el-icon>
+                      <span>{{ agent.likes }}</span>
+                    </div>
+                    <div class="stat-item">
+                      <el-icon><ChatDotRound /></el-icon>
+                      <span>{{ agent.comments }}</span>
+                    </div>
+                  </div>
+                </div>
+                
+                <!-- 智能体名称和描述 -->
+                <div class="agent-info">
+                  <h3 class="agent-name" @click="viewAgentDetails(agent)">{{ agent.name }}</h3>
+                  <p class="agent-description">{{ agent.description }}</p>
+                </div>
+                
+                <!-- 操作按钮 -->
+                <div class="agent-actions">
+                  <el-button type="primary" size="small" @click="router.push(`/chat/${agent.id}`)">
+                    <el-icon class="el-icon--left"><ChatDotRound /></el-icon>对话
+                  </el-button>
+                  <el-button 
+                    type="danger" 
+                    size="small" 
+                    @click="unfollowAgent(agent)"
+                  >
+                    <el-icon class="el-icon--left"><Star /></el-icon>取消关注
+                  </el-button>
+                </div>
+              </div>
+            </el-card>
+          </div>
+          
+          <!-- 空状态展示 -->
+          <el-empty 
+            v-if="!loadingFollowed && followedAgents.length === 0" 
+            description="暂无关注的智能体" 
+            :image-size="200"
+          >
+            <el-button type="primary" @click="router.push('/community')">
+              去社区发现智能体
+            </el-button>
+          </el-empty>
+
+          <!-- 分页 -->
+          <div class="pagination" v-if="followedAgents.length > 0">
+            <el-pagination
+              v-model:current-page="followedCurrentPage"
+              v-model:page-size="followedPageSize"
+              :page-sizes="[12, 24, 36, 48]"
+              layout="total, sizes, prev, pager, next, jumper"
+              :total="followedTotal"
+              @size-change="handleFollowedSizeChange"
+              @current-change="handleFollowedCurrentChange"
+              background
+            />
+          </div>
+        </template>
       </el-main>
     </el-container>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { 
@@ -141,6 +238,12 @@ const currentPage = ref(1)
 const pageSize = ref(12)
 const total = ref(0)
 const loading = ref(true)
+const activeTab = ref('created')
+const followedAgents = ref([])
+const followedCurrentPage = ref(1)
+const followedPageSize = ref(12)
+const followedTotal = ref(0)
+const loadingFollowed = ref(false)
 
 // 获取用户智能体列表
 const fetchAgents = async () => {
@@ -260,6 +363,83 @@ const fetchAgents = async () => {
     total.value = agents.value.length
   } finally {
     loading.value = false
+  }
+}
+
+// 获取关注的智能体列表
+const fetchFollowedAgents = async () => {
+  try {
+    loadingFollowed.value = true
+    const token = localStorage.getItem('token')
+    if (!token) {
+      ElMessage.error('请先登录')
+      router.push('/login')
+      return
+    }
+
+    // 构建请求参数
+    const params = new URLSearchParams({
+      page: followedCurrentPage.value.toString(),
+      size: followedPageSize.value.toString()
+    })
+    
+    // 发送请求
+    const response = await fetch(`/user/followed/agents`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    })
+    
+    if (!response.ok) {
+      throw new Error('获取关注的智能体列表失败')
+    }
+    
+    const result = await response.json()
+    
+    if (result.code === 200) {
+      followedAgents.value = (result.data || []).map(item => ({
+        id: item.id,
+        name: item.name || '未命名智能体',
+        description: item.description || '暂无描述',
+        coverImage: item.avatar || 'https://picsum.photos/300/200',
+        views: item.viewCount || item.views || 0,
+        likes: item.likeCount || item.likes || 0,
+        comments: item.commentCount || item.comments || 0
+      }))
+      followedTotal.value = result.total || followedAgents.value.length
+    } else {
+      throw new Error(result.message || '获取关注的智能体列表失败')
+    }
+  } catch (error) {
+    console.error('获取关注的智能体列表失败:', error)
+    ElMessage.error('获取关注的智能体列表失败，请稍后重试')
+    
+    // 开发阶段模拟数据
+    followedAgents.value = [
+      {
+        id: 7,
+        name: '金融顾问',
+        description: '专业的金融分析和投资建议助手',
+        coverImage: 'https://picsum.photos/300/200',
+        views: 2800,
+        likes: 1400,
+        comments: 550
+      },
+      {
+        id: 8,
+        name: '健康顾问',
+        description: '提供健康生活方式和饮食建议的智能助手',
+        coverImage: 'https://picsum.photos/300/200',
+        views: 3200,
+        likes: 1600,
+        comments: 700
+      }
+    ]
+    followedTotal.value = followedAgents.value.length
+  } finally {
+    loadingFollowed.value = false
   }
 }
 
@@ -419,8 +599,28 @@ const handleCurrentChange = (val) => {
   fetchAgents()
 }
 
+const handleFollowedSizeChange = (val) => {
+  followedPageSize.value = val
+  fetchFollowedAgents()
+}
+
+const handleFollowedCurrentChange = (val) => {
+  followedCurrentPage.value = val
+  fetchFollowedAgents()
+}
+
+// 标签页切换处理
+watch(() => activeTab.value, (newVal) => {
+  if (newVal === 'followed') {
+    fetchFollowedAgents()
+  } else {
+    fetchAgents()
+  }
+})
+
 onMounted(() => {
   fetchAgents()
+  fetchFollowedAgents() // 初始加载时获取关注的智能体
 })
 </script>
 
@@ -450,6 +650,10 @@ onMounted(() => {
   font-size: 24px;
   font-weight: 600;
   color: #303133;
+}
+
+.agent-tabs {
+  margin-bottom: 24px;
 }
 
 .agent-grid {
@@ -549,6 +753,7 @@ onMounted(() => {
   margin: 0;
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -588,5 +793,9 @@ onMounted(() => {
   .agent-actions {
     grid-template-columns: 1fr;
   }
+}
+
+.agent-tabs {
+  margin-bottom: 20px;
 }
 </style>

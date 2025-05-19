@@ -47,187 +47,245 @@
       </el-header>
 
       <!-- 主要内容区 -->
-      <el-main>
-        <!-- 根据选中的菜单项展示不同内容 -->
-        
-        <!-- 帖子选项卡 -->
-        <template v-if="activeMenu === '1'">
-          <!-- 加载指示器 -->
-          <div v-if="loading" class="loading-container">
-            <el-skeleton :rows="3" animated />
-            <el-skeleton :rows="3" animated style="margin-top: 20px" />
-          </div>
+      <el-container>
+        <el-main>
+          <!-- 根据选中的菜单项展示不同内容 -->
           
-          <!-- 帖子列表 -->
-          <div v-else>
-            <!-- 空状态提示 -->
-            <el-empty v-if="posts.length === 0" description="暂无内容" />
-
-            <!-- 帖子列表内容 -->
-            <div v-else class="post-list">
-              <el-card v-for="post in posts" :key="post.id" class="post-card">
-                <template #header>
-                  <div class="post-header">
-                    <div class="post-title">
-                      <el-avatar :size="32" :src="post.avatar" @click="viewUserProfile(post.userId)" />
-                      <span class="username" @click="viewUserProfile(post.userId)">{{ post.username }}</span>
-                      <el-button 
-                        size="small" 
-                        :type="post.isFollowed ? 'success' : 'default'" 
-                        plain
-                        class="follow-button"
-                        @click="followUser(post.userId)"
-                      >
-                        {{ post.isFollowed ? '已关注' : '关注' }}
-                      </el-button>
-                      <span class="time">{{ post.time }}</span>
-                    </div>
-                    <el-button 
-                      type="danger" 
-                      plain 
-                      size="small" 
-                      @click="reportPost(post.id)" 
-                      class="report-button"
-                    >
-                      <el-icon><Warning /></el-icon> 举报
-                    </el-button>
-                  </div>
-                </template>
-                
-                <div class="post-content">
-                  <h3>{{ post.title }}</h3>
-                  <p>{{ post.content }}</p>
-                  
-                  <!-- 图片展示 -->
-                  <div class="post-images" v-if="post.images && post.images.length">
-                    <el-image 
-                      v-for="(img, index) in post.images" 
-                      :key="index"
-                      :src="img"
-                      :preview-src-list="post.images"
-                      fit="cover"
-                      class="post-image"
-                    />
-                  </div>
-                  
-                  <!-- 智能体展示 -->
-                  <div class="post-resources" v-if="post.agents && post.agents.length">
-                    <div class="resource-header">
-                      <el-icon><Connection /></el-icon>
-                      <span>相关智能体</span>
-                    </div>
-                    <div class="resource-list">
-                      <div 
-                        v-for="agent in post.agents" 
-                        :key="agent.id" 
-                        class="resource-item"
-                        @click="viewAgentDetail(agent.id)"
-                      >
-                        <div class="resource-item-icon">AI</div>
-                        <div class="resource-item-content">
-                          <div class="resource-item-name">{{ agent.name }}</div>
-                          <div class="resource-item-creator">by {{ agent.creator.username }}</div>
-                        </div>
-                        <el-button 
-                          size="small" 
-                          :type="agent.isFollowed ? 'success' : 'primary'"
-                          @click.stop="followAgent(agent)"
-                        >
-                          {{ agent.isFollowed ? '已关注' : '关注' }}
-                        </el-button>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <!-- 知识库展示 -->
-                  <div class="post-resources" v-if="post.knowledgeBases && post.knowledgeBases.length">
-                    <div class="resource-header">
-                      <el-icon><Collection /></el-icon>
-                      <span>相关知识库</span>
-                    </div>
-                    <div class="resource-list">
-                      <div 
-                        v-for="kb in post.knowledgeBases" 
-                        :key="kb.id" 
-                        class="resource-item"
-                        @click="viewKnowledgeBaseDetail(kb.id)"
-                      >
-                        <div class="resource-item-icon">KB</div>
-                        <div class="resource-item-content">
-                          <div class="resource-item-name">{{ kb.name }}</div>
-                          <div class="resource-item-creator">by {{ kb.creator.username }}</div>
-                        </div>
-                        <el-button 
-                          size="small" 
-                          :type="kb.isFollowed ? 'success' : 'primary'"
-                          @click.stop="followKnowledgeBase(kb)"
-                        >
-                          {{ kb.isFollowed ? '已关注' : '关注' }}
-                        </el-button>
-                      </div>
-                    </div>
-                  </div>
-                </div><!-- End of post-content -->
-                <div class="post-footer">
-                  <div class="post-actions">
-                    <el-button 
-                      :type="post.isLiked ? 'primary' : 'text'" 
-                      @click="likePost(post)"
-                    >
-                      <el-icon><Pointer /></el-icon>
-                      {{ post.likes }}
-                    </el-button>
-                    <el-button type="text" @click="showCommentDialog(post)">
-                      <el-icon><ChatDotRound /></el-icon>
-                      {{ post.comments.length }}
-                    </el-button>
-                    <el-button 
-                      :type="post.isFavorited ? 'warning' : 'text'" 
-                      @click="favoritePost(post)"
-                    >
-                      <el-icon><Star /></el-icon>
-                      {{ post.isFavorited ? '已收藏' : '收藏' }}
-                    </el-button>
-                    <el-button type="text" @click="sharePost(post)">
-                      <el-icon><Share /></el-icon>
-                      分享
-                    </el-button>
-                  </div>
-                  <el-button type="primary" size="small" @click="showCommentDialog(post)">评论</el-button>
-                </div>
-              </el-card>
+          <!-- 帖子选项卡 -->
+          <template v-if="activeMenu === '1'">
+            <!-- 加载指示器 -->
+            <div v-if="loading" class="loading-container">
+              <el-skeleton :rows="3" animated />
+              <el-skeleton :rows="3" animated style="margin-top: 20px" />
             </div>
             
-            <!-- 分页 -->
-            <div v-if="posts.length > 0" class="pagination">
-              <el-pagination
-                v-model:current-page="currentPage"
-                v-model:page-size="pageSize"
-                :page-sizes="[10, 20, 30, 50]"
-                layout="total, sizes, prev, pager, next"
-                :total="total"
-                @size-change="handleSizeChange"
-                @current-change="handleCurrentChange"
-              />
+            <!-- 帖子列表 -->
+            <div v-else>
+              <!-- 空状态提示 -->
+              <el-empty v-if="posts.length === 0" description="暂无内容" />
+
+              <!-- 帖子列表内容 -->
+              <div v-else class="post-list">
+                <el-card v-for="post in posts" :key="post.id" class="post-card">
+                  <template #header>
+                    <div class="post-header">
+                      <div class="post-title">
+                        <el-avatar :size="32" :src="post.avatar" @click="viewUserProfile(post.userId)" />
+                        <span class="username" @click="viewUserProfile(post.userId)">{{ post.username }}</span>
+                        <el-button 
+                          size="small" 
+                          :type="post.isFollowed ? 'success' : 'default'" 
+                          plain
+                          class="follow-button"
+                          @click="followUser(post.userId)"
+                        >
+                          {{ post.isFollowed ? '已关注' : '关注' }}
+                        </el-button>
+                        <span class="time">{{ post.time }}</span>
+                      </div>
+                    </div>
+                  </template>
+                  
+                  <div class="post-content">
+                    <h3>{{ post.title }}</h3>
+                    <p>{{ post.content }}</p>
+                    
+                    <!-- 图片展示 -->
+                    <div class="post-images" v-if="post.images && post.images.length">
+                      <el-image 
+                        v-for="(img, index) in post.images" 
+                        :key="index"
+                        :src="img"
+                        :preview-src-list="post.images"
+                        fit="cover"
+                        class="post-image"
+                      />
+                    </div>
+                    
+                    <!-- 智能体展示 -->
+                    <div class="post-resources" v-if="post.agents && post.agents.length">
+                      <div class="resource-header">
+                        <el-icon><Connection /></el-icon>
+                        <span>相关智能体</span>
+                      </div>
+                      <div class="resource-list">
+                        <div 
+                          v-for="agent in post.agents" 
+                          :key="agent.id" 
+                          class="resource-item"
+                          @click="viewAgentDetail(agent.id)"
+                        >
+                          <div class="resource-item-icon">AI</div>
+                          <div class="resource-item-content">
+                            <div class="resource-item-name">{{ agent.name }}</div>
+                            <div class="resource-item-creator">by {{ agent.creator.username }}</div>
+                          </div>
+                          <el-button 
+                            size="small" 
+                            :type="agent.isFollowed ? 'success' : 'primary'"
+                            @click.stop="followAgent(agent)"
+                          >
+                            {{ agent.isFollowed ? '已关注' : '关注' }}
+                          </el-button>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <!-- 知识库展示 -->
+                    <div class="post-resources" v-if="post.knowledgeBases && post.knowledgeBases.length">
+                      <div class="resource-header">
+                        <el-icon><Collection /></el-icon>
+                        <span>相关知识库</span>
+                      </div>
+                      <div class="resource-list">
+                        <div 
+                          v-for="kb in post.knowledgeBases" 
+                          :key="kb.id" 
+                          class="resource-item"
+                          @click="viewKnowledgeBaseDetail(kb.id)"
+                        >
+                          <div class="resource-item-icon">KB</div>
+                          <div class="resource-item-content">
+                            <div class="resource-item-name">{{ kb.name }}</div>
+                            <div class="resource-item-creator">by {{ kb.creator.username }}</div>
+                          </div>
+                          <el-button 
+                            size="small" 
+                            :type="kb.isFollowed ? 'success' : 'primary'"
+                            @click.stop="followKnowledgeBase(kb)"
+                          >
+                            {{ kb.isFollowed ? '已关注' : '关注' }}
+                          </el-button>
+                        </div>
+                      </div>
+                    </div>
+                  </div><!-- End of post-content -->
+                  <div class="post-footer">
+                    <div class="post-actions">
+                      <el-button 
+                        :type="post.isLiked ? 'primary' : 'text'" 
+                        @click="likePost(post)"
+                      >
+                        <el-icon><Pointer /></el-icon>
+                        {{ post.likes }}
+                      </el-button>
+                      <el-button type="text" @click="showCommentDialog(post)">
+                        <el-icon><ChatDotRound /></el-icon>
+                        {{ post.comments.length }}
+                      </el-button>
+                      <el-button 
+                        :type="post.isFavorited ? 'warning' : 'text'" 
+                        @click="favoritePost(post)"
+                      >
+                        <el-icon><Star /></el-icon>
+                        {{ post.isFavorited ? '已收藏' : '收藏' }}
+                      </el-button>
+                      <el-button type="text" @click="sharePost(post)">
+                        <el-icon><Share /></el-icon>
+                        分享
+                      </el-button>
+                    </div>
+                    <el-button type="primary" size="small" @click="showCommentDialog(post)">评论</el-button>
+                  </div>
+                </el-card>
+              </div>
+              
+              <!-- 分页 -->
+              <div v-if="posts.length > 0" class="pagination">
+                <el-pagination
+                  v-model:current-page="currentPage"
+                  v-model:page-size="pageSize"
+                  :page-sizes="[10, 20, 30, 50]"
+                  layout="total, sizes, prev, pager, next"
+                  :total="total"
+                  @size-change="handleSizeChange"
+                  @current-change="handleCurrentChange"
+                />
+              </div>
+            </div>
+          </template>
+          
+          <!-- 热门智能体选项卡 -->
+          <template v-else-if="activeMenu === '2'">
+            <HotAgents />
+          </template>
+          
+          <!-- 热门知识库选项卡 -->
+          <template v-else-if="activeMenu === '3'">
+            <HotKnowledgeBases />
+          </template>
+          
+          <!-- 开源智能体选项卡 -->
+          <template v-else-if="activeMenu === '5'">
+            <OpenSource />
+          </template>
+        </el-main>
+        
+        <el-aside width="320px" class="community-sidebar">
+          <!-- 最近编辑卡片 -->
+          <div class="sidebar-card">
+            <div class="card-header">
+              <h3 class="card-title">最近编辑</h3>
+            </div>
+            <div v-if="recentEditItems.length === 0" class="empty-placeholder">
+              <el-empty description="暂无最近编辑内容" :image-size="80"></el-empty>
+            </div>
+            <div v-else class="card-content">
+              <div 
+                class="recent-edit-card" 
+                v-for="item in recentEditItems.slice(0, 5)" 
+                :key="item.id" 
+                @click="navigateToItem(item)"
+              >
+                <div class="item-icon" :class="getItemIconClass(item.type)">
+                  <el-icon v-if="item.type === 'agent'"><Connection /></el-icon>
+                  <el-icon v-else-if="item.type === 'kb'"><Collection /></el-icon>
+                  <el-icon v-else><Document /></el-icon>
+                </div>
+                <div class="item-content">
+                  <div class="item-title text-truncate">{{ item.name }}</div>
+                  <div class="item-meta">
+                    <el-tag size="small" :type="getItemTagType(item.type)" effect="plain">
+                      {{ item.isDraft ? '智能体草稿' : getItemTypeLabel(item.type) }}
+                    </el-tag>
+                    <span class="item-time">{{ item.lastEditTime }}</span>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
-        </template>
-        
-        <!-- 热门智能体选项卡 -->
-        <template v-else-if="activeMenu === '2'">
-          <HotAgents />
-        </template>
-        
-        <!-- 热门知识库选项卡 -->
-        <template v-else-if="activeMenu === '3'">
-          <HotKnowledgeBases />
-        </template>
-        
-        <!-- 开源智能体选项卡 -->
-        <template v-else-if="activeMenu === '5'">
-          <OpenSource />
-        </template>
-      </el-main>
+          
+          <!-- 我的收藏卡片 -->
+          <div class="sidebar-card">
+            <div class="card-header">
+              <h3 class="card-title">我的收藏</h3>
+              <router-link to="/my-favorites?type=post" class="view-more">查看更多</router-link>
+            </div>
+            <div v-if="myFavoritePosts.length === 0" class="empty-placeholder">
+              <el-empty description="暂无收藏的帖子" :image-size="80"></el-empty>
+            </div>
+            <div v-else class="card-content">
+              <div 
+                class="favorite-card" 
+                v-for="item in myFavoritePosts" 
+                :key="item.id" 
+                @click="router.push(`/post/${item.id}`)"
+              >
+                <div class="favorite-icon">
+                  <el-icon><Document /></el-icon>
+                </div>
+                <div class="favorite-content">
+                  <div class="favorite-title text-truncate">{{ item.title }}</div>
+                  <div class="favorite-meta">
+                    <span class="favorite-author">{{ item.authorName }}</span>
+                    <span class="favorite-date">{{ item.favoriteTime }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </el-aside>
+      </el-container>
     </el-container>
 
     <!-- 发帖对话框 -->
@@ -348,12 +406,25 @@
       width="40%"
     >
       <div class="comment-list">
+        <!-- 评论对话框中的评论项 -->
         <div v-for="comment in currentPost?.comments" :key="comment.id" class="comment-item">
           <el-avatar :size="32" :src="comment.avatar" />
           <div class="comment-content">
             <div class="comment-header">
               <span class="username">{{ comment.username }}</span>
-              <span class="time">{{ comment.time }}</span>
+              <div class="comment-actions">
+                <span class="time">{{ comment.time }}</span>
+                <!-- 添加删除按钮，仅对评论作者或帖子作者显示 -->
+                <el-button 
+                  v-if="canDeleteComment(comment)" 
+                  text 
+                  type="danger" 
+                  size="small" 
+                  @click.stop="confirmDeleteComment(comment)"
+                >
+                  <el-icon><Delete /></el-icon> 删除
+                </el-button>
+              </div>
             </div>
             <p>{{ comment.content }}</p>
           </div>
@@ -457,7 +528,9 @@ import {
   RefreshRight,
   Collection,
   Connection,
-  User as UserIcon
+  User as UserIcon,
+  Delete,
+  Warning // 添加 Warning 导入
 } from '@element-plus/icons-vue'
 import HotAgents from './HotAgents.vue'
 import HotKnowledgeBases from './HotKnowledgeBases.vue'
@@ -472,7 +545,13 @@ const total = ref(100)
 const commentContent = ref('')
 const currentPost = ref<Post | null>(null)
 const loading = ref(false)
-
+const getItemTagType = (type) => {
+  switch (type) {
+    case 'agent': return 'primary'
+    case 'kb': return 'success'
+    default: return 'warning'
+  }
+}
 // 处理菜单选择
 const handleMenuSelect = (key) => {
   // 如果是公告选项，不进行页面切换
@@ -787,8 +866,16 @@ const posts = ref<Post[]>([
         id: 'agent1',
         name: '英语学习助手',
         description: '帮助学习英语的智能体',
-        creator: { id: 101, username: '用户A', avatar: 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png' },
+        creator: { id: 1, username: '当前用户', avatar: userInfo.avatar },
         followCount: 35,
+        isFollowed: false
+      },
+      {
+        id: 'agent2',
+        name: '编程教练',
+        description: '辅助编程学习和解决问题',
+        creator: { id: 1, username: '当前用户', avatar: userInfo.avatar },
+        followCount: 128,
         isFollowed: false
       }
     ],
@@ -797,9 +884,18 @@ const posts = ref<Post[]>([
         id: 'kb1',
         name: '机器学习笔记',
         description: '机器学习相关的学习笔记和资料',
-        creator: { id: 101, username: '用户A', avatar: 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png' },
+        creator: { id: 1, username: '当前用户', avatar: userInfo.avatar },
         fileCount: 15,
         followCount: 42,
+        isFollowed: false
+      },
+      {
+        id: 'kb2',
+        name: '产品文档',
+        description: '产品相关的文档和说明',
+        creator: { id: 1, username: '当前用户', avatar: userInfo.avatar },
+        fileCount: 8,
+        followCount: 17,
         isFollowed: false
       }
     ]
@@ -1147,6 +1243,21 @@ const viewUserProfile = (userId) => {
 
 // 关注用户
 const followUser = async (userId) => {
+  const currentUserId = getCurrentUserId();
+  
+  // 检查是否已登录
+  if (currentUserId === null) {
+    ElMessage.error('请先登录');
+    router.push('/login');
+    return;
+  }
+  
+  // 防止自己关注自己
+  if (currentUserId === userId) {
+    ElMessage.warning('不能关注自己');
+    return;
+  }
+  
   try {
     const token = localStorage.getItem('token')
     if (!token) {
@@ -1491,6 +1602,104 @@ const handleCommentSubmit = async () => {
   }
 }
 
+// 判断是否可以删除评论
+const canDeleteComment = (comment) => {
+  const userId = getCurrentUserId()
+  return comment.userId === userId || currentPost.value?.userId === userId
+}
+
+// 获取当前用户ID
+const getCurrentUserId = () => {
+  try {
+    
+    // 其次尝试从本地存储获取
+    const storedUserId = localStorage.getItem('userId');
+    if (storedUserId) {
+      return parseInt(storedUserId, 10);
+    }
+    
+    // 最后尝试从 token 解析
+    const token = localStorage.getItem('token');
+    if (token) {
+      // 如果使用JWT，可以尝试解析token获取用户ID
+      // 注意: 这种方法只适用于JWT，且ID需要包含在payload中
+      try {
+        const base64Url = token.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const payload = JSON.parse(window.atob(base64));
+        if (payload.userId || payload.user_id || payload.id) {
+          return payload.userId || payload.user_id || payload.id;
+        }
+      } catch (tokenError) {
+        console.error('解析token失败:', tokenError);
+      }
+    }
+    
+    // 所有方法都失败，返回null表示未登录或获取失败
+    console.warn('无法获取当前用户ID，用户可能未登录');
+    return null;
+  } catch (error) {
+    console.error('获取当前用户ID时发生错误:', error);
+    return null;
+  }
+};
+
+// 确认删除评论
+const confirmDeleteComment = (comment) => {
+  ElMessageBox.confirm('确定要删除这条评论吗？', '删除确认', {
+    confirmButtonText: '删除',
+    cancelButtonText: '取消',
+    type: 'warning'
+  }).then(() => {
+    deleteComment(comment.id)
+  }).catch(() => {})
+}
+
+// 删除评论
+const deleteComment = async (commentId) => {
+  try {
+    const token = localStorage.getItem('token')
+    if (!token) {
+      ElMessage.error('请先登录')
+      return
+    }
+    
+    // 删除评论请求
+    const response = await fetch(`/user/comment/post/delete/${commentId}/`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    })
+    
+    if (!response.ok) {
+      throw new Error('删除评论失败')
+    }
+    
+    const result = await response.json()
+    console.log('删除评论结果:', result)
+    if (result.code === 200) {
+      // 更新当前帖子的评论列表
+      currentPost.value.comments = currentPost.value.comments.filter(c => c.id !== commentId)
+      
+      // 更新帖子列表中的评论数量
+      posts.value.forEach(post => {
+        if (post.id === currentPost.value.id) {
+          post.comments = currentPost.value.comments
+        }
+      })
+      
+      ElMessage.success('评论已删除')
+    } else {
+      throw new Error(result.message || '删除评论失败')
+    }
+  } catch (error) {
+    console.error('删除评论失败:', error)
+    ElMessage.error('删除评论失败，请稍后重试')
+  }
+}
+
 // 退出登录
 const handleLogout = () => {
   ElMessageBox.confirm('确定要退出登录吗？', '提示', {
@@ -1565,6 +1774,317 @@ fetchUserInfo()
 // 获取帖子列表
 fetchPosts()
 
+// 引入额外需要的图标
+import { View, Document } from '@element-plus/icons-vue'
+
+// 我的收藏 - 智能体
+const myFavoriteAgents = ref([])
+// 我的收藏 - 知识库
+const myFavoriteKbs = ref([])
+// 我的收藏 - 帖子
+const myFavoritePosts = ref([])
+// 最近编辑的内容
+const recentEditItems = ref([])
+// 热门智能体
+const hotAgents = ref([])
+// 热门知识库
+const hotKnowledgeBases = ref([])
+// 活跃用户
+const activeUsers = ref([])
+// 热门标签
+const hotTags = ref([])
+
+// 获取我收藏的智能体
+const fetchMyFavoriteAgents = async () => {
+  try {
+    const token = localStorage.getItem('token')
+    if (!token) return
+    
+    const response = await fetch('/user/favorites/agents?limit=5', {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
+    
+    if (!response.ok) throw new Error('获取收藏智能体失败')
+    
+    const result = await response.json()
+    if (result.code === 200) {
+      myFavoriteAgents.value = result.data || []
+    }
+  } catch (error) {
+    console.error('获取收藏智能体失败:', error)
+    // 模拟数据
+    myFavoriteAgents.value = [
+      { id: 'a1', name: '英语学习助手', favoriteTime: '2025-05-15' },
+      { id: 'a2', name: '数据分析专家', favoriteTime: '2025-05-10' }
+    ]
+  }
+}
+
+// 获取我收藏的知识库
+const fetchMyFavoriteKbs = async () => {
+  try {
+    const token = localStorage.getItem('token')
+    if (!token) return
+    
+    const response = await fetch('/user/favorites/knowledge-bases?limit=5', {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
+    
+    if (!response.ok) throw new Error('获取收藏知识库失败')
+    
+    const result = await response.json()
+    if (result.code === 200) {
+      myFavoriteKbs.value = result.data || []
+    }
+  } catch (error) {
+    console.error('获取收藏知识库失败:', error)
+    // 模拟数据
+    myFavoriteKbs.value = [
+      { id: 'kb1', name: '机器学习教程', favoriteTime: '2025-05-18' },
+      { id: 'kb2', name: 'AI研究论文集', favoriteTime: '2025-05-09' }
+    ]
+  }
+}
+
+// 获取我收藏的帖子
+const fetchMyFavoritePosts = async () => {
+  try {
+    const token = localStorage.getItem('token')
+    if (!token) return
+    
+    const response = await fetch('/community/favorites/posts?limit=5', {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
+    
+    if (!response.ok) throw new Error('获取收藏帖子失败')
+    
+    const result = await response.json()
+    if (result.code === 200) {
+      myFavoritePosts.value = result.data || []
+    }
+  } catch (error) {
+    console.error('获取收藏帖子失败:', error)
+    // 模拟数据
+    myFavoritePosts.value = [
+      { id: 1, title: '如何高效学习AI', favoriteTime: '2025-05-17' },
+      { id: 2, title: '分享我的智能体使用心得', favoriteTime: '2025-05-14' }
+    ]
+  }
+}
+
+// 获取最近编辑的内容
+const fetchRecentEditItems = async () => {
+  try {
+    const token = localStorage.getItem('token')
+    if (!token) return
+    
+    const response = await fetch('/community/recent-edited', {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
+    
+    if (!response.ok) throw new Error('获取最近编辑内容失败')
+    
+    const result = await response.json()
+    if (result.code === 200) {
+      recentEditItems.value = result.data || []
+    }
+  } catch (error) {
+    console.error('获取最近编辑内容失败:', error)
+    // 模拟数据
+    recentEditItems.value = [
+      { id: 'a1', name: '英语学习助手', type: 'agent', lastEditTime: '2025-05-19 10:30' },
+      { id: 'kb1', name: '机器学习教程', type: 'kb', lastEditTime: '2025-05-18 15:45' },
+      { id: 'a2', name: '数据分析专家', type: 'agent', lastEditTime: '2025-05-17 09:20' }
+    ]
+  }
+}
+
+// 获取热门智能体
+const fetchHotAgents = async () => {
+  try {
+    const response = await fetch('/community/hot-agents?limit=5')
+    
+    if (!response.ok) throw new Error('获取热门智能体失败')
+    
+    const result = await response.json()
+    if (result.code === 200) {
+      hotAgents.value = result.data.map((item, index) => ({
+        ...item,
+        ranking: index + 1
+      }))
+    }
+  } catch (error) {
+    console.error('获取热门智能体失败:', error)
+    // 模拟数据
+    hotAgents.value = [
+      { id: 'a1', name: '智能写作助手', views: 3580, likes: 1250, ranking: 1 },
+      { id: 'a2', name: '数据分析专家', views: 3200, likes: 980, ranking: 2 },
+      { id: 'a3', name: '编程教练', views: 2800, likes: 850, ranking: 3 },
+      { id: 'a4', name: '英语学习助手', views: 2500, likes: 780, ranking: 4 },
+      { id: 'a5', name: '健康顾问', views: 2100, likes: 650, ranking: 5 }
+    ]
+  }
+}
+
+// 获取热门知识库
+const fetchHotKnowledgeBases = async () => {
+  try {
+    const response = await fetch('/community/hot-knowledge-bases?limit=5')
+    
+    if (!response.ok) throw new Error('获取热门知识库失败')
+    
+    const result = await response.json()
+    if (result.code === 200) {
+      hotKnowledgeBases.value = result.data.map((item, index) => ({
+        ...item,
+        ranking: index + 1
+      }))
+    }
+  } catch (error) {
+    console.error('获取热门知识库失败:', error)
+    // 模拟数据
+    hotKnowledgeBases.value = [
+      { id: 'kb1', name: 'AI研究论文集', views: 3280, likes: 1350, ranking: 1 },
+      { id: 'kb2', name: '机器学习教程', views: 2950, likes: 1080, ranking: 2 },
+      { id: 'kb3', name: '前端开发指南', views: 2600, likes: 920, ranking: 3 },
+      { id: 'kb4', name: '数据结构与算法', views: 2300, likes: 850, ranking: 4 },
+      { id: 'kb5', name: '产品设计理念', views: 1900, likes: 720, ranking: 5 }
+    ]
+  }
+}
+
+// 获取活跃用户
+const fetchActiveUsers = async () => {
+  try {
+    const response = await fetch('/community/active-users?limit=5')
+    
+    if (!response.ok) throw new Error('获取活跃用户失败')
+    
+    const result = await response.json()
+    if (result.code === 200) {
+      activeUsers.value = result.data.map((item, index) => ({
+        ...item,
+        ranking: index + 1
+      }))
+    }
+  } catch (error) {
+    console.error('获取活跃用户失败:', error)
+    // 模拟数据
+    activeUsers.value = [
+      { id: 101, username: 'AI专家', avatar: 'https://example.com/avatar1.jpg', contribution: 580, isFollowed: false, ranking: 1 },
+      { id: 102, username: '数据科学家', avatar: 'https://example.com/avatar2.jpg', contribution: 520, isFollowed: true, ranking: 2 },
+      { id: 103, username: '前端大师', avatar: 'https://example.com/avatar3.jpg', contribution: 480, isFollowed: false, ranking: 3 },
+      { id: 104, username: '技术讲师', avatar: 'https://example.com/avatar4.jpg', contribution: 420, isFollowed: false, ranking: 4 },
+      { id: 105, username: '产品经理', avatar: 'https://example.com/avatar5.jpg', contribution: 380, isFollowed: false, ranking: 5 }
+    ]
+  }
+}
+
+// 获取热门标签
+const fetchHotTags = async () => {
+  try {
+    const response = await fetch('/community/hot-tags?limit=20')
+    
+    if (!response.ok) throw new Error('获取热门标签失败')
+    
+    const result = await response.json()
+    if (result.code === 200) {
+      hotTags.value = result.data || []
+    }
+  } catch (error) {
+    console.error('获取热门标签失败:', error)
+    // 模拟数据
+    hotTags.value = [
+      { id: 1, name: '人工智能', count: 250 },
+      { id: 2, name: '机器学习', count: 220 },
+      { id: 3, name: '深度学习', count: 180 },
+      { id: 4, name: 'Python', count: 150 },
+      { id: 5, name: '数据分析', count: 140 },
+      { id: 6, name: '前端开发', count: 130 },
+      { id: 7, name: 'JavaScript', count: 125 },
+      { id: 8, name: '自然语言处理', count: 120 },
+      { id: 9, name: '计算机视觉', count: 110 },
+      { id: 10, name: '推荐系统', count: 100 }
+    ]
+  }
+}
+
+// 根据标签筛选
+const filterByTag = (tagName) => {
+  router.push({
+    path: '/search',
+    query: {
+      q: tagName,
+      type: 'tag'
+    }
+  })
+}
+
+// 获取标签类型（用于显示不同颜色）
+const getTagType = (tag) => {
+  const types = ['', 'success', 'warning', 'danger', 'info']
+  return types[tag.id % types.length]
+}
+
+// 获取内容类型图标样式
+const getItemIconClass = (type) => {
+  switch (type) {
+    case 'agent': return 'agent-icon'
+    case 'kb': return 'kb-icon'
+    default: return 'post-icon'
+  }
+}
+
+// 获取内容类型标签
+const getItemTypeLabel = (type) => {
+  switch (type) {
+    case 'agent': return '智能体'
+    case 'kb': return '知识库'
+    default: return '帖子'
+  }
+}
+
+// 导航到对应项目
+const navigateToItem = (item) => {
+  switch (item.type) {
+    case 'agent':
+      // 智能体导航
+      if (item.isDraft) {
+        // 如果是草稿
+        router.push(`/agent-drafts/edit/${item.id}`)
+      } else {
+        // 已发布的智能体
+        router.push(`/agent-editor?id=${item.id}`)
+      }
+      break
+    case 'kb':
+      // 知识库导航
+      router.push(`/knowledge-base/${item.id}`)
+      break
+    default:
+      // 帖子导航
+      router.push(`/post/${item.id}`)
+  }
+}
+
+// 在组件挂载时加载数据
+onMounted(() => {
+  // 原有的加载
+  fetchUserInfo()
+  fetchPosts()
+  checkNewAnnouncements()
+  
+  fetchMyFavoritePosts()
+  fetchRecentEditItems()
+})
 </script>
 
 <style scoped>
@@ -1618,8 +2138,8 @@ fetchPosts()
 }
 
 .post-list {
-  max-width: 800px;
-  margin: 0 auto;
+  max-width: 1000px;
+  margin: 0 0 0 auto;
 }
 
 .post-header {
@@ -1864,5 +2384,199 @@ fetchPosts()
 .search-container {
   width: 300px;
   margin-right: 15px;
+}
+
+.el-main {
+  padding: 20px 10px 20px 20px; /* 减少右侧内边距 */
+}
+
+.community-sidebar {
+  padding: 16px 16px 16px 10px; /* 减少左侧内边距 */
+  background-color: #f8f9fa;
+  overflow-y: auto;
+  height: calc(100vh - 60px);
+}
+.sidebar-card {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  margin-bottom: 20px;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.sidebar-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+}
+
+.card-header {
+  padding: 16px 16px 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #f0f2f5;
+}
+
+.card-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #303133;
+}
+
+.view-more {
+  font-size: 13px;
+  color: #409eff;
+  text-decoration: none;
+}
+
+.view-more:hover {
+  text-decoration: underline;
+}
+
+.card-content {
+  padding: 12px;
+}
+
+/* 最近编辑卡片样式 */
+.recent-edit-card {
+  display: flex;
+  align-items: center;
+  padding: 12px;
+  border-radius: 8px;
+  margin-bottom: 10px;
+  cursor: pointer;
+  transition: background-color 0.2s, transform 0.2s;
+  border: 1px solid #f0f2f5;
+}
+
+.recent-edit-card:last-child {
+  margin-bottom: 0;
+}
+
+.recent-edit-card:hover {
+  background-color: #f5f7fa;
+  transform: translateX(4px);
+}
+
+.item-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 12px;
+  font-size: 18px;
+}
+
+.agent-icon {
+  background: linear-gradient(135deg, #409eff, #79bbff);
+}
+
+.kb-icon {
+  background: linear-gradient(135deg, #67c23a, #95d475);
+}
+
+.post-icon {
+  background: linear-gradient(135deg, #e6a23c, #f3d19e);
+}
+
+.item-content {
+  flex: 1;
+  overflow: hidden;
+}
+
+.item-title {
+  font-weight: 500;
+  color: #303133;
+  margin-bottom: 6px;
+  font-size: 14px;
+}
+
+.item-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+}
+
+.item-time {
+  color: #909399;
+}
+
+/* 收藏卡片样式 */
+.favorite-card {
+  display: flex;
+  align-items: center;
+  padding: 12px;
+  border-radius: 8px;
+  margin-bottom: 10px;
+  cursor: pointer;
+  transition: background-color 0.2s, transform 0.2s;
+  border: 1px solid #f0f2f5;
+}
+
+.favorite-card:last-child {
+  margin-bottom: 0;
+}
+
+.favorite-card:hover {
+  background-color: #f5f7fa;
+  transform: translateX(4px);
+}
+
+.favorite-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #e6a23c, #f3d19e);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 12px;
+  font-size: 18px;
+}
+
+.favorite-content {
+  flex: 1;
+  overflow: hidden;
+}
+
+.favorite-title {
+  font-weight: 500;
+  color: #303133;
+  margin-bottom: 6px;
+  font-size: 14px;
+}
+
+.favorite-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: #909399;
+}
+
+.favorite-author {
+  color: #606266;
+  font-weight: 500;
+}
+
+.favorite-date {
+  color: #909399;
+}
+
+/* 通用工具类 */
+.text-truncate {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.empty-placeholder {
+  padding: 20px 0;
 }
 </style>

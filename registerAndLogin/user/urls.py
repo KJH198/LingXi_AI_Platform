@@ -68,6 +68,10 @@ from .views import (
     UserPostsView, 
     UserPublicAgentsView, 
     UserPublicKnowledgeBasesView, 
+    UserFollowedKnowledgeBasesView,
+    PostCommentDeleteView,
+    AgentCommentDeleteView,
+    KnowledgeBaseCommentDeleteView,
 )
 
 urlpatterns = [
@@ -148,14 +152,17 @@ urlpatterns = [
     path('knowledge-bases/list/', UserKnowledgeBaseListView.as_view(), name='user_knowledge_base_list'),
     path('agent/<str:agent_id>/edit-detail/', AgentEditDetailView.as_view(), name='agent_edit_detail'),
     path('agent/<str:agent_id>/update/', AgentUpdateView.as_view(), name='agent_update'),
-    
+    path('followed/knowledge-bases', UserFollowedKnowledgeBasesView.as_view(), name='user_followed_knowledge_bases'),
+
     # 帖子相关路由
     path('post/create/', PostCreateView.as_view(), name='post_create'),
     path('post/upload-images/', PostImageUploadView.as_view(), name='post_image_upload'),
     path('like/post/<int:postId>/', PostLikeView.as_view(), name='post_like'),
     path('favorite/post/<int:postId>/', PostFavoriteView.as_view(), name='post_favorite'),
     path('comment/post/<int:postId>/', PostCommentView.as_view(), name='post_comment'),
-    
+    path('comment/post/delete/<int:commentId>/', PostCommentDeleteView.as_view(), name='delete_post_comment'),
+    path('comment/agent/<int:commentId>/', AgentCommentDeleteView.as_view(), name='delete_agent_comment'),
+    path('comment/knowledge-base/<int:commentId>/', KnowledgeBaseCommentDeleteView.as_view(), name='delete_knowledge_base_comment'),
     # 关注相关路由
     path('follow/agent/<int:agentId>/', AgentFollowView.as_view(), name='agent_follow'),
     path('follow/knowledge-base/<int:kbId>/', KnowledgeBaseFollowView.as_view(), name='knowledge_base_follow'),

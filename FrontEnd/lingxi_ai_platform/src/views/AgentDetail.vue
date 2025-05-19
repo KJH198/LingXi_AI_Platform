@@ -206,6 +206,17 @@
                     <el-button text size="small" @click="replyComment(comment)">
                       <el-icon><ChatLineRound /></el-icon> 回复
                     </el-button>
+                    
+                    <!-- 添加删除按钮，仅对评论作者或智能体创建者显示 -->
+                    <el-button 
+                      v-if="canDeleteComment(comment)" 
+                      text 
+                      type="danger" 
+                      size="small" 
+                      @click="confirmDeleteComment(comment)"
+                    >
+                      <el-icon><Delete /></el-icon> 删除
+                    </el-button>
                   </div>
                   
                   <!-- 回复列表 -->
@@ -274,7 +285,8 @@ import {
   Warning, 
   Check, 
   Document,
-  ChatLineRound 
+  ChatLineRound,
+  Delete
 } from '@element-plus/icons-vue'
 
 const route = useRoute()
@@ -352,18 +364,40 @@ const canFork = computed(() => {
   return agentData.creator.id !== getCurrentUserId()
 })
 
-// 获取当前登录用户ID
 const getCurrentUserId = () => {
-  const userInfo = localStorage.getItem('userInfo')
-  if (userInfo) {
-    try {
-      return JSON.parse(userInfo).id || 0
-    } catch (e) {
-      return 0
+  try {
+    
+    // 其次尝试从本地存储获取
+    const storedUserId = localStorage.getItem('userId');
+    if (storedUserId) {
+      return parseInt(storedUserId, 10);
     }
+    
+    // 最后尝试从 token 解析
+    const token = localStorage.getItem('token');
+    if (token) {
+      // 如果使用JWT，可以尝试解析token获取用户ID
+      // 注意: 这种方法只适用于JWT，且ID需要包含在payload中
+      try {
+        const base64Url = token.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const payload = JSON.parse(window.atob(base64));
+        if (payload.userId || payload.user_id || payload.id) {
+          return payload.userId || payload.user_id || payload.id;
+        }
+      } catch (tokenError) {
+        console.error('解析token失败:', tokenError);
+      }
+    }
+    
+    // 所有方法都失败，返回null表示未登录或获取失败
+    console.warn('无法获取当前用户ID，用户可能未登录');
+    return null;
+  } catch (error) {
+    console.error('获取当前用户ID时发生错误:', error);
+    return null;
   }
-  return 0
-}
+};
 
 // 获取用户头像
 const fetchUserAvatar = () => {
@@ -816,10 +850,11 @@ const likeComment = async (comment) => {
       ElMessage.error('请先登录')
       return
     }
-    
+    console.log('点赞评论', comment)
+    const isLiked = comment.isLiked
     // 点赞评论请求
     const response = await fetch(`/comment/${comment.id}/like/`, {
-      method: 'POST',
+      method: isLiked ? 'DELETE' : 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
@@ -832,7 +867,9 @@ const likeComment = async (comment) => {
     
     const result = await response.json()
     if (result.code === 200) {
-      comment.likes += 1
+      // 更新状态
+      comment.isLiked = !isLiked
+      comment.likes = isLiked ? comment.likes - 1 : comment.likes + 1
       ElMessage.success('点赞成功')
     } else {
       throw new Error(result.message || '点赞失败')
@@ -1013,6 +1050,56 @@ const handlePageChange = (page) => {
   currentPage.value = page
   // 实际项目中应该加载指定页的评论
   // 这里仅作示例，不做实际处理
+}
+
+// 检查评论是否可以删除
+const canDeleteComment = (comment) => {
+  const userId = getCurrentUserId()
+  return comment.user.id === userId || agentData.creator.id === userId
+}
+
+// 确认删除评论
+const confirmDeleteComment = (comment) => {
+  ElMessageBox.confirm('确定要删除这条评论吗？', '删除评论', {
+    confirmButtonText: '确定',
+    cancelButtonText: '取消',
+    type: 'warning'
+  }).then(async () => {
+    try {
+      const token = localStorage.getItem('token')
+      if (!token) {
+        ElMessage.error('请先登录')
+        return
+      }
+      
+      // 删除评论请求
+      const response = await fetch(`/user/comment/agent/${comment.id}/`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+      
+      if (!response.ok) {
+        throw new Error('删除评论失败')
+      }
+      
+      const result = await response.json()
+      if (result.code === 200) {
+        ElMessage.success('评论已删除')
+        
+        // 更新评论列表
+        agentData.comments = agentData.comments.filter(c => c.id !== comment.id)
+        totalComments.value -= 1
+      } else {
+        throw new Error(result.message || '删除评论失败')
+      }
+    } catch (error) {
+      console.error('删除评论失败:', error)
+      ElMessage.error('删除评论失败，请稍后重试')
+    }
+  }).catch(() => {})
 }
 
 onMounted(() => {
