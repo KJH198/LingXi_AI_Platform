@@ -186,12 +186,19 @@ class UserActionLog(models.Model):
         ('delete_agent', '删除智能体'),
         ('follow', '关注用户'),
         ('unfollow', '取消关注'),
+        ('like_post', '点赞帖子'),
+        ('comment_post', '评论帖子'),
+        ('unlike_post', '取消点赞'),
+        ('favorite_post', '收藏帖子'),
+        ('unfavorite_post', '取消收藏'),
+        ('delete_post_comment', '删除评论'),
     ]
     
     Type_CHOICES = [
         ('agent', '智能体'),
         ('post', '帖子'),
         ('comment', '评论'),
+        ('post_comment', '评论'),
         ('knowledge_base', '知识库'),
         ('user', '用户'),
         ('other', '其他')
