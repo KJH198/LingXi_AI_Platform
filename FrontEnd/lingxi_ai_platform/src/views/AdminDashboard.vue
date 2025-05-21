@@ -14,6 +14,7 @@
             <el-menu-item index="1">用户管理</el-menu-item>
             <el-menu-item index="2">行为管理</el-menu-item>
             <el-menu-item index="3">智能体审核</el-menu-item>
+            <el-menu-item index="kb_review">知识库审核</el-menu-item>
             <el-menu-item index="4">公告管理</el-menu-item>
           </el-menu>
         </div>
@@ -744,6 +745,182 @@
           </template>
         </el-dialog>
 
+        <div v-if="activeMenu === 'kb_review'" class="kb-review"> <!-- 修改 v-if 条件 -->
+          <el-card class="review-card"> <!-- 可以复用样式类名 -->
+            <template #header>
+              <div class="card-header">
+                <h3>知识库审核</h3> <!-- 修改标题 -->
+                <div class="search-box">
+                  <el-input
+                    v-model="kbSearchQuery"
+                    placeholder="搜索知识库ID/名称"
+                    class="search-input"
+                    clearable
+                    @keyup.enter="handleKbSearch"
+                  >
+                    <template #append>
+                      <el-button @click="handleKbSearch">搜索</el-button>
+                    </template>
+                  </el-input>
+                </div>
+              </div>
+            </template>
+
+            <!-- 审核统计信息 -->
+            <div class="review-stats"> <!-- 可以复用样式类名 -->
+              <el-row :gutter="20">
+                <el-col :span="8">
+                  <el-card shadow="hover" class="stat-card">
+                    <template #header>
+                      <div class="stat-header">
+                        <el-icon><Document /></el-icon>
+                        <span>待审核</span>
+                      </div>
+                    </template>
+                    <div class="stat-content">
+                      <span class="stat-number">{{ pendingKbs }}</span> <!-- 新的统计变量 -->
+                      <span class="stat-unit">个</span>
+                    </div>
+                  </el-card>
+                </el-col>
+                <el-col :span="8">
+                  <el-card shadow="hover" class="stat-card">
+                    <template #header>
+                      <div class="stat-header">
+                        <el-icon><Check /></el-icon>
+                        <span>已通过</span>
+                      </div>
+                    </template>
+                    <div class="stat-content">
+                      <span class="stat-number">{{ approvedKbs }}</span> <!-- 新的统计变量 -->
+                      <span class="stat-unit">个</span>
+                    </div>
+                  </el-card>
+                </el-col>
+                <el-col :span="8">
+                  <el-card shadow="hover" class="stat-card">
+                    <template #header>
+                      <div class="stat-header">
+                        <el-icon><Close /></el-icon>
+                        <span>已拒绝</span>
+                      </div>
+                    </template>
+                    <div class="stat-content">
+                      <span class="stat-number">{{ rejectedKbs }}</span> <!-- 新的统计变量 -->
+                      <span class="stat-unit">个</span>
+                    </div>
+                  </el-card>
+                </el-col>
+              </el-row>
+            </div>
+
+            <!-- 审核列表 -->
+            <div class="review-list"> <!-- 可以复用样式类名 -->
+              <el-table :data="filteredKbListForTable" style="width: 100%" border> <!-- 新的表格数据源 -->
+                <el-table-column prop="kbId" label="知识库ID" width="120" /> <!-- 修改 prop -->
+                <el-table-column prop="kbName" label="知识库名称" width="180" /> <!-- 修改 prop -->
+                <el-table-column prop="submitTime" label="提交时间" width="180" />
+                <el-table-column label="发布者ID" width="150">
+                  <template #default="scope">
+                    <el-tag :type="'info'">
+                      {{ scope.row.creatorId }}
+                    </el-tag>
+                  </template>
+                </el-table-column>
+                <el-table-column label="描述预览"> <!-- 修改标签 -->
+                  <template #default="scope">
+                    <span class="content-text">{{ scope.row.description }}</span> <!-- 显示 description -->
+                  </template>
+                </el-table-column>
+                <el-table-column label="文件数" width="100">
+                    <template #default="scope">
+                        {{ scope.row.fileCount }}
+                    </template>
+                </el-table-column>
+                <el-table-column label="状态" width="100">
+                  <template #default="scope">
+                    <el-tag :type="getReviewStatusTag(scope.row.status)"> <!-- 复用辅助函数 -->
+                      {{ getReviewStatusText(scope.row.status) }}
+                    </el-tag>
+                  </template>
+                </el-table-column>
+                <el-table-column label="操作" width="280">
+                  <template #default="scope">
+                    <div class="action-buttons">
+                      <el-button 
+                        type="primary" 
+                        size="small" 
+                        @click="viewKbDetail(scope.row)"
+                      >
+                        查看详情
+                      </el-button>
+                      <el-button 
+                        type="success" 
+                        size="small" 
+                        @click="handleReviewKb(scope.row, 'approved')"
+                        v-if="scope.row.status === 'pending'"
+                      >
+                        通过
+                      </el-button>
+                      <el-button 
+                        type="danger" 
+                        size="small" 
+                        @click="handleReviewKb(scope.row, 'rejected')"
+                        v-if="scope.row.status === 'pending'"
+                      >
+                        拒绝
+                      </el-button>
+                    </div>
+                  </template>
+                </el-table-column>
+              </el-table>
+
+              <!-- 分页 -->
+              <div class="pagination">
+                <el-pagination
+                  :model-value="kbCurrentPage" 
+                  @update:model-value="handleKbCurrentChange"
+                  :page-size="kbPageSize"
+                  @update:page-size="handleKbSizeChange"
+                  :page-sizes="[10, 20, 30, 50]"
+                  layout="total, sizes, prev, pager, next"
+                  :total="totalKbs"
+                />
+              </div>
+            </div>
+          </el-card>
+        </div>
+
+        <!-- 知识库审核搜索结果对话框 (新增) -->
+        <el-dialog
+          v-model="kbSearchResultDialogVisible"
+          title="知识库详细信息"
+          width="700px"
+        >
+          <!-- selectedKb 是新定义的用于显示知识库详情的变量 -->
+          <el-descriptions v-if="selectedKb" :column="2" border>
+            <el-descriptions-item label="知识库ID">{{ selectedKb.kbId }}</el-descriptions-item>
+            <el-descriptions-item label="知识库名称">{{ selectedKb.kbName }}</el-descriptions-item>
+            <el-descriptions-item label="提交时间">{{ selectedKb.submitTime }}</el-descriptions-item>
+            <el-descriptions-item label="创建者ID">{{ selectedKb.creatorId }}</el-descriptions-item>
+            <el-descriptions-item label="状态">
+              <el-tag :type="getReviewStatusTag(selectedKb.status)">
+                {{ getReviewStatusText(selectedKb.status) }}
+              </el-tag>
+            </el-descriptions-item>
+            <el-descriptions-item label="文件数量">{{ selectedKb.fileCount }}</el-descriptions-item>
+            <el-descriptions-item label="描述" :span="2">{{ selectedKb.description }}</el-descriptions-item>
+            <!-- 根据后端 AdminGetKB 返回的字段添加更多详情 -->
+            <el-descriptions-item label="审核意见" :span="2">{{ selectedKb.reviewNotes || '-' }}</el-descriptions-item>
+          </el-descriptions>
+          <template #footer>
+            <span class="dialog-footer">
+              <el-button @click="kbSearchResultDialogVisible = false">关闭</el-button>
+            </span>
+          </template>
+        </el-dialog>
+
+
         <!-- 公告管理面板 -->
         <div v-if="activeMenu === '4'" class="announcement-management">
           <el-card class="announcement-card">
@@ -890,6 +1067,18 @@ const totalReviews = ref(0);
 const pendingReviews = ref(0);
 const approvedAgents = ref(0);
 const rejectedAgents = ref(0);
+
+// 新增：知识库审核相关变量
+const kbSearchQuery = ref('');
+const allRawKbReviews = ref([]); // 用于存储从后端获取的原始知识库列表
+const totalKbs = ref(0);        // 知识库列表总数
+const pendingKbs = ref(0);      // 待审核知识库数量
+const approvedKbs = ref(0);     // 已通过知识库数量
+const rejectedKbs = ref(0);     // 已拒绝知识库数量
+const selectedKb = ref(null);   // 用于知识库详情弹窗
+const kbSearchResultDialogVisible = ref(false); // 控制知识库详情弹窗
+const kbCurrentPage = ref(1);   // 知识库分页当前页
+const kbPageSize = ref(10);     // 知识库分页大小
 
 // 添加公告管理相关变量
 const announcements = ref([])
@@ -1447,6 +1636,8 @@ const handleMenuSelect = (index) => {
     fetchLoginRecords(); // 点击行为管理时加载登录记录
   } else if (index === '3') {
     fetchAgentReviews();
+  } else if (index === 'kb_review') { // 新增
+    fetchKbReviews();
   } else if (index === '4') {
     handleAnnouncementSearch();
   }
@@ -1955,6 +2146,252 @@ const handleReviewAgent = async (agent, decision) => {
   }
 };
 
+
+
+const filteredKbListForTable = computed(() => {
+  if (!kbSearchQuery.value) {
+    return allRawKbReviews.value; 
+  }
+  const query = kbSearchQuery.value.toLowerCase().trim();
+  if (!query) {
+    return allRawKbReviews.value;
+  }
+  return allRawKbReviews.value.filter(kb => {
+    const nameMatch = kb.kbName && kb.kbName.toLowerCase().includes(query);
+    const idMatch = kb.kbId && kb.kbId.toString().toLowerCase().includes(query);
+    // 还可以根据 creatorId 搜索，如果需要的话
+    // const creatorIdMatch = kb.creatorId && kb.creatorId.toString().toLowerCase().includes(query);
+    return nameMatch || idMatch;
+  });
+});
+
+const fetchKbReviews = async () => {
+  loading.value = true;
+  try {
+    // 1. 获取知识库列表 (来自 /user/admin/knowledgebases, 默认获取待审核)
+    // 后端 AdminGetKB 视图，不带 kb_id 时返回 status='pending' 的列表
+    const listResponse = await fetch('/user/admin/knowledgebases', { // API 路径
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+      }
+    });
+    if (!listResponse.ok) throw new Error('获取知识库列表失败');
+    const listData = await listResponse.json(); // AdminGetKB 返回 {code, message, data: kb_list}
+
+    if (listData.code === 200 && listData.data) {
+      allRawKbReviews.value = listData.data.map(kb => ({
+        kbId: kb.id, // 从后端 id 映射
+        kbName: kb.name,
+        // AdminGetKB 没有直接返回提交时间，可以用创建时间代替或从详情获取
+        // 假设 PublishedAgent 的 created_at 对应知识库的提交时间，这里 AdminGetKB 没有直接返回
+        // submitTime: kb.created_at || new Date().toLocaleDateString(), // 占位，需要后端确认
+        // AdminGetKB 返回 creatorID, fileCount
+        creatorId: kb.creatorID,
+        fileCount: kb.fileCount,
+        description: kb.description || '', // AdminGetKB 返回 description
+        status: kb.status || 'pending', // AdminGetKB 应该返回 status
+        // 以下为详情弹窗可能需要的
+        reviewNotes: kb.review_notes || '', // 假设有审核备注字段
+      }));
+      // AdminGetKB 似乎不直接返回 total 和各状态count, 需要分别统计或修改后端
+      totalKbs.value = allRawKbReviews.value.length; // 临时用列表长度
+    } else {
+      throw new Error(listData.message || '获取知识库列表数据格式错误');
+    }
+
+    // 2. 获取知识库统计数据 (需要后端提供类似 agent_rating 的接口，或者前端自行统计)
+    // 假设后端没有专门的知识库统计接口，我们基于获取到的列表（可能不全）进行统计
+    // 如果 allRawKbReviews 只包含待审核的，这里的统计就不准
+    // 你可能需要一个能获取所有状态知识库并返回统计的接口，或者分别请求不同状态的列表来统计
+    // 为简化，暂时基于当前列表（通常是待审核）统计
+    let pendingCount = 0;
+    let approvedCount = 0;
+    let rejectedCount = 0;
+    
+    // 如果需要准确统计所有状态，需要后端接口支持或者多次请求不同status的列表
+    // 示例：假设我们要调用一个能返回所有知识库的接口来做统计
+    // const allKbResponse = await fetch('/user/admin/knowledgebases?status=all'); // 假设的接口
+    // if (allKbResponse.ok) {
+    //   const allKbData = await allKbResponse.json();
+    //   if (allKbData.code === 200 && allKbData.data) {
+    //     allKbData.data.forEach(kb => {
+    //       if (kb.status === 'pending') pendingCount++;
+    //       else if (kb.status === 'approved') approvedCount++;
+    //       else if (kb.status === 'rejected') rejectedCount++;
+    //     });
+    //   }
+    // }
+    //  由于 AdminGetKB 默认只拉取 pending, 所以这里的统计只会是 pending 的。
+    //  你需要一个接口能拉取所有状态的KB才能做准确统计，或者 AgentRatingView 那样的接口。
+    //  暂时，我们将只显示待审核的数量（如果列表只含待审核）
+    //  或者，如果你的 /user/admin/knowledgebases 能够通过参数获取不同状态的列表，可以多次调用来统计。
+    //  此处假设 AgentRatingView 的逻辑可以复用，但针对知识库 (这是理想情况，但后端没有这样的接口)
+    //  const kbStatsResponse = await fetch('/user/admin/kb_stats_endpoint/'); // 假设的统计接口
+    //  if (kbStatsResponse.ok) {
+    //      const kbStatsData = await kbStatsResponse.json();
+    //      pendingKbs.value = kbStatsData.pending_count || 0;
+    //      approvedKbs.value = kbStatsData.approved_count || 0;
+    //      rejectedKbs.value = kbStatsData.rejected_count || 0;
+    //  } else {
+    //      ElMessage.warn('获取知识库统计数据失败，统计可能不准确');
+    //      pendingKbs.value = allRawKbReviews.value.filter(kb => kb.status === 'pending').length;
+    //      approvedKbs.value = 0; // 无法准确获取
+    //      rejectedKbs.value = 0; // 无法准确获取
+    //  }
+    //  由于 AdminGetKB 默认只返回 status='pending' 的，所以这样统计：
+       pendingKbs.value = allRawKbReviews.value.filter(kb => kb.status === 'pending').length;
+    //  对于 approved 和 rejected，你需要不同的API调用或后端修改 AdminGetKB
+       approvedKbs.value = 0; // 占位 - 需要后端支持
+       rejectedKbs.value = 0; // 占位 - 需要后端支持
+       ElMessage.info('当前仅显示待审核知识库列表，已通过/已拒绝数量需后端支持完整统计接口。');
+
+
+  } catch (error) {
+    console.error('获取知识库审核数据失败:', error);
+    ElMessage.error(error.message || '获取知识库审核数据失败');
+    allRawKbReviews.value = [];
+    totalKbs.value = 0;
+    pendingKbs.value = 0;
+    approvedKbs.value = 0;
+    rejectedKbs.value = 0;
+  } finally {
+    loading.value = false;
+  }
+};
+
+const fetchKbDetail = async (kbId) => {
+  loading.value = true;
+  try {
+    // 后端 AdminGetKB 带 kb_id 的接口
+    const response = await fetch(`/user/admin/knowledgebases/${kbId}`, { 
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+      }
+    });
+    if (!response.ok) throw new Error('获取知识库详情失败');
+    const data = await response.json(); // AdminGetKB 带kb_id时，data直接是kb对象或包含它的列表
+
+    // AdminGetKB 带id时，返回的是单个知识库对象（或者只含一个的列表）
+    // 假设 data.data 是单个对象，或者 data.data[0]
+    let kbDataToProcess = null;
+    if (data.code === 200 && data.data) {
+        kbDataToProcess = Array.isArray(data.data) ? data.data[0] : data.data;
+    }
+
+    if (kbDataToProcess) {
+      return {
+        kbId: kbDataToProcess.id,
+        kbName: kbDataToProcess.name,
+        // submitTime: kbDataToProcess.created_at || new Date().toLocaleDateString(), // 占位
+        creatorId: kbDataToProcess.creatorID,
+        fileCount: kbDataToProcess.fileCount,
+        description: kbDataToProcess.description || '',
+        status: kbDataToProcess.status || 'pending',
+        reviewNotes: kbDataToProcess.review_notes || '', // 假设后端会返回这个
+      };
+    } else {
+      throw new Error('未找到知识库详情或数据格式错误');
+    }
+  } catch (error) {
+    console.error('获取知识库详情失败:', error);
+    ElMessage.error('获取知识库详情失败');
+    throw error;
+  } finally {
+    loading.value = false;
+  }
+};
+
+const handleKbSearch = async () => {
+  if (kbSearchQuery.value) {
+    loading.value = true;
+    try {
+      // 调用 fetchKbDetail 获取单个知识库详情并弹窗
+      const kbDetail = await fetchKbDetail(kbSearchQuery.value);
+      selectedKb.value = kbDetail;
+      kbSearchResultDialogVisible.value = true;
+    } catch (error) {
+      // fetchKbDetail 内部已经有 ElMessage.error
+      // ElMessage.warning('未找到相关知识库'); // 可以不重复提示
+    } finally {
+      loading.value = false;
+    }
+  } else {
+    // 如果搜索框为空，则刷新整个列表
+    fetchKbReviews();
+  }
+};
+
+const viewKbDetail = async (kb) => { // kb 参数是列表中的行对象
+  try {
+    selectedKb.value = await fetchKbDetail(kb.kbId); // 使用 kb.kbId
+    kbSearchResultDialogVisible.value = true;
+  } catch (error) {
+    // ElMessage.error('获取知识库详情失败'); // fetchKbDetail 内部已处理
+  }
+};
+
+const handleReviewKb = async (kb, decision) => { // kb 参数是列表行对象, decision 是 'approved' 或 'rejected'
+  try {
+    await ElMessageBox.confirm(
+      `确定要将知识库 "${kb.kbName}" 状态修改为 "${decision === 'approved' ? '已通过' : '已拒绝'}" 吗？`,
+      '审核操作',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: decision === 'approved' ? 'success' : 'warning',
+      }
+    );
+
+    loading.value = true;
+    // 后端接口 /user/admin/changeKBSataus/<int:kb_id>
+    // 请求体需要 status: 'approved' 或 'rejected'
+    const response = await fetch(`/user/admin/changeKBSataus/${kb.kbId}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+      },
+      body: JSON.stringify({
+        status: decision // 直接传递 'approved' 或 'rejected'
+      })
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({message: '审核知识库请求失败'}));
+        throw new Error(errorData.message || `审核知识库失败: ${response.statusText}`);
+    }
+    const result = await response.json(); // AdminChangeKBSataus 返回 {code, message, data: None}
+    
+    if (result.code === 200) { // 假设后端成功时 code 是 200
+      ElMessage.success(`知识库状态已更新为 "${decision === 'approved' ? '已通过' : '已拒绝'}"`);
+      fetchKbReviews(); // 刷新列表和统计
+      if (kbSearchResultDialogVisible.value && selectedKb.value && selectedKb.value.kbId === kb.kbId) {
+        kbSearchResultDialogVisible.value = false;
+      }
+    } else {
+      throw new Error(result.message || '审核知识库操作未成功');
+    }
+  } catch (error) {
+    if (error !== 'cancel' && error.message !== 'cancel') {
+      console.error('审核知识库操作出错:', error);
+      ElMessage.error(error.message || '审核知识库操作失败');
+    }
+  } finally {
+    loading.value = false;
+  }
+};
+
+const handleKbCurrentChange = (val) => {
+  kbCurrentPage.value = val;
+  fetchKbReviews(); // 或如果后端支持分页参数，则传递分页参数
+};
+
+const handleKbSizeChange = (val) => {
+  kbPageSize.value = val;
+  kbCurrentPage.value = 1; // 改变每页大小时通常回到第一页
+  fetchKbReviews(); // 或如果后端支持分页参数，则传递分页参数
+};
+
 // 添加行为类型相关辅助函数
 const getBehaviorTypeTag = (type) => {
   const tagTypes = {
@@ -2051,6 +2488,9 @@ onMounted(() => {
   }
   else if (activeMenu.value === '3') {
     fetchAgentReviews(); // 使用独立的fetch函数加载数据
+  }
+  else if (activeMenu.value === 'kb_review') { // 如果可能默认是这个tab
+    fetchKbReviews();
   }
   else if (activeMenu.value === '4') {
     handleAnnouncementSearch();
