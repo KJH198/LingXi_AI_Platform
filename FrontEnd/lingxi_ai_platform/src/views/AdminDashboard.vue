@@ -625,7 +625,7 @@
 
             <!-- 审核列表 -->
             <div class="review-list">
-              <el-table :data="agentReviews" style="width: 100%" border>
+              <el-table :data="filteredAgentListForTable" style="width: 100%" border>
                 <el-table-column prop="agentId" label="智能体ID" width="120" />
                 <el-table-column prop="agentName" label="智能体名称" width="150" />
                 <el-table-column prop="submitTime" label="提交时间" width="180" />
@@ -841,7 +841,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, watch } from 'vue'
+import { ref, reactive, onMounted, watch, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { User, UserFilled, Warning, Timer, Document, Check, Close } from '@element-plus/icons-vue'
@@ -884,7 +884,8 @@ const startDate = ref('')
 const endDate = ref('')
 
 // 修改智能体审核相关变量
-const agentReviews = ref([]);
+const agentSearchQuery = ref('') 
+const allRawAgentReviews = ref([]);
 const totalReviews = ref(0);
 const pendingReviews = ref(0);
 const approvedAgents = ref(0);
@@ -1041,47 +1042,6 @@ const behaviorApi = {
       return await response.json();
     } catch (error) {
       ElMessage.error('获取用户行为日志失败');
-      throw error;
-    }
-  }
-};
-
-// 添加智能体审核API
-const agentApi = {
-  async getAgentList(params) {
-    try {
-      const queryString = new URLSearchParams(params).toString();
-      const response = await fetch(`/user/admin/agent_rating/?${queryString}`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
-        },
-      });
-      if (!response.ok) throw new Error('获取智能体列表失败');
-      return await response.json();
-    } catch (error) {
-      ElMessage.error('获取智能体列表失败');
-      throw error;
-    }
-  },
-
-  async reviewAgent(agentId, decision, notes) {
-    try {
-      const response = await fetch(`/user/admin/agent_rating/`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
-        },
-        body: JSON.stringify({
-          agent_id: agentId,
-          decision,
-          notes
-        })
-      });
-      if (!response.ok) throw new Error('审核智能体失败');
-      return await response.json();
-    } catch (error) {
-      ElMessage.error('审核智能体失败');
       throw error;
     }
   }
@@ -1356,7 +1316,8 @@ const getAbnormalTypeText = (type) => {
     login_ip_change: 'IP变动登录', // 添加新的异常类型映射
     multiple_failures: '多次登录失败',
     unusual_device: '异常设备登录',
-    unauthorized_access: '未授权访问'
+    unauthorized_access: '未授权访问',
+    content_violation: '内容违规',
   }
   return texts[type] || type
 }
@@ -1775,41 +1736,81 @@ const handleAnnouncementSearch = async () => {
   }
 }
 
+const filteredAgentListForTable = computed(() => {
+  if (!agentSearchQuery.value) { // agentSearchQuery 是你已有的搜索框 v-model 变量
+    return allRawAgentReviews.value; 
+  }
+  const query = agentSearchQuery.value.toLowerCase().trim();
+  if (!query) {
+    return allRawAgentReviews.value;
+  }
+  // allRawAgentReviews.value 里的对象结构应与 fetchAgentReviewsData 中映射的一致
+  return allRawAgentReviews.value.filter(agent => {
+    const nameMatch = agent.agentName && agent.agentName.toLowerCase().includes(query);
+    // creatorId 是你表格中显示的，假设 allRawAgentReviews 中的对象也有 creatorId
+    const creatorIdMatch = agent.creatorId && agent.creatorId.toString().toLowerCase().includes(query);
+    const agentIdMatch = agent.agentId && agent.agentId.toString().toLowerCase().includes(query);
+    return nameMatch || creatorIdMatch || agentIdMatch;
+  });
+});
+
+watch(filteredAgentListForTable, (newValue) => {
+  agentReviews.value = newValue; // agentReviews 是你已有的用于表格的 ref
+});
+
 // 修改获取智能体列表的函数
 const fetchAgentReviews = async () => {
   loading.value = true;
   try {
-    const response = await fetch('/user/admin/agents/list', {
+    // 1. 获取智能体列表 (来自 /user/admin/agents/list)
+    const listResponse = await fetch('/user/admin/agents/list', {
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
       }
     });
-    
-    if (!response.ok) throw new Error('获取智能体列表失败');
-    const data = await response.json();
-    
-    // 映射返回的数据到组件期望的格式
-    agentReviews.value = data.agents.map(agent => ({
+    if (!listResponse.ok) throw new Error('获取智能体列表失败');
+    const listData = await listResponse.json();
+
+    // 将获取的原始列表数据存储到 allRawAgentReviews
+    allRawAgentReviews.value = listData.agents.map(agent => ({
       agentId: agent.agentID,
       agentName: agent.name,
       submitTime: agent.time,
-      content: agent.description,
-      contentType: 'template',  // 设置默认内容类型
-      creatorId: agent.creatorID, // 直接保留创建者ID
-      status: agent.status,
-      is_OpenSource: agent.is_OpenSource
+      content: agent.description, // description 作为内容预览的基础
+      contentType: agent.contentTypeFromPublishedAgent || 'template', // 假设 PublishedAgent 有此字段，或用默认值
+      creatorId: agent.creatorID,
+      status: agent.status, // 这个接口默认返回 pending
+      is_OpenSource: agent.is_OpenSource,
+      // 以下字段主要用于详情弹窗，如果列表接口不提供，查看详情时会通过 fetchAgentDetail 获取
+      functionType: agent.functionTypeFromPublishedAgent || '未知功能', // 假设 PublishedAgent 有此字段
+      reviewTime: null, // 初始化
+      reviewer: null,   // 初始化
+      reviewComment: '',// 初始化
     }));
-    
-    totalReviews.value = data.total || agentReviews.value.length;
-    
-    // 计算不同状态的智能体数量
-    pendingReviews.value = agentReviews.value.filter(agent => agent.status === 'pending').length;
-    approvedAgents.value = agentReviews.value.filter(agent => agent.status === 'approved').length;
-    rejectedAgents.value = agentReviews.value.filter(agent => agent.status === 'rejected').length;
+    totalReviews.value = listData.total || allRawAgentReviews.value.length; // totalReviews 是你已有的
+
+    // 2. 获取统计数据 (来自 /user/admin/agent_rating/)
+    const statsResponse = await fetch('/user/admin/agent_rating/', {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+      }
+    });
+    if (!statsResponse.ok) throw new Error('获取智能体统计数据失败');
+    const statsData = await statsResponse.json();
+
+    // 更新你已有的统计变量
+    pendingReviews.value = statsData.pending_count || 0;
+    approvedAgents.value = statsData.approved_count || 0;
+    rejectedAgents.value = statsData.rejected_count || 0;
+
   } catch (error) {
-    console.error('获取智能体列表失败:', error);
-    ElMessage.error('获取智能体列表失败');
-    agentReviews.value = []; // 出错时清空列表
+    console.error('获取智能体审核数据失败:', error);
+    ElMessage.error(error.message || '获取智能体审核数据失败');
+    allRawAgentReviews.value = [];
+    totalReviews.value = 0;
+    pendingReviews.value = 0;
+    approvedAgents.value = 0;
+    rejectedAgents.value = 0;
   } finally {
     loading.value = false;
   }
@@ -1820,36 +1821,37 @@ const fetchAgentReviews = async () => {
 const fetchAgentDetail = async (agentId) => {
   loading.value = true;
   try {
-    const response = await fetch(`/user/admin/agents/list/${agentId}`, {
+    const response = await fetch(`/user/admin/agents/list/${agentId}`, { // API路径正确
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
       }
     });
-    
     if (!response.ok) throw new Error('获取智能体详情失败');
-    const data = await response.json();
+    const data = await response.json(); // 后端返回 { agents: [obj], total: 1, ...}
     
     if (data.agents && data.agents.length > 0) {
-      const agentData = data.agents[0];
-      return {
+      const agentData = data.agents[0]; // 获取数组中的第一个元素
+      return { // 映射到 selectedAgent 期望的结构
         agentId: agentData.agentID,
         agentName: agentData.name,
         submitTime: agentData.time,
-        contentType: 'template',
-        functionType: agentData.creatorID, // 使用创建者ID作为功能类型显示
+        // 根据 PublishedAgent 模型和你的需求来映射
+        contentType: agentData.contentTypeFromPublishedAgent || 'template', // 占位符
+        functionType: agentData.functionTypeFromPublishedAgent || agentData.creatorID, // 你之前用 creatorID 作为 functionType
         status: agentData.status,
-        content: agentData.description,
+        content: agentData.description, // description 作为内容
         is_OpenSource: agentData.is_OpenSource,
-        // 以下字段后端可能未提供
-        reviewTime: '',
-        reviewer: '',
-        reviewComment: ''
+        // 后端 PublishedAgent 模型有 review_notes 字段
+        reviewTime: agentData.updated_at, // 可以用 updated_at 作为审核时间参考
+        reviewer: agentData.review_notes ? '系统/管理员' : '-', // 如果有审核笔记，认为是已审核
+        reviewComment: agentData.review_notes || ''
       };
     } else {
       throw new Error('未找到智能体详情');
     }
   } catch (error) {
     console.error('获取智能体详情失败:', error);
+    ElMessage.error('获取智能体详情失败');
     throw error;
   } finally {
     loading.value = false;
