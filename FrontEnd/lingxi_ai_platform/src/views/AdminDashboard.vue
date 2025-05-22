@@ -1757,7 +1757,6 @@ const announcementApi = {
           title: data.title,
           content: data.content,
           status: data.status,
-          publishTime: data.publishTime
         })
       })
       if (!response.ok) {
