@@ -65,8 +65,8 @@
             <el-tag 
               :type="scope.row.status === 'ready' ? 'success' : scope.row.status === 'processing' ? 'warning' : 'info'"
             >
-              {{ scope.row.status === 'ready' ? '已就绪' : 
-                 scope.row.status === 'processing' ? '处理中' : '未处理' }}
+              {{ scope.row.status === 'approved' ? '已通过审核' : 
+                 scope.row.status === 'pending' ? '审核中' : '未通过审核' }}
             </el-tag>
           </template>
         </el-table-column>

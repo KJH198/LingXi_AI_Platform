@@ -451,6 +451,20 @@ const agentData = reactive<AgentData>({
 // 可选模型列表
 const availableModels = ref<AvailableModel[]>([
   {
+    id: 'deepseek',
+    name: 'DeepSeek',
+    icon: 'https://cdn-icons-png.flaticon.com/512/7061/7061642.png',
+    description: '专注高效推理的通用大模型，支持复杂多任务场景与企业级应用',
+    features: ['多轮对话', '代码生成', '长文本理解', 'API集成']
+  },
+  {
+    id: 'qwen-max',
+    name: '通义千问',
+    icon: 'https://cdn-icons-png.flaticon.com/512/5968/5968282.png',
+    description: '国产强大大语言模型，支持中英双语优化',
+    features: ['中文优化', '文本处理', '知识丰富']
+  },
+  {
     id: 'gpt-4',
     name: 'GPT-4',
     icon: 'https://cdn-icons-png.flaticon.com/512/4616/4616734.png',
@@ -464,20 +478,6 @@ const availableModels = ref<AvailableModel[]>([
     description: '强大的大语言模型，擅长文本处理和推理',
     features: ['文本处理', '复杂推理', '长文本处理']
   },
-  {
-    id: 'llama-3',
-    name: 'LLaMA 3',
-    icon: 'https://cdn-icons-png.flaticon.com/512/6295/6295417.png',
-    description: '开源大语言模型，平衡性能和资源消耗',
-    features: ['文本处理', '轻量级', '本地部署']
-  },
-  {
-    id: 'qwen-max',
-    name: '通义千问',
-    icon: 'https://cdn-icons-png.flaticon.com/512/5968/5968282.png',
-    description: '国产强大大语言模型，支持中英双语优化',
-    features: ['中文优化', '文本处理', '知识丰富']
-  }
 ])
 
 // 知识库详情相关
