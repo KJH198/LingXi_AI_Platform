@@ -28,9 +28,9 @@
               <div class="post-header">
                 <h3 class="post-title" @click="viewPostDetails(post)">{{ post.title }}</h3>
                 <div class="post-actions">
-                  <el-button type="primary" size="small" @click="editPost(post)">
+                  <!-- <el-button type="primary" size="small" @click="editPost(post)">
                     <el-icon class="el-icon--left"><Edit /></el-icon>编辑
-                  </el-button>
+                  </el-button> -->
                   <el-button type="danger" size="small" @click="deletePost(post)">
                     <el-icon class="el-icon--left"><Delete /></el-icon>删除
                   </el-button>
