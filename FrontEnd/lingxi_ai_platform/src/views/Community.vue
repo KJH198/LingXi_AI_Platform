@@ -269,7 +269,7 @@
           <div class="sidebar-card">
             <div class="card-header">
               <h3 class="card-title">我的收藏</h3>
-              <router-link to="/my-favorites?type=post" class="view-more">查看更多</router-link>
+              <!-- <router-link to="/my-favorites?type=post" class="view-more">查看更多</router-link> -->
             </div>
             <div v-if="myFavoritePosts.length === 0" class="empty-placeholder">
               <el-empty description="暂无收藏的帖子" :image-size="80"></el-empty>
