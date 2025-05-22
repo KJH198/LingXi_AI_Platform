@@ -278,14 +278,10 @@ const fetchPosts = async () => {
       return
     }
 
-    // 构建请求参数
-    const params = new URLSearchParams({
-      page: currentPage.value.toString(),
-      size: pageSize.value.toString()
-    })
+    const userId = localStorage.getItem('userId')
     
     // 发送请求
-    const response = await fetch(`/user/my-posts?${params.toString()}`, {
+    const response = await fetch(`/user/${userId}/posts/`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`,

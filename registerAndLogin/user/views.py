@@ -1017,6 +1017,9 @@ class UserInfoView(APIView):
 
     def get(self, request):
         user = request.user
+        # 计算发帖数量
+        posts_count = Post.objects.filter(user=user).count()
+        
         data = {
             'code': 200,
             'username': user.username,
@@ -1024,7 +1027,7 @@ class UserInfoView(APIView):
             'email': user.email,
             'bio': user.bio,
             'avatar': user.avatar,
-            'posts_count': 0,  # 暂时写死为0
+            'posts_count': posts_count,  # 实际计算发帖数
             'followers': user.get_followers_count(),
             'following': user.get_following_count()
         }
@@ -3959,21 +3962,34 @@ class UserPostsView(APIView):
         try:
             # 查询目标用户
             target_user = User.objects.get(id=user_id)
-            print(target_user)
+            print(f"查找用户：{target_user.username}")
             
             # 检查当前请求用户是否已登录
             current_user = request.user if request.user.is_authenticated else None
             
+            # 获取分页参数
+            page = int(request.query_params.get('page', 1))
+            page_size = int(request.query_params.get('page_size', 10))
+            
             # 获取用户发布的帖子
             posts = Post.objects.filter(user=target_user).order_by('-created_at')
+            
+            # 分页处理
+            paginator = Paginator(posts, page_size)
+            posts_page = paginator.page(page)
+            
             # 构建响应数据
-            print(posts)
             post_list = []
-            for post in posts:
+            for post in posts_page:
                 # 检查当前用户是否点赞了该帖子
                 is_liked = False
+                is_favorited = False
+                
                 if current_user:
-                    is_liked = post.likes.filter(id=current_user.id).exists() if hasattr(post, 'likes') else False
+                    # 使用PostLike模型查询点赞状态
+                    is_liked = PostLike.objects.filter(post=post, user=current_user).exists()
+                    # 使用PostFavorite模型查询收藏状态
+                    is_favorited = PostFavorite.objects.filter(post=post, user=current_user).exists()
                 
                 # 获取评论
                 comments = []
@@ -3981,45 +3997,77 @@ class UserPostsView(APIView):
                     comments.append({
                         'id': str(comment.id),
                         'content': comment.content,
-                        'username': comment.user.username
+                        'username': comment.user.username,
+                        'time': comment.created_at.strftime('%Y-%m-%d %H:%M')
                     })
                 
                 # 获取图片
                 images = []
-                if hasattr(post, 'images'):
-                    for image in post.images.all():
-                        images.append(image.image.url if hasattr(image, 'image') else '')
+                for image in post.images.all():
+                    images.append(image.image_url)
+                
+                # 修正：通过PostAgent模型获取关联的智能体
+                agents = []
+                # 正确使用PostAgent模型查询关联的智能体
+                agent_relations = PostAgent.objects.filter(post=post)
+                for relation in agent_relations:
+                    agent = relation.agent
+                    agents.append({
+                        'id': str(agent.id),
+                        'name': agent.name,
+                        'description': agent.description
+                    })
+                
+                # 修正：通过PostKnowledgeBase模型获取关联的知识库
+                knowledge_bases = []
+                # 正确使用PostKnowledgeBase模型查询关联的知识库
+                kb_relations = PostKnowledgeBase.objects.filter(post=post)
+                for relation in kb_relations:
+                    kb = relation.knowledge_base
+                    knowledge_bases.append({
+                        'id': str(kb.id),
+                        'name': kb.name,
+                        'description': kb.description
+                    })
                 
                 post_data = {
                     'id': str(post.id),
                     'title': post.title,
                     'content': post.content,
                     'time': post.created_at.strftime('%Y-%m-%d %H:%M'),
-                    'likes': post.likes.count() if hasattr(post, 'likes') else 0,
+                    'likes': post.like_count,
+                    'views': post.view_count,
                     'isLiked': is_liked,
+                    'isFavorited': is_favorited,
                     'comments': comments,
-                    'images': images
+                    'images': images,
+                    'agents': agents,
+                    'knowledgeBases': knowledge_bases,
+                    'status': 'approved'  # 默认状态
                 }
                 post_list.append(post_data)
             
             return Response({
                 'code': 200,
                 'message': '获取帖子列表成功',
-                'data': post_list
+                'data': {
+                    'items': post_list,
+                    'total': paginator.count
+                }
             })
             
         except User.DoesNotExist:
             return Response({
                 'code': 404,
                 'message': '用户不存在',
-                'data': []
+                'data': { 'items': [], 'total': 0 }
             }, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
             print(f"获取用户帖子失败: {str(e)}")
             return Response({
                 'code': 500,
                 'message': f'获取用户帖子失败: {str(e)}',
-                'data': []
+                'data': { 'items': [], 'total': 0 }
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
 class UserPublicAgentsView(APIView):
