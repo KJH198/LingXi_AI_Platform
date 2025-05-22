@@ -83,6 +83,16 @@
                         </el-button>
                         <span class="time">{{ post.time }}</span>
                       </div>
+
+                      <div v-if="post.userId === currentUserId" class="post-actions">
+                        <el-button 
+                          type="danger" 
+                          size="small" 
+                          icon="Delete" 
+                          circle 
+                          @click.stop="deletePost(post)"
+                        ></el-button>
+                      </div>
                     </div>
                   </template>
                   
@@ -567,6 +577,61 @@ const userInfo = reactive({
   username: '',
   avatar: ''
 })
+
+const currentUserId = computed(() => {
+  const userId = localStorage.getItem('userId')
+  return userId ? parseInt(userId, 10) : null
+})
+
+// 删除帖子
+const deletePost = (post) => {
+  ElMessageBox.confirm(
+    `确定要删除帖子 "${post.title}" 吗？此操作不可恢复。`,
+    '删除确认',
+    {
+      confirmButtonText: '确定删除',
+      cancelButtonText: '取消',
+      type: 'warning',
+      distinguishCancelAndClose: true,
+      closeOnClickModal: false
+    }
+  ).then(async () => {
+    try {
+      const token = localStorage.getItem('token')
+      if (!token) {
+        ElMessage.error('请先登录')
+        router.push('/login')
+        return
+      }
+
+      // 调用后端API删除帖子
+      const response = await fetch(`/user/post/${post.id}/delete/`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+      
+      if (!response.ok) {
+        throw new Error('删除帖子失败')
+      }
+      
+      const result = await response.json()
+      
+      if (result.code === 200) {
+        ElMessage.success('帖子删除成功')
+        // 从当前列表中移除删除的帖子
+        posts.value = posts.value.filter(p => p.id !== post.id)
+      } else {
+        throw new Error(result.message || '删除帖子失败')
+      }
+    } catch (error) {
+      console.error('删除帖子失败:', error)
+      ElMessage.error('删除失败，请稍后重试')
+    }
+  }).catch(() => {})
+}
 
 // 获取用户信息
 const fetchUserInfo = async () => {
@@ -2578,5 +2643,16 @@ onMounted(() => {
 
 .empty-placeholder {
   padding: 20px 0;
+}
+
+.post-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.post-actions {
+  display: flex;
+  gap: 8px;
 }
 </style>
