@@ -633,8 +633,8 @@ class AdminGetAgents(APIView):
             return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
         
         # 获取查询参数
-        page = request.query_params.get('page', 1)
-        page_size = request.query_params.get('page_size', 20)
+        page = 1
+        page_size = 20
         
         if agent_id:
             agents = PublishedAgent.objects.filter(id=agent_id).first()
