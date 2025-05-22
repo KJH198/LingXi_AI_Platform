@@ -1106,8 +1106,8 @@ const fetchStaticInputs = async () => {
     const result = await response.json()
     if (result.code === 200) {
       // 根据后端返回的数据结构处理，并按名称排序
-      const { node_count, node_names } = result.data
-      staticInputs.value = node_names
+      const { input_node_count, input_node_names, output_node_count, output_node_names } = result.data
+      staticInputs.value = input_node_names
         .map((name: string) => ({
           name: name,
           value: ''
