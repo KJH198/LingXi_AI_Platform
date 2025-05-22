@@ -2332,8 +2332,8 @@ class AdminGetKB(APIView):
             return Response({
                 'code': 200,
                 'message': '获取成功',
-                'data': kb_list
-                'KBNum':KnowledgeBase.objects.filter().count(),
+                'data': kb_list,
+                'KBNum':KnowledgeBase.objects.count(),
                 'approved': approved,
                 'rejected': rejected
             })
