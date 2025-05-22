@@ -637,22 +637,29 @@ class AdminGetAgents(APIView):
         page_size = 20
         
         if agent_id:
-            agents = PublishedAgent.objects.filter(id=agent_id).first()
+            agents = PublishedAgent.objects.filter(id=agent_id)
         else:
-            agents = PublishedAgent.objects.filter(status='pending').order_by('-created_at')
+            agents = PublishedAgent.objects.filter().order_by('-created_at')
 
         # 构造返回数据
-        agent_data = [
-            {
-                'agentID':agent.id,
-                'name':agent.name,
-                'description':agent.description,
-                'time':agent.created_at.strftime('%Y-%m-%d %H:%M:%S'),
-                'creatorID':agent.creator.id,
-                'status':agent.status,
-                'is_OpenSource':agent.is_OpenSource,
-            } for agent in agents
-        ]
+        agent_data = []
+        approved = 0
+        rejected = 0
+        for agent in agents:
+            if agent.status == 'pending':
+                agent_data.append({
+                    'agentID': agent.id,
+                    'name': agent.name,
+                    'description': agent.description,
+                    'time': agent.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                    'creatorID': agent.creator.id,
+                    'status': agent.status,
+                    'is_OpenSource': agent.is_OpenSource,
+                })
+            elif agent.status == 'approved':
+                approved += 1
+            elif agent.status == 'rejected':
+                rejected += 1
     
         # 分页处理
         paginator = Paginator(agent_data, page_size)
@@ -662,6 +669,9 @@ class AdminGetAgents(APIView):
             agents_page = paginator.page(1)
         
         return Response({
+            'agentsNum': PublishedAgent.objects.count(),
+            'approvedNum': approved,
+            'rejectedNum': rejected,
             'agents': agent_data,
             'total': paginator.count,
             'page': agents_page.number,
@@ -2297,25 +2307,35 @@ class AdminGetKB(APIView):
         try:
             # 获取所有知识库
             if kb_id != None:
-                knowledge_bases = KnowledgeBase.objects.filter(id=kb_id).first()
+                knowledge_bases = KnowledgeBase.objects.filter(id=kb_id)
             else:
                 knowledge_bases = KnowledgeBase.objects.filter(status='pending').order_by('-created_at')
             
-            # 构建响应数据
-            kb_list = [
-                {
-                    'id': str(kb.id),
-                    'name': kb.name,
-                    'description': kb.description,
-                    'creatorID': kb.user.id,
-                    'fileCount': kb.files.count()
-                } for kb in knowledge_bases
-            ]
+            kb_list = []
+            approved = 0
+            rejected = 0
+            for kb in knowledge_bases:
+                if kb.status == 'pending':
+                    kb_list.append({
+                        'id': str(kb.id),
+                        'name': kb.name,
+                        'description': kb.description,
+                        'creatorID': kb.user.id,
+                        'fileCount': kb.files.count(),
+                        'status': kb.status
+                    })
+                elif kb.status == 'approved':
+                    approved += 1
+                elif kb.status == 'rejected':
+                    rejected += 1
             
             return Response({
                 'code': 200,
                 'message': '获取成功',
-                'data': kb_list
+                'data': kb_list,
+                'KBNum':KnowledgeBase.objects.count(),
+                'approved': approved,
+                'rejected': rejected
             })
         except Exception as e:
             print("获取知识库列表时发生错误:", str(e))
