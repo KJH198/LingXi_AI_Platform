@@ -84,23 +84,6 @@
         <div class="description">
           <p>{{ agentData.description || '暂无介绍' }}</p>
         </div>
-
-        <!-- 能力与特点简要显示 (仅显示前2个) -->
-        <div class="capabilities-preview" v-if="agentData.capabilities && agentData.capabilities.length">
-          <h3>能力与特点</h3>
-          <div class="capability-item" v-for="(cap, index) in agentData.capabilities.slice(0, 2)" :key="index">
-            <div class="capability-icon">
-              <el-icon><Check /></el-icon>
-            </div>
-            <div>
-              <h4>{{ cap.title }}</h4>
-              <p>{{ cap.description }}</p>
-            </div>
-          </div>
-          <el-button v-if="agentData.capabilities.length > 2" text type="primary" @click="activeTab = 'intro'">
-            查看更多能力
-          </el-button>
-        </div>
       </el-card>
 
       <!-- 详细内容标签页 -->
@@ -112,28 +95,6 @@
               <p>{{ agentData.description || '暂无介绍' }}</p>
             </div>
 
-            <h3>能力与特点</h3>
-            <div class="capabilities" v-if="agentData.capabilities && agentData.capabilities.length">
-              <div v-for="(cap, index) in agentData.capabilities" :key="index" class="capability-item">
-                <div class="capability-icon">
-                  <el-icon><Check /></el-icon>
-                </div>
-                <div>
-                  <h4>{{ cap.title }}</h4>
-                  <p>{{ cap.description }}</p>
-                </div>
-              </div>
-            </div>
-            <el-empty v-else description="暂无能力说明" />
-
-            <!-- 适用场景 -->
-            <h3>适用场景</h3>
-            <div class="scenarios" v-if="agentData.scenarios && agentData.scenarios.length">
-              <el-tag v-for="scenario in agentData.scenarios" :key="scenario" size="large" class="scenario-tag">
-                {{ scenario }}
-              </el-tag>
-            </div>
-            <el-empty v-else description="暂无场景说明" />
           </el-card>
         </el-tab-pane>
 
