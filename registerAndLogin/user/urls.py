@@ -7,7 +7,7 @@ from .views import (
     AdminGetAgents,
     AdminGetKB,
     AdminUnbanView,
-    CheckAnnouncements,
+    CheckAnnouncement,
     CreateAnnouncement,
     DeleteAnnouncement,
     EditAnnouncement,
@@ -118,7 +118,7 @@ urlpatterns = [
     
     # 验证是否需要提醒用户看公告以及更新最后一次看公告的时间
     path('GetAnnouncements', UserGetAnnouncements.as_view(), name='announcement_list2'),
-    path('user/checkAnnouncements/<int:user_id>', CheckAnnouncements.as_view(), name='check_announcement'),
+    path('user/checkAnnouncement/<int:user_id>/<int:announcement_id>', CheckAnnouncement.as_view(), name='check_announcement'),
     path('user/update/<int:user_id>', Update.as_view(), name='user_update'),
     
     # 统计用户登录时长
