@@ -1509,7 +1509,6 @@ class CreateAnnouncement(APIView):
             title=request.data.get('title'),
             content=request.data.get('content'),
             status=request.data.get('status'),
-            publishTime=request.data.get('publishTime')
         )
         return Response({
             'code': 200,
@@ -1538,7 +1537,6 @@ class EditAnnouncement(APIView):
         announcement.title = data.get('title', announcement.title)
         announcement.content = data.get('content', announcement.content)
         announcement.status = data.get('status', announcement.status)
-        announcement.publishTime = data.get('publishTime', announcement.publishTime)
         announcement.save()
         
         return Response({

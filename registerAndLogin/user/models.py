@@ -258,7 +258,7 @@ class Announcement(models.Model):
     
     title = models.CharField(max_length=200, verbose_name='公告标题')
     content = models.TextField(verbose_name='公告内容')
-    publishTime = models.DateTimeField(default=timezone.now, verbose_name='发布时间')
+    publishTime = models.DateTimeField(auto_now_add=True, verbose_name='发布时间')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft', verbose_name='状态')
 
     class Meta:
