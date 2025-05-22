@@ -658,7 +658,7 @@ class AdminGetAgents(APIView):
                 })
             elif agent.status == 'approved':
                 approved += 1
-            else :
+            elif agent.status == 'rejected':
                 rejected += 1
     
         # 分页处理
