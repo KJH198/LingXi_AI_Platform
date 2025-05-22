@@ -5,8 +5,8 @@ from django.contrib.auth.models import User
 class KnowledgeBase(models.Model):
     """知识库模型"""
     STATUS_CHOICES = (
-        ('ready', '已处理完毕'),
-        ('processing', '正在处理'),
+        ('approved', '审核通过'),
+        ('rejected', '拒绝'),
     )
     TYPE_CHOICES = (
         ('text', '文本'),
@@ -16,7 +16,7 @@ class KnowledgeBase(models.Model):
     name = models.CharField(max_length=100)
     description = models.TextField(blank=True)
     type = models.CharField(max_length=20, choices=TYPE_CHOICES)  # text, image
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='processing')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     created_at = models.DateTimeField(auto_now_add=True)
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='knowledge_bases')
     followers = models.ManyToManyField(settings.AUTH_USER_MODEL, related_name='followed_knowledge_bases', blank=True)

@@ -112,7 +112,7 @@ urlpatterns = [
     
     # 管理员发布、修改和删除公告
     path('admin/GetAnnouncements', GetAnnouncements.as_view(), name='announcement_list'),
-    path('admin/CreateAnnouncement', CreateAnnouncement.as_view(), name='create_announcement'),
+    path('admin/CreateAnnouncement/', CreateAnnouncement.as_view(), name='create_announcement'),
     path('admin/EditAnnouncement/<int:announcement_id>', EditAnnouncement.as_view(), name='update_announcement'),
     path('admin/DeleteAnnouncement/<int:announcement_id>', DeleteAnnouncement.as_view(), name='delete_announcement'),
     
