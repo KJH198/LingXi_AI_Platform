@@ -71,7 +71,7 @@
 
             <!-- 统计信息 -->
             <div class="statistics">
-              <div class="stat-item" @click="router.push('/posts')">
+              <div class="stat-item" @click="router.push('/mypost')">
               <h3>{{ userInfo.posts_count }}</h3>
               <p>发帖数</p>
               </div>

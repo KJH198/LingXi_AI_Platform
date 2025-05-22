@@ -146,6 +146,11 @@ const routes: RouteRecordRaw[] = [
     name: 'UsableAgentList',
     component: () => import('../views/UseableAgentList.vue')
   },
+  {
+    path: '/mypost/',
+    name: 'MyPost',
+    component: () => import('../views/MyPost.vue')
+  },
 ]
 
 const router = createRouter({
