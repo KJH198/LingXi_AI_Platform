@@ -2311,21 +2311,31 @@ class AdminGetKB(APIView):
             else:
                 knowledge_bases = KnowledgeBase.objects.filter(status='pending').order_by('-created_at')
             
-            # 构建响应数据
-            kb_list = [
-                {
-                    'id': str(kb.id),
-                    'name': kb.name,
-                    'description': kb.description,
-                    'creatorID': kb.user.id,
-                    'fileCount': kb.files.count()
-                } for kb in knowledge_bases
-            ]
+            kb_list = []
+            approved = 0
+            rejected = 0
+            for kb in knowledge_bases:
+                if kb.status == 'pending':
+                    kb_list.append({
+                        'id': str(kb.id),
+                        'name': kb.name,
+                        'description': kb.description,
+                        'creatorID': kb.user.id,
+                        'fileCount': kb.files.count(),
+                        'status': kb.status
+                    })
+                elif kb.status == 'approved':
+                    approved += 1
+                elif kb.status == 'rejected':
+                    rejected += 1
             
             return Response({
                 'code': 200,
                 'message': '获取成功',
                 'data': kb_list
+                'KBNum':KnowledgeBase.objects.filter().count(),
+                'approved': approved,
+                'rejected': rejected
             })
         except Exception as e:
             print("获取知识库列表时发生错误:", str(e))
