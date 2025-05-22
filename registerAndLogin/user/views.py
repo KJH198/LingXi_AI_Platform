@@ -2569,6 +2569,28 @@ class KnowledgeBaseDetailView(APIView):
                     'url': file.file.url if file.file else None
                 })
             
+            # 获取关联的智能体
+            related_agents = []
+            for agent in PublishedAgent.objects.filter(knowledge_bases=kb):
+                related_agents.append({
+                    'id': str(agent.id),
+                    'name': agent.name,
+                    'description': agent.description,
+                    'avatar': agent.avatar,
+                    'creator': {
+                        'id': agent.creator.id,
+                        'username': agent.creator.username,
+                        'avatar': agent.creator.avatar if hasattr(agent.creator, 'avatar') else None
+                    },
+                    'views': agent.views,
+                    'likes': agent.likes.count(),
+                    'followers': agent.followers.count(),
+                    'isFollowed': user in agent.followers.all() if user else False,
+                    'isLiked': user in agent.likes.all() if user else False,
+                    'status': agent.status,
+                    'createdAt': agent.created_at.strftime('%Y-%m-%d %H:%M:%S')
+                })
+            
             # 构建响应数据
             data = {
                 'id': str(kb.id),
@@ -2588,7 +2610,7 @@ class KnowledgeBaseDetailView(APIView):
                     'avatar': kb.user.avatar if hasattr(kb.user, 'avatar') else None
                 },
                 'files': files,
-                'relatedAgents': [],  # 知识库模型中没有关联智能体
+                'relatedAgents': related_agents,  # 添加关联智能体
                 'comments': []  # 知识库模型中没有评论功能
             }
             

@@ -455,7 +455,25 @@ const urlList = ref<string[]>([]);
 
 const selectKnowledgebasesid = ref<string[]>([]);
 // 获取已选择知识库的详细信息
-const selectedKnowledgeBasesInfo = ref<KnowledgeBaseType[]>([]);
+const selectedKnowledgeBasesInfo = computed(() => {
+  // 创建一个Set来存储已处理的知识库ID，确保不重复
+  const processedIds = new Set();
+  
+  return selectKnowledgebasesid.value
+    .map(id => {
+      const idStr = String(id);
+      // 如果ID已处理过，则跳过
+      if (processedIds.has(idStr)) return undefined;
+      
+      // 标记ID为已处理
+      processedIds.add(idStr);
+      
+      const found = knowledgeBases.value.find(kb => String(kb.id) === idStr);
+      if (!found) console.log(`未找到ID为${id}的知识库`);
+      return found;
+    })
+    .filter(kb => kb !== undefined) as KnowledgeBaseType[];
+});
 // 计算属性：是否可以上传
 const canUpload = computed(() => {
   if (!selectedUploadKnowledgeBaseId.value) return false;
@@ -488,8 +506,7 @@ const addKnowledgeBase = (id: string): void => {
     const newKnowledgeBases = [...props.agentData.knowledgeBases, id];
     emit('update:knowledgeBases', newKnowledgeBases);
     
-    // 更新详情信息
-    updateSelectedKnowledgeBases();
+    // 不再调用 updateSelectedKnowledgeBases()，因为计算属性会自动响应
   }
 };
 
@@ -505,8 +522,7 @@ const removeKnowledgeBase = (id: string): void => {
   );
   emit('update:knowledgeBases', newKnowledgeBases);
   
-  // 更新详情信息
-  updateSelectedKnowledgeBases();
+  // 不再调用 updateSelectedKnowledgeBases()，因为计算属性会自动响应
   
   console.log('移除知识库后:', {
     local: selectKnowledgebasesid.value,
@@ -1194,33 +1210,21 @@ const fetchKnowledgeBases = async (forceRefresh = false): Promise<void> => {
     console.log('知识库列表:', knowledgeBases.value);
     knowledgeBasesLoaded.value = true;
     console.log('selected:', selectKnowledgebasesid.value);
-    selectedKnowledgeBasesInfo.value = selectKnowledgebasesid.value.map(id => knowledgeBases.value.find(kb => String(kb.id) === String(id))).filter(kb => kb !== undefined) as KnowledgeBaseType[];
-    console.log('已选择的知识库00:', selectedKnowledgeBasesInfo.value);
   } catch (error) {
     console.error('获取知识库列表失败:', error);
     ElMessage.error('获取知识库列表失败，请稍后重试');
   }
 };
 
-const updateSelectedKnowledgeBases = () => {
-  selectedKnowledgeBasesInfo.value = props.agentData.knowledgeBases
-    .map(id => {
-      const found = knowledgeBases.value.find(kb => String(kb.id) === String(id));
-      if (!found) console.log(`未找到ID为${id}的知识库`);
-      return found;
-    })
-    .filter(kb => kb !== undefined) as KnowledgeBaseType[];
-  console.log('更新后的已选择知识库:', selectedKnowledgeBasesInfo.value);
-};
-
 // 监听知识库配置步骤激活
 watch(() => props.agentData, () => {
   console.log('Agent数据变化');
   if (props.agentData.knowledgeBases.length > 0) {
-    selectKnowledgebasesid.value = props.agentData.knowledgeBases;
-    selectedKnowledgeBasesInfo.value = props.agentData.knowledgeBases.map(id => knowledgeBases.value.find(kb => String(kb.id) === String(id))).filter(kb => kb !== undefined) as KnowledgeBaseType[];
+    selectKnowledgebasesid.value = [...props.agentData.knowledgeBases]; // 创建副本以触发响应式更新
+    // selectedKnowledgeBasesInfo 会自动更新，因为它是一个计算属性
   } else {
-    selectedKnowledgeBasesInfo.value = [];
+    selectKnowledgebasesid.value = []; // 清空 selectKnowledgebasesid
+    // selectedKnowledgeBasesInfo 会自动更新为空数组
   }
 }, { deep: true });
 
@@ -1230,16 +1234,16 @@ watch(() => props.active, (isActive) => {
     fetchKnowledgeBases();
   }
   if (isActive && props.agentData.knowledgeBases.length > 0) {
-    selectKnowledgebasesid.value = props.agentData.knowledgeBases;
-    selectedKnowledgeBasesInfo.value = props.agentData.knowledgeBases.map(id => knowledgeBases.value.find(kb => String(kb.id) === String(id))).filter(kb => kb !== undefined) as KnowledgeBaseType[];
-  } 
+    selectKnowledgebasesid.value = [...props.agentData.knowledgeBases]; // 创建副本以触发响应式更新
+    // selectedKnowledgeBasesInfo 会自动更新
+  }
 }, { immediate: true });
 
 // 当知识库列表加载完成后，重新计算已选择列表
 watch(() => knowledgeBases.value, () => {
-  if (knowledgeBases.value.length > 0 && props.agentData.knowledgeBases.length > 0) {
-    updateSelectedKnowledgeBases();
-  }
+  // if (knowledgeBases.value.length > 0 && props.agentData.knowledgeBases.length > 0) {
+  //   updateSelectedKnowledgeBases();
+  // }
 }, { deep: true });
 </script>
 
