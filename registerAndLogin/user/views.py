@@ -2293,10 +2293,10 @@ class AdminGetKB(APIView):
     # 验证管理员权限
     permission_classes = [IsAuthenticated]
 
-    def get(self, kb_id = None):
+    def get(self, request, kb_id = None):
         try:
             # 获取所有知识库
-            if kb_id:
+            if kb_id != None:
                 knowledge_bases = KnowledgeBase.objects.filter(id=kb_id).first()
             else:
                 knowledge_bases = KnowledgeBase.objects.filter(status='pending').order_by('-created_at')
@@ -2317,8 +2317,8 @@ class AdminGetKB(APIView):
                 'message': '获取成功',
                 'data': kb_list
             })
-            
         except Exception as e:
+            print("获取知识库列表时发生错误:", str(e))
             return Response({
                 'code': 500,
                 'message': f'获取知识库列表失败: {str(e)}'

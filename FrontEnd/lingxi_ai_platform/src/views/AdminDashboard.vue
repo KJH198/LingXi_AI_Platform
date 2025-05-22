@@ -2175,7 +2175,8 @@ const fetchKbReviews = async () => {
   try {
     // 1. 获取知识库列表 (来自 /user/admin/knowledgebases, 默认获取待审核)
     // 后端 AdminGetKB 视图，不带 kb_id 时返回 status='pending' 的列表
-    const listResponse = await fetch('/user/admin/knowledgebases', { // API 路径
+    const listResponse = await fetch('/user/admin/knowledgebases/', { // API 路径
+      method: 'GET',
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
       }

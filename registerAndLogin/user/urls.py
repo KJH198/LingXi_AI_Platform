@@ -139,7 +139,7 @@ urlpatterns = [
     path('admin/changeAgentSataus/<int:agent_id>', AdminChangeAgentSataus.as_view(), name='agent_list'),
     
     # 获取知识库列表和搜索、审核知识库
-    path('admin/knowledgebases', AdminGetKB.as_view(), name='kb_list'),
+    path('admin/knowledgebases/', AdminGetKB.as_view(), name='kb_list'),
     path('admin/knowledgebases/<int:kb_id>', AdminGetKB.as_view(), name='kb_search'),
     path('admin/changeKBSataus/<int:kb_id>', AdminChangeKBSataus.as_view(), name='kb_list'),
     
