@@ -1747,18 +1747,26 @@ const announcementApi = {
   // 创建公告
   async createAnnouncement(data) {
     try {
-      const response = await fetch('/user/admin/CreateAnnouncement', {
+      const response = await fetch('/user/admin/CreateAnnouncement/', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
         },
-        body: JSON.stringify(data)
+        body: JSON.stringify({
+          title: data.title,
+          content: data.content,
+          status: data.status,
+          publishTime: data.publishTime
+        })
       })
-      if (!response.ok) throw new Error('创建公告失败')
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.detail || '创建公告失败')
+      }
       return await response.json()
     } catch (error) {
-      ElMessage.error('创建公告失败')
+      ElMessage.error(error.message || '创建公告失败')
       throw error
     }
   },
@@ -1883,29 +1891,27 @@ const handleSaveAnnouncement = async () => {
     loading.value = true
     
     if (isEdit.value) {
-      // 使用模拟数据
-      const index = announcements.value.findIndex(item => item.id === currentAnnouncement.value.id)
-      if (index !== -1) {
-        const temp = await announcementApi.updateAnnouncement(currentAnnouncement.value.id,{
-          ...currentAnnouncement.value,
-          ...announcementForm,
-          publishTime: new Date().toISOString().split('.')[0] + 'Z'
-        })
-      }
+      const temp = await announcementApi.updateAnnouncement(currentAnnouncement.value.id, {
+        title: announcementForm.title,
+        content: announcementForm.content,
+        status: announcementForm.status,
+        publishTime: new Date().toISOString()
+      })
       ElMessage.success('更新成功')
     } else {
-      const formatted = new Date().toISOString().split('.')[0] + 'Z'
       const newAnnouncement = await announcementApi.createAnnouncement({
-        ...announcementForm,
-        publishTime:  formatted
+        title: announcementForm.title,
+        content: announcementForm.content,
+        status: announcementForm.status,
+        publishTime: new Date().toISOString()
       })
-      console.log('新公告:', newAnnouncement.announcement)
       ElMessage.success('发布成功')
     }
     handleAnnouncementSearch()
     announcementDialogVisible.value = false
   } catch (error) {
     console.error('保存公告失败:', error)
+    ElMessage.error(error.message || '保存公告失败')
   } finally {
     loading.value = false
   }
