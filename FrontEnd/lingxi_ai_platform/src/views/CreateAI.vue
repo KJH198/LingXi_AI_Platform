@@ -714,8 +714,6 @@
                 <el-form-item label="输入类型" label-width="100px">
                   <el-select v-model="nodeForm.inputType">
                     <el-option label="文本" value="text" />
-                    <el-option label="文件" value="file" />
-                    <el-option label="API" value="api" />
                   </el-select>
                 </el-form-item>
                 <template v-if="nodeForm.inputType === 'text'">
@@ -873,8 +871,6 @@
                 <el-form-item label="输出类型" label-width="100px">
                   <el-select v-model="nodeForm.outputType">
                     <el-option label="文本" value="text" />
-                    <el-option label="文件" value="file" />
-                    <el-option label="API" value="api" />
                   </el-select>
                 </el-form-item>
                 <template v-if="nodeForm.outputType === 'file'">

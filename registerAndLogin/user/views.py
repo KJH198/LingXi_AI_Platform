@@ -2321,8 +2321,9 @@ class AdminGetKB(APIView):
                         'name': kb.name,
                         'description': kb.description,
                         'creatorID': kb.user.id,
-                        'fileCount': kb.files.count(),
-                        'status': kb.status
+                        'type': kb.type,
+                        'status': kb.status,
+                        'created_at': kb.created_at.strftime('%Y-%m-%d %H:%M:%S'),
                     })
                 elif kb.status == 'approved':
                     approved += 1
