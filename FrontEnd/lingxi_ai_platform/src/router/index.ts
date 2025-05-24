@@ -79,11 +79,6 @@ const routes: RouteRecordRaw[] = [
     component: () => import('../views/AdminDashboard.vue')
   },
   {
-    path: '/code-editor',
-    name: 'CodeEditor',
-    component: () => import('../views/CodeEditor.vue')
-  },
-  {
     path: '/editor',
     name: 'Editor',
     component: Editor
