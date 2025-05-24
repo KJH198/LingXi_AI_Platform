@@ -13,6 +13,18 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url))
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'pdfjs': ['pdfjs-dist'],
+        }
+      }
+    }
+  },
+  optimizeDeps: {
+    include: ['pdfjs-dist']
+  },
   server: {
     proxy: {
       '/user': {

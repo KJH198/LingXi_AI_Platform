@@ -16,3 +16,5 @@ bs4
 requests
 pymupdf
 python-docx
+markdown
+mammoth

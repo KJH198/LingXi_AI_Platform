@@ -14,4 +14,5 @@ urlpatterns = [
     path('knowledgebase/<str:knowledgeBaseId>/upload_url/', views.KnowledgeBaseUrlUploadView.as_view(), name='knowledge-base-upload-url'),
     # 获取某个知识库的信息
     path('<str:kbId>/', views.KnowledgeBaseInfoView.as_view(), name='knowledge-base-info'),
+    path('knowledgebase/<str:knowledgeBaseId>/file/<str:fileId>/preview/', views.FilePreviewView.as_view(), name='file_preview'),
 ]

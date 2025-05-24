@@ -16,3 +16,4 @@ nohup.out
 .idea
 *.pyc
 .env
+node_modules/

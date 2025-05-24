@@ -326,17 +326,17 @@
     <el-dialog
       v-model="filePreviewVisible"
       :title="`文件预览: ${currentPreviewFile?.filename || ''}`"
-      width="700px"
+      width="800px"
+      top="5vh"
+      fullscreen
     >
-      <el-skeleton :rows="15" animated v-if="previewLoading" />
-      
-      <div v-else-if="previewContent" class="file-preview">
-        <pre>{{ previewContent }}</pre>
-      </div>
-      
-      <div v-else class="empty-preview">
-        <el-empty description="无法预览文件内容" />
-      </div>
+      <file-preview 
+        v-if="filePreviewVisible" 
+        :file-id="currentPreviewFile?.id"
+        :knowledge-base-id="currentKnowledgeBase?.id"
+        :file-name="currentPreviewFile?.filename"
+        :file-size="currentPreviewFile?.size"
+      />
     </el-dialog>
   </div>
 </template>
@@ -345,7 +345,7 @@
 import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { ElMessage, ElMessageBox, ElLoading } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
-
+import FilePreview from './FilePreview.vue'  // 导入文件预览组件
 // 类型定义
 interface AgentDataType {
   id: string;

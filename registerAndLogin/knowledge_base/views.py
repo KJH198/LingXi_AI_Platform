@@ -16,6 +16,7 @@ from bs4 import BeautifulSoup
 import uuid
 from urllib.parse import urlparse
 import mimetypes
+from .utils import get_file_extension, process_text_file, process_markdown_file, process_docx_file
 
 # 添加分页类
 class KnowledgeBasePagination(PageNumberPagination):
@@ -489,3 +490,157 @@ class KnowledgeBaseInfoView(APIView):
                 'message': '知识库不存在',
                 'data': None
             }, status=status.HTTP_404_NOT_FOUND)
+        
+class FilePreviewView(APIView):
+    """文件预览视图 - 支持不同类型文件的预览"""
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get(self, request, knowledgeBaseId, fileId):
+        try:
+            # 验证知识库存在及权限
+            try:
+                kb = KnowledgeBase.objects.get(id=knowledgeBaseId)
+                
+                # 检查访问权限
+                if kb.user != request.user:
+                    return Response({
+                        'code': 403,
+                        'message': '无权访问此知识库',
+                        'data': None
+                    }, status=status.HTTP_403_FORBIDDEN)
+                
+            except KnowledgeBase.DoesNotExist:
+                return Response({
+                    'code': 404,
+                    'message': '知识库不存在',
+                    'data': None
+                }, status=status.HTTP_404_NOT_FOUND)
+            
+            # 获取文件对象
+            try:
+                file_obj = KnowledgeBaseFile.objects.get(id=fileId, knowledge_base=kb)
+            except KnowledgeBaseFile.DoesNotExist:
+                return Response({
+                    'code': 404,
+                    'message': '文件不存在',
+                    'data': None
+                }, status=status.HTTP_404_NOT_FOUND)
+                
+            # 获取文件路径
+            file_path = file_obj.file.path
+            if not os.path.exists(file_path):
+                return Response({
+                    'code': 404,
+                    'message': '文件不存在',
+                    'data': None
+                }, status=status.HTTP_404_NOT_FOUND)
+            
+            # 检查文件大小
+            file_size = os.path.getsize(file_path)
+            max_preview_size = 10 * 1024 * 1024  # 10MB
+            if file_size > max_preview_size:
+                return Response({
+                    'code': 413,
+                    'message': '文件过大，无法预览',
+                    'data': None
+                }, status=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE)
+            
+            # 根据文件类型处理预览
+            file_ext = get_file_extension(file_obj.filename)
+            
+            # PDF和图片直接使用FileContentView
+            if file_ext in ['.pdf', '.png', '.jpg', '.jpeg', '.gif', '.webp']:
+                # 返回文件直接预览的信息
+                return Response({
+                    'code': 200,
+                    'message': '获取文件预览成功',
+                    'data': {
+                        'type': 'direct',
+                        'contentUrl': f"/knowledge_base/knowledgebase/{knowledgeBaseId}/file/{fileId}/content/",
+                        'filename': file_obj.filename
+                    }
+                })
+                
+            # 文本文件处理
+            elif file_ext == '.txt':
+                try:
+                    content = process_text_file(file_path)
+                    return Response({
+                        'code': 200,
+                        'message': '获取文件内容成功',
+                        'data': {
+                            'type': 'text',
+                            'content': content,
+                            'filename': file_obj.filename
+                        }
+                    })
+                except Exception as e:
+                    return Response({
+                        'code': 500,
+                        'message': f'处理文本文件失败: {str(e)}',
+                        'data': None
+                    }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                
+            # Markdown文件处理
+            elif file_ext == '.md':
+                try:
+                    html_content, raw_content = process_markdown_file(file_path)
+                    return Response({
+                        'code': 200,
+                        'message': '获取文件内容成功',
+                        'data': {
+                            'type': 'html',
+                            'content': html_content,
+                            'raw': raw_content,
+                            'filename': file_obj.filename
+                        }
+                    })
+                except Exception as e:
+                    return Response({
+                        'code': 500,
+                        'message': f'处理Markdown文件失败: {str(e)}',
+                        'data': None
+                    }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                
+            # DOCX文件处理
+            elif file_ext == '.docx':
+                try:
+                    html_content, text_content = process_docx_file(file_path)
+                    return Response({
+                        'code': 200,
+                        'message': '获取文件内容成功',
+                        'data': {
+                            'type': 'html',
+                            'content': html_content,
+                            'text': text_content,
+                            'filename': file_obj.filename
+                        }
+                    })
+                except Exception as e:
+                    return Response({
+                        'code': 500,
+                        'message': f'处理DOCX文件失败: {str(e)}',
+                        'data': None
+                    }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                
+            # 不支持的文件类型
+            else:
+                return Response({
+                    'code': 400,
+                    'message': f'不支持预览此类型的文件: {file_ext}',
+                    'data': {
+                        'type': 'unsupported',
+                        'contentUrl': f"/knowledge_base/knowledgebase/{knowledgeBaseId}/file/{fileId}/content/",
+                        'filename': file_obj.filename
+                    }
+                })
+                
+        except Exception as e:
+            import traceback
+            print(f"获取文件预览失败: {str(e)}")
+            traceback.print_exc()
+            return Response({
+                'code': 500,
+                'message': f'获取文件预览失败: {str(e)}',
+                'data': None
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
