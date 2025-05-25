@@ -44,6 +44,7 @@
                     class="search-input"
                     clearable
                     @keyup.enter="handleUserSearch"
+                    @clear="() => { userSearchQuery = ''; handleUserSearch(); }" 
                   >
                     <template #append>
                       <el-button @click="handleUserSearch">搜索</el-button>
@@ -130,8 +131,10 @@
                   <template #default="scope">
                     <el-button 
                       type="primary" 
-                      size="small" 
-                      @click="handleViewUser(scope.row)"
+                      size="small"  
+                      tag="a" 
+                      :href="`/#/user-profile/${scope.row.id}`" 
+                      target="_blank"
                     >
                       查看
                     </el-button>
@@ -250,7 +253,11 @@
               </div>
             </div>
             <el-descriptions :column="1" border>
-              <el-descriptions-item label="用户ID">{{ selectedUser?.id }}</el-descriptions-item>
+              <el-descriptions-item label="用户ID">
+                    <a :href="`/#/user-profile/${selectedUser?.id}`" target="_blank" rel="noopener noreferrer" style="color: #409EFF; text-decoration: none;">
+                      {{ selectedUser?.id }}
+                    </a>
+              </el-descriptions-item>
               <el-descriptions-item label="用户名">{{ selectedUser?.username }}</el-descriptions-item>
               <el-descriptions-item label="注册时间">{{ selectedUser?.registerTime }}</el-descriptions-item>
               <el-descriptions-item label="最后登录时间">{{ selectedUser?.lastLoginTime || '-' }}</el-descriptions-item>
@@ -563,7 +570,7 @@
                 <div class="search-box">
                   <el-input
                     v-model="agentSearchQuery"
-                    placeholder="搜索智能体ID/名称"
+                    placeholder="搜索智能体ID"
                     class="search-input"
                     clearable
                     @keyup.enter="handleAgentSearch"
@@ -584,11 +591,11 @@
                     <template #header>
                       <div class="stat-header">
                         <el-icon><Document /></el-icon>
-                        <span>待审核</span>
+                        <span>总智能体数</span>
                       </div>
                     </template>
                     <div class="stat-content">
-                      <span class="stat-number">{{ pendingReviews }}</span>
+                      <span class="stat-number">{{ totalAgents }}</span>
                       <span class="stat-unit">个</span>
                     </div>
                   </el-card>
@@ -660,7 +667,9 @@
                       <el-button 
                         type="primary" 
                         size="small" 
-                        @click="viewAgentDetail(scope.row)"
+                        tag="a"
+                        :href="`/#/agent-detail/${scope.row.agentId}`"
+                        target="_blank"
                       >
                         查看详情
                       </el-button>
@@ -708,7 +717,11 @@
           width="700px"
         >
           <el-descriptions :column="2" border>
-            <el-descriptions-item label="智能体ID">{{ selectedAgent?.agentId }}</el-descriptions-item>
+            <el-descriptions-item label="智能体ID">
+              <a :href="`/#/agent-detail/${selectedAgent?.agentId}`" target="_blank" rel="noopener noreferrer" style="color: #409EFF; text-decoration: none;">
+                {{ selectedAgent?.agentId }}
+              </a>
+            </el-descriptions-item>
             <el-descriptions-item label="智能体名称">{{ selectedAgent?.agentName }}</el-descriptions-item>
             <el-descriptions-item label="提交时间">{{ selectedAgent?.submitTime }}</el-descriptions-item>
             <el-descriptions-item label="功能类型">
@@ -827,15 +840,17 @@
                     </el-tag>
                   </template>
                 </el-table-column>
+                <el-table-column label="类型" width="100">
+                  <template #default="scope">
+                    <el-tag :type="'info'">
+                      {{ scope.row.type }}
+                    </el-tag>
+                  </template>
+                </el-table-column>
                 <el-table-column label="描述预览"> <!-- 修改标签 -->
                   <template #default="scope">
                     <span class="content-text">{{ scope.row.description }}</span> <!-- 显示 description -->
                   </template>
-                </el-table-column>
-                <el-table-column label="文件数" width="100">
-                    <template #default="scope">
-                        {{ scope.row.fileCount }}
-                    </template>
                 </el-table-column>
                 <el-table-column label="状态" width="100">
                   <template #default="scope">
@@ -850,7 +865,9 @@
                       <el-button 
                         type="primary" 
                         size="small" 
-                        @click="viewKbDetail(scope.row)"
+                        tag="a" 
+                        :href="`/#/knowledge-base/${scope.row.kbId}`" 
+                        target="_blank"
                       >
                         查看详情
                       </el-button>
@@ -908,7 +925,6 @@
                 {{ getReviewStatusText(selectedKb.status) }}
               </el-tag>
             </el-descriptions-item>
-            <el-descriptions-item label="文件数量">{{ selectedKb.fileCount }}</el-descriptions-item>
             <el-descriptions-item label="描述" :span="2">{{ selectedKb.description }}</el-descriptions-item>
             <!-- 根据后端 AdminGetKB 返回的字段添加更多详情 -->
             <el-descriptions-item label="审核意见" :span="2">{{ selectedKb.reviewNotes || '-' }}</el-descriptions-item>
@@ -1064,7 +1080,7 @@ const endDate = ref('')
 const agentSearchQuery = ref('') 
 const allRawAgentReviews = ref([]);
 const totalReviews = ref(0);
-const pendingReviews = ref(0);
+const totalAgents = ref(0);
 const approvedAgents = ref(0);
 const rejectedAgents = ref(0);
 
@@ -1108,22 +1124,36 @@ const api = {
   // 获取用户列表
   async getUserList(params) {
     try {
-      const response = await fetch(`/user/adminGetUsers`, {
+      let url = '/user/adminGetUsers';
+      const queryParams = new URLSearchParams();
+      if (params && params.page) {
+        queryParams.append('page', String(params.page));
+      }
+      if (params && params.page_size) {
+        queryParams.append('page_size', String(params.page_size));
+      }
+      
+      const queryString = queryParams.toString();
+      if (queryString) {
+        url += `?${queryString}`;
+      }
+
+      const response = await fetch(url, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
         }
-      })
-      if (!response.ok) throw new Error('获取用户列表失败')
-      const data = await response.json()
+      });
+      if (!response.ok) throw new Error('获取用户列表失败');
+      const data = await response.json();
       return {
         users: data.users,
         total: data.total,
         active_users: data.active_users,
         banned_users: data.banned_users
-      }
+      };
     } catch (error) {
-      ElMessage.error('获取用户列表失败')
-      throw error
+      ElMessage.error('获取用户列表失败');
+      throw error;
     }
   },
 
@@ -1237,49 +1267,55 @@ const behaviorApi = {
 };
 
 // 修改用户列表搜索函数
+// Replace the existing handleUserSearch function with this:
 const handleUserSearch = async () => {
-  loading.value = true
+  loading.value = true;
   try {
     if (userSearchQuery.value) {
-      // 搜索单个用户
-      const data = await api.searchUser(userSearchQuery.value)
+      // Search for a single user by ID
+      const data = await api.searchUser(userSearchQuery.value);
       if (data.user) {
-        // 将用户数据转换为弹窗显示格式
-        selectedUser.value = {
+        // Map the single user to the structure expected by the table if necessary
+        // Assuming data.user has fields: id, username, registerTime, violationType, status
+        userList.value = [{
           id: data.user.id,
           username: data.user.username,
           registerTime: data.user.registerTime || '-',
-          lastLoginTime: data.user.lastLoginTime || '-',
+          // lastLoginTime: data.user.lastLoginTime || '-', // Not directly in table but good to have for consistency if needed elsewhere
           status: data.user.status || 'normal',
           violationType: data.user.violationType || null,
-          ipAddress: data.user.ipAddress || '-',
-          device: data.user.device || '-'
-        }
-        // 显示搜索结果弹窗
-        searchResultDialogVisible.value = true
-        // 清空搜索框
-        userSearchQuery.value = ''
+          // ipAddress: data.user.ipAddress || '-', // Not directly in table
+          // device: data.user.device || '-' // Not directly in table
+        }];
+        totalUsers.value = 1;
+        currentPage.value = 1; // Reset pagination to page 1 for single result
+        // activeUsers and bannedUsers stats might not be relevant for a single user search result
+        // or could be derived if needed:
+        // activeUsers.value = (data.user.status === 'normal' && !data.user.violationType) ? 1 : 0; // Example logic
+        // bannedUsers.value = (data.user.status !== 'normal') ? 1 : 0; // Example logic
       } else {
-        // 用户不存在，显示错误信息
-        ElMessage.error('搜索失败，用户不存在')
-        userSearchQuery.value = ''
+        ElMessage.warning('搜索的用户不存在');
+        userList.value = [];
+        totalUsers.value = 0;
       }
+      // Do NOT show searchResultDialogVisible.value = true
     } else {
-      // 获取所有用户列表
-      const data = await api.getUserList({})
-      userList.value = data.users
-      totalUsers.value = data.total
-      activeUsers.value = data.active_users
-      bannedUsers.value = data.banned_users
+      // Fetch paginated list of all users
+      const params = { page: currentPage.value, page_size: pageSize.value };
+      const data = await api.getUserList(params);
+      userList.value = data.users;
+      totalUsers.value = data.total;
+      activeUsers.value = data.active_users;
+      bannedUsers.value = data.banned_users;
     }
   } catch (error) {
-    // 处理其他错误
-    ElMessage.error('搜索用户失败')
-    userSearchQuery.value = ''
+    ElMessage.error('获取用户数据失败: ' + (error.message || '未知错误'));
+    userList.value = []; // Clear list on error
+    totalUsers.value = 0;
   } finally {
-    loading.value = false
+    loading.value = false;
   }
-}
+};
 
 // 修改封禁处理函数
 const handleBan = async () => {
@@ -1438,8 +1474,10 @@ const getViolationTypeText = (type) => {
 
 // 查看用户详情
 const handleViewUser = (user) => {
-  selectedUser.value = user
-  userInfoDialogVisible.value = true
+  // selectedUser.value = user
+  // userInfoDialogVisible.value = true
+  // const routeData = router.resolve({ path: `/#/user-profile/${user.id}` });
+  // window.open(routeData.href, '_blank');
 }
 
 // 添加封禁类型变更处理函数
@@ -1954,6 +1992,23 @@ watch(filteredAgentListForTable, (newValue) => {
   agentReviews.value = newValue; // agentReviews 是你已有的用于表格的 ref
 });
 
+watch(userSearchQuery, (newValue) => {
+  if (newValue === '' || newValue === null) { // Handle clearable input
+    // Check if already on page 1 and search was just cleared to avoid redundant call from @clear event
+    if (currentPage.value !== 1) {
+        currentPage.value = 1; // Reset to first page
+    }
+    handleUserSearch(); // Reload all users
+  }
+});
+
+watch(agentSearchQuery, (newValue, oldValue) => {
+  if ((newValue === '' || newValue === null) && oldValue !== '' && oldValue !== null) { 
+    // Call only if cleared from a non-empty state to avoid loops or redundant calls
+    handleAgentSearch(); 
+  }
+});
+
 // 修改获取智能体列表的函数
 const fetchAgentReviews = async () => {
   loading.value = true;
@@ -1985,8 +2040,8 @@ const fetchAgentReviews = async () => {
     }));
     totalReviews.value = listData.total || allRawAgentReviews.value.length; // totalReviews 是你已有的
 
-    // 2. 获取统计数据 (来自 /user/admin/agent_rating/)
-    const statsResponse = await fetch('/user/admin/agent_rating/', {
+    // 2. 获取统计数据 (来自 /user/admin/list/)
+    const statsResponse = await fetch('/user/admin/agents/list', {
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
       }
@@ -1995,16 +2050,16 @@ const fetchAgentReviews = async () => {
     const statsData = await statsResponse.json();
 
     // 更新你已有的统计变量
-    pendingReviews.value = statsData.pending_count || 0;
-    approvedAgents.value = statsData.approved_count || 0;
-    rejectedAgents.value = statsData.rejected_count || 0;
+    totalAgents.value = statsData.agentsNum || 0;
+    approvedAgents.value = statsData.approvedNum || 0;
+    rejectedAgents.value = statsData.rejectedNum || 0;
 
   } catch (error) {
     console.error('获取智能体审核数据失败:', error);
     ElMessage.error(error.message || '获取智能体审核数据失败');
     allRawAgentReviews.value = [];
     totalReviews.value = 0;
-    pendingReviews.value = 0;
+    totalAgents.value = 0;
     approvedAgents.value = 0;
     rejectedAgents.value = 0;
   } finally {
@@ -2054,56 +2109,80 @@ const fetchAgentDetail = async (agentId) => {
   }
 };
 
+// In your <script setup>
+
 const handleAgentSearch = async () => {
-  if (agentSearchQuery.value) {
-    // 搜索特定智能体
-    loading.value = true;
-    try {
-      const response = await fetch(`/user/admin/agents/list/${agentSearchQuery.value}`, {
+  loading.value = true;
+  try {
+    const query = agentSearchQuery.value ? agentSearchQuery.value.trim() : '';
+
+    if (query !== '') {
+      // User is searching by an ID
+      const response = await fetch(`/user/admin/agents/list/${query}`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
         }
       });
-      
-      if (!response.ok) throw new Error('搜索智能体失败');
-      const data = await response.json();
-      
-      if (data.agents && data.agents.length > 0) {
-        const agentData = data.agents[0];
-        selectedAgent.value = {
-          agentId: agentData.agentID,
-          agentName: agentData.name,
-          submitTime: agentData.time,
-          content: agentData.description,
-          contentType: 'template',
-          functionType: agentData.creatorID, // 使用创建者ID作为功能类型显示
-          status: agentData.status,
-          is_OpenSource: agentData.is_OpenSource
-        };
-        agentSearchResultDialogVisible.value = true;
-      } else {
-        ElMessage.warning('未找到相关智能体');
+
+      if (!response.ok) {
+        allRawAgentReviews.value = []; // Clear the list on error
+        totalReviews.value = 0;
+        ElMessage.error('搜索智能体时发生错误');
+        return; // Exit the function
       }
-    } catch (error) {
-      console.error('搜索智能体失败:', error);
-      ElMessage.error('搜索智能体失败');
-    } finally {
-      loading.value = false;
+
+      const data = await response.json(); // data = { agents: [...], total: X, ... }
+
+      // The backend returns an 'agents' array.
+      // If the ID matched a PENDING agent, 'data.agents' will contain that one agent.
+      // Otherwise, 'data.agents' will be empty.
+      if (data.agents && data.agents.length > 0) {
+        allRawAgentReviews.value = data.agents.map(agent => ({
+          agentId: agent.agentID,
+          agentName: agent.name,
+          submitTime: agent.time,
+          content: agent.description,
+          contentType: agent.contentTypeFromPublishedAgent || 'template', // Use a default or what backend provides
+          creatorId: agent.creatorID,
+          status: agent.status, // This will be 'pending' if found by this backend logic
+          is_OpenSource: agent.is_OpenSource,
+          // Ensure other fields expected by your table and detail view are mapped
+          functionType: agent.functionTypeFromPublishedAgent || '未知功能', // Example placeholder
+          reviewTime: null, // These might be filled by fetchAgentDetail upon clicking 'view details'
+          reviewer: null,
+          reviewComment: '',
+        }));
+        totalReviews.value = data.total; // Should be 1 if a pending agent is found
+      } else {
+        // Agent not found with that ID in 'pending' state, or ID doesn't exist
+        allRawAgentReviews.value = [];
+        totalReviews.value = 0;
+        ElMessage.info(`未找到ID为 ${query} 的待审核智能体，或该智能体ID不存在/非待审核状态。`);
+      }
+    } else {
+      // Search query is empty, so load all pending agents
+      await fetchAgentReviews(); // This function should already correctly populate allRawAgentReviews and stats
     }
-  } else {
-    // 获取所有智能体列表
-    fetchAgentReviews();
+  } catch (error) {
+    console.error('智能体搜索或列表加载操作失败:', error);
+    allRawAgentReviews.value = []; // Clear list on catch-all error
+    totalReviews.value = 0;
+    ElMessage.error('操作失败，请检查网络或稍后再试。');
+  } finally {
+    loading.value = false;
   }
 };
 
 // 修改查看详情函数
 const viewAgentDetail = async (agent) => {
-  try {
-    selectedAgent.value = await fetchAgentDetail(agent.agentId);
-    agentSearchResultDialogVisible.value = true;
-  } catch (error) {
-    ElMessage.error('获取智能体详情失败');
-  }
+  // try {
+  //   selectedAgent.value = await fetchAgentDetail(agent.agentId);
+  //   agentSearchResultDialogVisible.value = true;
+  // } catch (error) {
+  //   ElMessage.error('获取智能体详情失败');
+  // }
+  // const routeData = router.resolve({ path: `/#/agent-detail/${agent.agentId}` });
+  // window.open(routeData.href, '_blank');
 };
 
 const handleReviewAgent = async (agent, decision) => {
@@ -2188,12 +2267,12 @@ const fetchKbReviews = async () => {
       allRawKbReviews.value = listData.data.map(kb => ({
         kbId: kb.id, // 从后端 id 映射
         kbName: kb.name,
+        submitTime: kb.created_at || new Date().toLocaleDateString(), // 占位
         // AdminGetKB 没有直接返回提交时间，可以用创建时间代替或从详情获取
         // 假设 PublishedAgent 的 created_at 对应知识库的提交时间，这里 AdminGetKB 没有直接返回
-        // submitTime: kb.created_at || new Date().toLocaleDateString(), // 占位，需要后端确认
-        // AdminGetKB 返回 creatorID, fileCount
+        // AdminGetKB 返回 creatorID
         creatorId: kb.creatorID,
-        fileCount: kb.fileCount,
+        type: kb.type,
         description: kb.description || '', // AdminGetKB 返回 description
         status: kb.status || 'pending', // AdminGetKB 应该返回 status
         // 以下为详情弹窗可能需要的
@@ -2249,7 +2328,6 @@ const fetchKbReviews = async () => {
     //  对于 approved 和 rejected，你需要不同的API调用或后端修改 AdminGetKB
        approvedKbs.value = 0; // 占位 - 需要后端支持
        rejectedKbs.value = 0; // 占位 - 需要后端支持
-       ElMessage.info('当前仅显示待审核知识库列表，已通过/已拒绝数量需后端支持完整统计接口。');
 
 
   } catch (error) {
@@ -2288,9 +2366,9 @@ const fetchKbDetail = async (kbId) => {
       return {
         kbId: kbDataToProcess.id,
         kbName: kbDataToProcess.name,
-        // submitTime: kbDataToProcess.created_at || new Date().toLocaleDateString(), // 占位
+        submitTime: kbDataToProcess.created_at || new Date().toLocaleDateString(), // 占位
         creatorId: kbDataToProcess.creatorID,
-        fileCount: kbDataToProcess.fileCount,
+        type: kbDataToProcess.type,
         description: kbDataToProcess.description || '',
         status: kbDataToProcess.status || 'pending',
         reviewNotes: kbDataToProcess.review_notes || '', // 假设后端会返回这个
