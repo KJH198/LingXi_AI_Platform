@@ -979,17 +979,65 @@ const selectedAnnouncement = reactive({ title: '', content: '' })
 
 const markAnnouncementAsViewed = (announcement) => {
   announcement.viewed = true;
+  const ann = announcements.value.find(a => a.id === announcement.id);
+  if (ann) {
+    ann.viewed = true;
+  }
 };
 
 const showAnnouncementList = () => {
   announcementListDialogVisible.value = true
 }
 
-const showAnnouncement = (announcement) => {
+const updateLastAnnouncementViewTime = async () => {
+  const token = localStorage.getItem('token');
+  const userId = getCurrentUserId(); // You already have this function
+
+  if (!token) {
+    // ElMessage.error('请先登录以更新查看状态'); // Optional: user might not need to know
+    console.warn('用户未登录，无法更新公告查看时间');
+    return;
+  }
+  if (!userId) {
+    console.warn('无法获取用户ID，无法更新公告查看时间');
+    return;
+  }
+
+  try {
+    const response = await fetch(`/user/user/update/${userId}`, { // Using the provided path with user_id
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json' // Even if no body, good practice
+      },
+      // No body needed as per your backend code for this specific action
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({})); // Try to parse error
+      console.error('更新公告查看时间失败:', response.status, errorData);
+      // ElMessage.error('更新公告查看状态失败，请稍后再试'); // Optional user feedback
+    } else {
+      const result = await response.json();
+      if (response.status === 200 || result.success) { // Check for success indicators
+         console.log('最后公告查看时间已更新');
+      } else {
+         console.warn('更新公告查看时间响应未明确成功:', result);
+      }
+    }
+  } catch (error) {
+    console.error('调用更新公告查看时间API时出错:', error);
+    // ElMessage.error('网络错误，更新公告查看状态失败'); // Optional user feedback
+  }
+};
+
+const showAnnouncement = async (announcement) => {
   selectedAnnouncement.title = announcement.title
   selectedAnnouncement.content = announcement.content
   announcementDialogVisible.value = true
-  markAnnouncementAsViewed(announcement);
+  markAnnouncementAsViewed(announcement);  
+  // Call API to update user's last announcement view time
+  await updateLastAnnouncementViewTime(); 
 }
 
 const checkNewAnnouncements = async () => {
