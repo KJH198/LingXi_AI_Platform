@@ -1597,11 +1597,12 @@ class CheckAnnouncement(APIView):
 
 class Update(APIView):
     """更新最后一次看公告时间"""
-    def post(self, request):
-        # 验证用户权限
-        if not request.user.is_authenticated:
-            return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
-        User.objects.filter(id=request.user.id).update(updated_at=timezone.now())
+    def post(self, request, user_id):
+        User.objects.filter(id=user_id).update(updated_at=timezone.now())
+        return Response({
+            'code': 200,
+            'message': '更新时间更新成功',
+        })
 
 class AgentPublishView(APIView):
     """智能体发布视图"""
