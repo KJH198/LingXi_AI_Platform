@@ -1570,12 +1570,8 @@ class DeleteAnnouncement(APIView):
 
 class CheckAnnouncement(APIView):
     """检查公告是否更新"""
-    def get(self, request, user_id, announcement_id):
-        # 验证用户权限
-        if not request.user.is_authenticated:
-            return Response({'error': '无权访问'}, status=status.HTTP_403_FORBIDDEN)
-        
-        user = User.objects.get(id=request.user.id)
+    def get(self, request, user_id, announcement_id):     
+        user = User.objects.get(id=user_id)
         # 获取该公告的发布时间
         announcement = Announcement.objects.filter(id=announcement_id).first()
         if not announcement:
