@@ -79,7 +79,7 @@
               <h3>{{ userInfo.followers }}</h3>
               <p>粉丝</p>
               </div>
-              <div class="stat-item" @click="router.push('/following')">
+              <div class="stat-item" @click="router.push('/followings')">
               <h3>{{ userInfo.following }}</h3>
               <p>已关注</p>
               </div>

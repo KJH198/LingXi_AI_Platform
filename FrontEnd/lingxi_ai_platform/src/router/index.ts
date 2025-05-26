@@ -146,6 +146,18 @@ const routes: RouteRecordRaw[] = [
     name: 'MyPost',
     component: () => import('../views/MyPost.vue')
   },
+  {
+    path: '/followers',
+    name: 'Followers',
+    component: () => import('../views/Followers.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/followings',
+    name: 'Followings',
+    component: () => import('../views/Followings.vue'),
+    meta: { requiresAuth: true }
+  },
 ]
 
 const router = createRouter({

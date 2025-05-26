@@ -73,6 +73,8 @@ from .views import (
     PostCommentDeleteView,
     AgentCommentDeleteView,
     KnowledgeBaseCommentDeleteView,
+    UserFollowersView,
+    UserFollowingsView,
 )
 
 urlpatterns = [
@@ -169,6 +171,8 @@ urlpatterns = [
     # 关注相关路由
     path('follow/agent/<int:agentId>/', AgentFollowView.as_view(), name='agent_follow'),
     path('follow/knowledge-base/<int:kbId>/', KnowledgeBaseFollowView.as_view(), name='knowledge_base_follow'),
+    path('<int:user_id>/followers/', UserFollowersView.as_view(), name='user_followers'),
+    path('<int:user_id>/followings/', UserFollowingsView.as_view(), name='user_followings'),
 
     path('knowledge-base/<int:kbId>/like/', KnowledgeBaseLikeView.as_view(), name='knowledge_base_like'),
     path('knowledge-base/<int:kbId>/comment/', KnowledgeBaseCommentView.as_view(), name='knowledge_base_comment'),

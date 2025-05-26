@@ -47,17 +47,27 @@
             v-for="follower in followers"
             :key="follower.id"
             class="follower-card"
+            @click="viewUserProfile(follower.id)"
           >
             <div class="follower-info">
               <h3 class="follower-name">{{ follower.username }}</h3>
               <p class="follower-phone">{{ maskPhoneNumber(follower.phone_number) }}</p>
               <p class="follower-bio">{{ follower.bio || '这个人很懒，什么都没有留下' }}</p>
+              <div class="follower-actions">
+                <el-button 
+                  type="primary" 
+                  size="small" 
+                  @click.stop="followUser(follower.id)"
+                >
+                  关注
+                </el-button>
+              </div>
             </div>
           </el-card>
         </div>
 
         <!-- 分页 -->
-        <div class="pagination">
+        <div class="pagination" v-if="total > 0">
           <el-pagination
             v-model:current-page="currentPage"
             v-model:page-size="pageSize"
@@ -105,11 +115,43 @@ const fetchFollowers = async () => {
       router.push('/login')
       return
     }
+    
+    // 获取当前用户ID
+    const userId = localStorage.getItem('userId')
+    if (!userId) {
+      ElMessage.error('无法获取用户信息')
+      return
+    }
+    
+    // 实际API请求
+    const response = await fetch(
+      `/user/${userId}/followers/?page=${currentPage.value}&page_size=${pageSize.value}&search=${searchQuery.value}`,
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    )
 
-    // 模拟API请求
-    await new Promise(resolve => setTimeout(resolve, 1000))
+    if (!response.ok) {
+      throw new Error('获取粉丝列表失败')
+    }
+
+    const result = await response.json()
+    if (result.code === 200) {
+      followers.value = result.data.followers || []
+      total.value = result.data.total || 0
+    } else {
+      // 如果API返回失败但HTTP状态码是200，使用模拟数据
+      throw new Error(result.message || '获取粉丝列表失败')
+    }
+  } catch (error) {
+    console.error('获取粉丝列表失败:', error)
+    ElMessage.error('获取粉丝列表失败，使用模拟数据')
     
     // 模拟数据
+    await new Promise(resolve => setTimeout(resolve, 1000))
     const mockFollowers = [
       {
         id: 1,
@@ -143,36 +185,51 @@ const fetchFollowers = async () => {
     }
     
     total.value = followers.value.length
-
-    // 实际API请求代码（暂时注释）
-    /*
-    const response = await fetch(
-      `/api/user/followers?page=${currentPage.value}&pageSize=${pageSize.value}&search=${searchQuery.value}`,
-      {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      }
-    )
-
-    if (!response.ok) {
-      throw new Error('获取粉丝列表失败')
-    }
-
-    const result = await response.json()
-    if (result.code === 200) {
-      followers.value = result.data.items
-      total.value = result.data.total
-    } else {
-      throw new Error(result.message)
-    }
-    */
-  } catch (error) {
-    ElMessage.error('获取粉丝列表失败，请稍后重试')
   } finally {
     loading.value = false
   }
+}
+
+// 新增功能：关注用户
+const followUser = async (userId: number) => {
+  try {
+    const token = localStorage.getItem('token')
+    if (!token) {
+      ElMessage.error('请先登录')
+      router.push('/login')
+      return
+    }
+    
+    // 发送关注请求
+    const response = await fetch(`/user/follow/${userId}/`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    })
+    
+    if (!response.ok) {
+      throw new Error('关注用户失败')
+    }
+    
+    const result = await response.json()
+    if (result.success) {
+      ElMessage.success('已关注该用户')
+      // 重新获取列表以更新状态
+      fetchFollowers()
+    } else {
+      throw new Error(result.message || '关注用户失败')
+    }
+  } catch (error) {
+    console.error('关注用户失败:', error)
+    ElMessage.error('关注失败，请稍后重试')
+  }
+}
+
+// 查看用户详情
+const viewUserProfile = (userId: number) => {
+  router.push(`/user-profile/${userId}`)
 }
 
 // 手机号码脱敏处理

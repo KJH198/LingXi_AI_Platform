@@ -306,6 +306,7 @@ const fetchUserPosts = async () => {
     const result = await response.json()
     
     if (result.code === 200) {
+      console.log('获取用户帖子数据:', result.data)
       userPosts.value = result.data
     } else {
       throw new Error(result.message || '获取用户帖子失败')

@@ -28,6 +28,7 @@ from django.core.paginator import Paginator
 from community.models import Post, PostImage, PostAgent, PostKnowledgeBase
 from community.models import PostLike, PostFavorite, PostComment
 from django.shortcuts import get_object_or_404
+from django.db.models import Q
 # from community.models import PostComment as AgentComment
 # from community.models import Post
 # from ..knowledge_base.models import KnowledgeBase, KnowledgeBaseComment
@@ -4461,5 +4462,164 @@ class PostCommentDeleteView(APIView):
             return Response({
                 'code': 500,
                 'message': f'删除评论失败: {str(e)}',
+                'data': None
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class UserFollowingsView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request, user_id=None):
+        """获取用户关注的人列表"""
+        try:
+            # 如果未提供user_id，则获取当前登录用户的关注列表
+            if not user_id:
+                user = request.user
+            else:
+                try:
+                    user = User.objects.get(id=user_id)
+                except User.DoesNotExist:
+                    return Response({
+                        'code': 404,
+                        'message': '用户不存在',
+                        'data': None
+                    }, status=status.HTTP_404_NOT_FOUND)
+            
+            # 获取查询参数
+            page = int(request.query_params.get('page', 1))
+            page_size = int(request.query_params.get('page_size', 10))
+            search_query = request.query_params.get('search', '')
+            
+            # 获取用户关注的人 - 使用已有模型中的多对多关系
+            following_users = user.following.all()
+            
+            # 如果有搜索条件，过滤结果
+            if search_query:
+                following_users = following_users.filter(
+                    Q(username__icontains=search_query) | 
+                    Q(phone_number__contains=search_query) |
+                    Q(bio__icontains=search_query)
+                )
+            
+            # 实现分页
+            paginator = Paginator(following_users, page_size)
+            page_obj = paginator.get_page(page)
+            
+            # 当前用户已关注的用户ID集合
+            current_user_following = set()
+            if request.user.is_authenticated:
+                current_user_following = set(request.user.following.values_list('id', flat=True))
+            
+            # 构建返回数据
+            followings_data = []
+            for user in page_obj.object_list:
+                followings_data.append({
+                    'id': user.id,
+                    'username': user.username,
+                    'phone_number': user.phone_number,
+                    'bio': user.bio or '',
+                    'avatar': user.avatar or '',
+                    # 所有列表项都是已关注的
+                    'is_followed': True
+                })
+            
+            return Response({
+                'code': 200,
+                'message': '获取关注列表成功',
+                'data': {
+                    'followings': followings_data,
+                    'total': paginator.count,
+                    'page': page,
+                    'page_size': page_size,
+                    'total_pages': paginator.num_pages
+                }
+            })
+            
+        except Exception as e:
+            print(f"获取关注列表失败: {str(e)}")
+            return Response({
+                'code': 500,
+                'message': f'获取关注列表失败: {str(e)}',
+                'data': None
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+class UserFollowersView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request, user_id=None):
+        """获取用户的粉丝列表"""
+        try:
+            # 如果未提供user_id，则获取当前登录用户的粉丝列表
+            if not user_id:
+                user = request.user
+            else:
+                try:
+                    user = User.objects.get(id=user_id)
+                except User.DoesNotExist:
+                    return Response({
+                        'code': 404,
+                        'message': '用户不存在',
+                        'data': None
+                    }, status=status.HTTP_404_NOT_FOUND)
+            
+            # 获取查询参数
+            page = int(request.query_params.get('page', 1))
+            page_size = int(request.query_params.get('page_size', 10))
+            search_query = request.query_params.get('search', '')
+            
+            # 获取用户的粉丝 - 使用 related_name='followers' 关系
+            follower_users = user.followers.all()
+            print(f"获取用户 {user.username} 的粉丝列表")
+            print(f"follower_users: {follower_users}")
+            
+            # 如果有搜索条件，过滤结果
+            print(f"搜索条件: {search_query}")
+            if search_query:
+                follower_users = follower_users.filter(
+                    Q(username__icontains=search_query) | 
+                    Q(phone_number__contains=search_query) |
+                    Q(bio__icontains=search_query)
+                )
+            
+            print(f"过滤后的粉丝列表: {follower_users}")
+            print(f"pagesize: {page_size}, page: {page}")
+            # 实现分页
+            paginator = Paginator(follower_users, page_size)
+            page_obj = paginator.get_page(page)
+            
+            # 当前用户已关注的用户ID集合
+            current_user_following = set()
+            if request.user.is_authenticated:
+                current_user_following = set(request.user.following.values_list('id', flat=True))
+            
+            # 构建返回数据
+            followers_data = []
+            for user in page_obj.object_list:
+                followers_data.append({
+                    'id': user.id,
+                    'username': user.username,
+                    'phone_number': user.phone_number,
+                    'bio': user.bio or '',
+                    'avatar': user.avatar or '',
+                    # 检查当前登录用户是否已关注此粉丝
+                    'is_followed': user.id in current_user_following
+                })
+            
+            return Response({
+                'code': 200,
+                'message': '获取粉丝列表成功',
+                'data': {
+                    'followers': followers_data,
+                    'total': paginator.count,
+                    'page': page,
+                    'page_size': page_size,
+                    'total_pages': paginator.num_pages
+                }
+            })
+            
+        except Exception as e:
+            print(f"获取粉丝列表失败: {str(e)}")
+            return Response({
+                'code': 500,
+                'message': f'获取粉丝列表失败: {str(e)}',
                 'data': None
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
