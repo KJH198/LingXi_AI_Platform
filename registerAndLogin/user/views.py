@@ -1580,7 +1580,7 @@ class CheckAnnouncement(APIView):
                 'message': '公告不存在',
             }, status=status.HTTP_404_NOT_FOUND)
         # 检查公告是否被读取
-        if announcement and announcement.publish_time > user.last_announcement_check:
+        if announcement and announcement.publishTime > user.updated_at:
             return Response({
                 'code': 200,
                 'notSeen': True,
