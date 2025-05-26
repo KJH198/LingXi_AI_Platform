@@ -161,9 +161,6 @@
                     <el-button text type="primary" size="small" @click="likeComment(comment)">
                       <el-icon><StarFilled /></el-icon> {{ comment.likes || 0 }}
                     </el-button>
-                    <el-button text size="small" @click="replyComment(comment)">
-                      <el-icon><ChatLineRound /></el-icon> 回复
-                    </el-button>
                     
                     <!-- 添加删除按钮，仅对评论作者或智能体创建者显示 -->
                     <el-button 
@@ -735,6 +732,7 @@ const submitComment = async () => {
     const result = await response.json()
     if (result.code === 200) {
       ElMessage.success('评论成功')
+      console.log('发表评论id:', result.data.commentId, result.time)
       
       // 获取本地用户信息
       const userInfo = localStorage.getItem('userInfo')
@@ -747,9 +745,9 @@ const submitComment = async () => {
       
       // 添加新评论
       const newComment = {
-        id: result.commentId, // 临时ID
+        id: result.data.commentId, // 临时ID
         user: {
-          id: userData.id,
+          id: Number(localStorage.getItem('userId')) || userData.id,
           username: userData.username,
           avatar: userData.avatar
         },

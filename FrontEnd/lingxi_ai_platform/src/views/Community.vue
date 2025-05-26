@@ -48,6 +48,40 @@
 
       <!-- 主要内容区 -->
       <el-container>
+        <el-aside width="280px" class="community-sidebar left-sidebar">
+          <div class="sidebar-card">
+            <div class="card-header">
+              <h3 class="card-title">公告</h3>
+              <span class="view-more" @click="showAnnouncementList">查看全部</span>
+            </div>
+            <div v-if="announcements.length === 0" class="empty-placeholder">
+              <el-empty description="暂无公告" :image-size="80"></el-empty>
+            </div>
+            <div v-else class="card-content">
+              <!-- 只显示前3条公告 -->
+              <div 
+                v-for="announcement in announcements.slice(0, 3)" 
+                :key="announcement.id" 
+                class="announcement-card"
+                @click="showAnnouncement(announcement)"
+              >
+                <div class="announcement-icon" :class="{'unread': !announcement.viewed}">
+                  <el-icon v-if="!announcement.viewed"><Warning /></el-icon>
+                  <el-icon v-else><Document /></el-icon>
+                </div>
+                <div class="announcement-content">
+                  <div class="announcement-title text-truncate">{{ announcement.title }}</div>
+                  <div class="announcement-meta">
+                    <el-tag size="small" :type="announcement.viewed ? 'info' : 'danger'" effect="plain">
+                      {{ announcement.viewed ? '已读' : '未读' }}
+                    </el-tag>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </el-aside>
+
         <el-main>
           <!-- 根据选中的菜单项展示不同内容 -->
           
@@ -231,6 +265,8 @@
           </template>
         </el-main>
         
+        
+
         <el-aside width="320px" class="community-sidebar">
           <!-- 最近编辑卡片 -->
           <div class="sidebar-card">
@@ -1664,13 +1700,15 @@ const handleCommentSubmit = async () => {
     
     const result = await response.json()
     if (result.code === 200) {
+      console.log('发表评论id:', result.data.commentId, result.time)
       // 添加新评论到列表
       const newComment = {
-        id: result.commentId, // 临时ID
+        id: result.data.commentId, // 临时ID
         username: userInfo.username,
         avatar: userInfo.avatar,
         time: result.time || new Date().toLocaleString(),
-        content: commentContent.value
+        content: commentContent.value,
+        userId: getCurrentUserId() // 添加用户ID
       }
       
       // 更新当前帖子的评论
@@ -2702,5 +2740,65 @@ onMounted(() => {
 .post-actions {
   display: flex;
   gap: 8px;
+}
+
+.announcement-card {
+  display: flex;
+  align-items: center;
+  padding: 12px;
+  border-radius: 8px;
+  margin-bottom: 10px;
+  cursor: pointer;
+  transition: background-color 0.2s, transform 0.2s;
+  border: 1px solid #f0f2f5;
+}
+
+.announcement-card:last-child {
+  margin-bottom: 0;
+}
+
+.announcement-card:hover {
+  background-color: #f5f7fa;
+  transform: translateX(4px);
+}
+
+.announcement-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #909399, #c0c4cc);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 12px;
+  font-size: 18px;
+}
+
+.announcement-icon.unread {
+  background: linear-gradient(135deg, #f56c6c, #fab6b6);
+}
+
+.announcement-content {
+  flex: 1;
+  overflow: hidden;
+}
+
+.announcement-title {
+  font-weight: 500;
+  color: #303133;
+  margin-bottom: 6px;
+  font-size: 14px;
+}
+
+.announcement-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+}
+
+.announcement-date {
+  color: #909399;
 }
 </style>
