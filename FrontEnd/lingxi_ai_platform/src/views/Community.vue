@@ -598,6 +598,7 @@ const getItemTagType = (type) => {
     default: return 'warning'
   }
 }
+
 // 处理菜单选择
 const handleMenuSelect = (key) => {
   // 如果是公告选项，不进行页面切换
@@ -611,7 +612,8 @@ const handleMenuSelect = (key) => {
 // 用户信息
 const userInfo = reactive({
   username: '',
-  avatar: ''
+  avatar: '',
+  last_announcement_check: null as string | null // Add this line
 })
 
 const currentUserId = computed(() => {
@@ -677,7 +679,7 @@ const fetchUserInfo = async () => {
     if (storedUserInfo) {
       const parsedUserInfo = JSON.parse(storedUserInfo)
       Object.assign(userInfo, parsedUserInfo)
-      return
+      // return
     }
 
     const token = localStorage.getItem('token')
@@ -708,7 +710,8 @@ const fetchUserInfo = async () => {
         username: data.username,
         avatar: data.avatar || 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png',
         followers: data.followers,
-        following: data.following
+        following: data.following,
+        last_announcement_check: data.last_announcement_check,
       }
       Object.assign(userInfo, newUserInfo)
       
@@ -858,8 +861,8 @@ watch([currentPage, pageSize], () => {
 })
 
 // 组件挂载时执行
-onMounted(() => {
-  fetchUserInfo()
+onMounted(async () => {
+  await fetchUserInfo(); 
   fetchPosts()
   checkNewAnnouncements()
 })
@@ -1077,6 +1080,8 @@ const showAnnouncement = async (announcement) => {
 }
 
 const checkNewAnnouncements = async () => {
+  const token = localStorage.getItem('token');
+  const userId = getCurrentUserId();
 
   try {
     const response = await fetch('/user/GetAnnouncements', {
@@ -1085,8 +1090,77 @@ const checkNewAnnouncements = async () => {
       },
     });
     if (!response.ok) throw new Error('获取登录记录失败');
-    const data = await response.json();
-    announcements.value = data.announcements
+    const announcementsData  = await response.json();
+    let fetchedAnnouncements = [];
+    if (announcementsData.announcements && Array.isArray(announcementsData.announcements)) {
+        fetchedAnnouncements = announcementsData.announcements;
+    } else if (announcementsData.data && Array.isArray(announcementsData.data.items)) { // Common for paginated
+        fetchedAnnouncements = announcementsData.data.items;
+    } else if (announcementsData.data && Array.isArray(announcementsData.data)) {
+        fetchedAnnouncements = announcementsData.data;
+    } else if (Array.isArray(announcementsData)) { // If the root is an array
+        fetchedAnnouncements = announcementsData;
+    } else if (announcementsData.code === 200 && announcementsData.data && Array.isArray(announcementsData.data.announcements)) { // another possible structure
+        fetchedAnnouncements = announcementsData.data.announcements;
+    }
+
+    if (!fetchedAnnouncements || fetchedAnnouncements.length === 0) {
+      announcements.value = [];
+      return;
+    }
+
+    const processedAnnouncements = [];
+
+    if (token && userId) {
+      // Step 2: For each announcement, check its read status if user is logged in
+      for (const ann of fetchedAnnouncements) {
+        if (!ann.id) { // Skip if announcement has no ID
+            console.warn("Announcement missing ID:", ann);
+            processedAnnouncements.push({ ...ann, viewed: false }); // Default to unread
+            continue;
+        }
+        try {
+          const statusResponse = await fetch(`/user/user/checkAnnouncement/${userId}/${ann.id}`, {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          });
+
+          if (statusResponse.ok) {
+            const statusResult = await statusResponse.json();
+            if (statusResult.code === 200) {
+              // IMPORTANT: Assuming your backend is fixed:
+              // notSeen: true means unread (viewed: false)
+              // notSeen: false means read (viewed: true)
+              processedAnnouncements.push({
+                ...ann,
+                viewed: !statusResult.notSeen
+              });
+            } else {
+              console.warn(`API error checking announcement ${ann.id} status: ${statusResult.message}`);
+              processedAnnouncements.push({ ...ann, viewed: false }); // Default to unread on API logical error
+            }
+          } else {
+            console.warn(`HTTP error ${statusResponse.status} checking announcement ${ann.id} status.`);
+            processedAnnouncements.push({ ...ann, viewed: false }); // Default to unread on HTTP error
+          }
+        } catch (error) {
+          console.error(`Fetch error checking announcement ${ann.id} status:`, error);
+          processedAnnouncements.push({ ...ann, viewed: false }); // Default to unread on fetch/network error
+        }
+      }
+    } else {
+      // Not logged in, or userId not available: mark all as unread
+      fetchedAnnouncements.forEach(ann => {
+        processedAnnouncements.push({ ...ann, viewed: false });
+      });
+    }
+    announcements.value = processedAnnouncements;
+
+
+
   } catch (error) {
     console.error('获取登录记录失败:', error);
     ElMessage.error('获取登录记录失败');
