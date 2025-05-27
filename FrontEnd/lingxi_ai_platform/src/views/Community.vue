@@ -63,7 +63,6 @@
                 v-for="announcement in announcements.slice(0, 3)" 
                 :key="announcement.id" 
                 class="announcement-card"
-                @click="showAnnouncement(announcement)"
               >
                 <div class="announcement-icon" :class="{'unread': !announcement.viewed}">
                   <el-icon v-if="!announcement.viewed"><Warning /></el-icon>
@@ -71,10 +70,13 @@
                 </div>
                 <div class="announcement-content">
                   <div class="announcement-title text-truncate">{{ announcement.title }}</div>
+                  <div class="announcement-preview text-truncate">
+                    {{ announcement.content ? announcement.content.substring(0, 50) + (announcement.content.length > 50 ? '...' : '') : '' }}
+                  </div>
                   <div class="announcement-meta">
-                    <el-tag size="small" :type="announcement.viewed ? 'info' : 'danger'" effect="plain">
+                    <!-- <el-tag size="small" :type="announcement.viewed ? 'info' : 'danger'" effect="plain">
                       {{ announcement.viewed ? '已读' : '未读' }}
-                    </el-tag>
+                    </el-tag> -->
                   </div>
                 </div>
               </div>

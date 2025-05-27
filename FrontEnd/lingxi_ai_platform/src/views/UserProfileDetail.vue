@@ -68,7 +68,7 @@
                   <el-empty description="暂无帖子" />
                 </div>
                 <div v-else class="post-list">
-                  <el-card v-for="post in userPosts" :key="post.id" class="post-card">
+                  <el-card v-for="post in userPosts" :key="post.id" class="post-card" @click="goToPostDetail(post.id)">
                     <div class="post-header">
                       <div class="post-title">
                         <h3>{{ post.title }}</h3>
@@ -77,39 +77,29 @@
                     </div>
                     <div class="post-content">
                       <p>{{ post.content }}</p>
-                      
-                      <!-- 图片展示 -->
-                      <div class="post-images" v-if="post.images && post.images.length">
-                        <el-image 
-                          v-for="(img, index) in post.images" 
-                          :key="index"
-                          :src="img"
-                          :preview-src-list="post.images"
-                          fit="cover"
-                          class="post-image"
-                        />
-                      </div>
                     </div>
                     <div class="post-footer">
-                      <div class="post-actions">
-                        <el-button 
-                          :type="post.isLiked ? 'primary' : 'text'" 
-                          @click="toggleLike(post)"
-                        >
-                          <el-icon><Star /></el-icon>
-                          {{ post.likes }}
-                        </el-button>
-                        <el-button type="text">
-                          <el-icon><ChatDotRound /></el-icon>
-                          {{ post.comments.length }}
-                        </el-button>
-                        <el-button type="text" @click="sharePost(post)">
-                          <el-icon><Share /></el-icon>
-                          分享
-                        </el-button>
+                      <div class="post-info">
+                        <span v-if="post.likes > 0">
+                          <el-icon><Star /></el-icon> {{ post.likes }}
+                        </span>
+                        <span v-if="post.comments && post.comments.length > 0">
+                          <el-icon><ChatDotRound /></el-icon> {{ post.comments.length }}
+                        </span>
                       </div>
                     </div>
                   </el-card>
+                  <div class="pagination-container" v-if="totalPosts > pageSize">
+                    <el-pagination
+                      v-model:current-page="currentPage"
+                      v-model:page-size="pageSize"
+                      :page-sizes="[5, 10, 20, 50]"
+                      layout="total, sizes, prev, pager, next"
+                      :total="totalPosts"
+                      @size-change="handleSizeChange"
+                      @current-change="handleCurrentChange"
+                    />
+                  </div>
                 </div>
               </el-tab-pane>
               
@@ -213,6 +203,10 @@ const userInfo = ref(null)
 const userPosts = ref([])
 const userAgents = ref([])
 const userKnowledgeBases = ref([])
+// 添加分页相关的响应式变量
+const currentPage = ref(1)
+const pageSize = ref(10)
+const totalPosts = ref(0)
 
 // 返回上一页
 const goBack = () => {
@@ -291,7 +285,7 @@ const fetchUserPosts = async () => {
   try {
     const token = localStorage.getItem('token')
     
-    const response = await fetch(`/user/${userId.value}/posts/`, {
+    const response = await fetch(`/user/${userId.value}/posts/?page=${currentPage.value}&page_size=${pageSize.value}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -307,7 +301,8 @@ const fetchUserPosts = async () => {
     
     if (result.code === 200) {
       console.log('获取用户帖子数据:', result.data)
-      userPosts.value = result.data
+      userPosts.value = result.data.items || []
+      totalPosts.value = result.data.total || 0
     } else {
       throw new Error(result.message || '获取用户帖子失败')
     }
@@ -457,7 +452,7 @@ const loadMockData = () => {
   ]
 }
 
-// 关注/取关用户
+// 关注用户
 const toggleFollow = async () => {
   try {
     const token = localStorage.getItem('token')
@@ -465,7 +460,12 @@ const toggleFollow = async () => {
       ElMessage.error('请先登录')
       return
     }
-    
+
+    // 检查是否为自己
+    if (userId.value === localStorage.getItem('userId')) {
+      ElMessage.warning('不能关注自己')
+      return
+    }
     const isFollowed = userInfo.value.isFollowed
     
     // 关注/取消关注请求
@@ -482,7 +482,7 @@ const toggleFollow = async () => {
     }
     
     const result = await response.json()
-    if (result.code === 200) {
+    if (response.status === 200) {
       // 更新状态
       userInfo.value.isFollowed = !isFollowed
       userInfo.value.followersCount = isFollowed 
@@ -519,7 +519,7 @@ const toggleLike = async (post) => {
     const isLiked = post.isLiked
     
     // 点赞/取消点赞请求
-    const response = await fetch(`/post/like/${post.id}/`, {
+    const response = await fetch(`/user/like/post/${post.id}/`, {
       method: isLiked ? 'DELETE' : 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -565,7 +565,7 @@ const toggleAgentFollow = async (agent) => {
     const isFollowed = agent.isFollowed
     
     // 关注/取消关注请求
-    const response = await fetch(`/agent/follow/${agent.id}/`, {
+    const response = await fetch(`/user/follow/agent/${agent.id}/`, {
       method: isFollowed ? 'DELETE' : 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -611,7 +611,7 @@ const toggleKnowledgeBaseFollow = async (kb) => {
     const isFollowed = kb.isFollowed
     
     // 关注/取消关注请求
-    const response = await fetch(`/knowledge-base/follow/${kb.id}/`, {
+    const response = await fetch(`/user/follow/knowledge-base/${kb.id}/`, {
       method: isFollowed ? 'DELETE' : 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -713,6 +713,23 @@ onMounted(() => {
     fetchUserData()
   }
 })
+
+// 处理页码变化
+const handleCurrentChange = (page) => {
+  currentPage.value = page
+  fetchUserPosts()
+}
+
+// 处理每页记录数变化
+const handleSizeChange = (size) => {
+  pageSize.value = size
+  currentPage.value = 1 // 重置到第一页
+  fetchUserPosts()
+}
+
+const goToPostDetail = (postId) => {
+  router.push(`/post/${postId}`)
+}
 </script>
 
 <style scoped>
@@ -939,5 +956,11 @@ onMounted(() => {
   gap: 15px;
   font-size: 14px;
   color: #606266;
+}
+
+.pagination-container {
+  margin-top: 20px;
+  display: flex;
+  justify-content: center;
 }
 </style>

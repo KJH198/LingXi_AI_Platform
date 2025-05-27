@@ -580,6 +580,11 @@
         ElMessage.error('请先登录')
         return
       }
+
+      if (String(user.id) === localStorage.getItem('userId')) {
+        ElMessage.warning('不能关注自己')
+        return
+      }
       
       const isFollowed = user.isFollowed
       
@@ -612,7 +617,7 @@
       }
       
       const result = await response.json()
-      if (result.code === 200) {
+      if (response.status === 200) {
         ElMessage.success(isFollowed ? '已取消关注' : '关注成功')
       } else {
         // 请求返回错误时回滚UI状态

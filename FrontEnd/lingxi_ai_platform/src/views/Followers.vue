@@ -199,6 +199,11 @@ const followUser = async (userId: number) => {
       router.push('/login')
       return
     }
+
+    if (userId === parseInt(localStorage.getItem('userId') || '0')) {
+      ElMessage.warning('不能关注自己')
+      return
+    }
     
     // 发送关注请求
     const response = await fetch(`/user/follow/${userId}/`, {

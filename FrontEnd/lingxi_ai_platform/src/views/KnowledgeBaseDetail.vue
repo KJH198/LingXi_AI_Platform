@@ -135,14 +135,14 @@
                     >
                       预览
                     </el-button>
-                    <el-button
+                    <!-- <el-button
                       type="primary"
                       size="small"
                       @click="downloadFile(scope.row)"
                       v-if="kbData.creator.id === currentUserId || scope.row.isPublic"
                     >
                       下载
-                    </el-button>
+                    </el-button> -->
                   </template>
                 </el-table-column>
               </el-table>
