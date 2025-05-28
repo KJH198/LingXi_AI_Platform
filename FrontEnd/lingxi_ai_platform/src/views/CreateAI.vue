@@ -911,7 +911,7 @@
                 </template>
                 <el-form-item label="模型选择" label-width="100px">
                   <el-select v-model="nodeForm.llmModel">
-                    <el-option label="LLaMA 3" value="LLaMA-3" />
+                    <el-option label="DeepSeek" value="deepseek" />
                     <el-option label="Claude 3" value="claude-3" />
                     <el-option label="通义千问" value="Qwen" />
                     <el-option label="GPT-3.5 Turbo" value="gpt-3.5-turbo" />
