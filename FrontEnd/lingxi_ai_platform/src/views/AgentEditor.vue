@@ -745,6 +745,7 @@ const handleNodeOutput = (data: { node_name: string, output: any , userId:string
   const { node_name, output , userId} = data
   nodeOutputs.value[node_name] = output
   currentNodeName.value = node_name
+  
   // 将输出添加到缓冲区
   if (userId === localStorage.getItem('userId')) 
     outputBuffer.value.push({ node_name, output })

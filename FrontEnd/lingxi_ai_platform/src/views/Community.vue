@@ -52,7 +52,7 @@
           <div class="sidebar-card">
             <div class="card-header">
               <h3 class="card-title">公告</h3>
-              <span class="view-more" @click="showAnnouncementList">查看全部</span>
+              <span class="view-more" @click="showAnnouncementList">查看公告详情</span>
             </div>
             <div v-if="announcements.length === 0" class="empty-placeholder">
               <el-empty description="暂无公告" :image-size="80"></el-empty>
