@@ -897,7 +897,11 @@ const handleInput = async () => {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`
-      }
+      },
+      body: JSON.stringify({
+        workflowId: agentData.workflowId,
+        userId: localStorage.getItem('userId')
+      })
     })
     
     if (checkNextInputResponse.ok) {
