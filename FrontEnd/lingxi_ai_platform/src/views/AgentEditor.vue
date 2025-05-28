@@ -552,7 +552,7 @@ const handleSendStaticInputs = async () => {
         'Authorization': `Bearer ${token}`
       },
       body: JSON.stringify({
-        workflowId: agentData.workflowId,
+        workflow_id: agentData.workflowId,
         userId: localStorage.getItem('userId'),
         inputs: staticInputs.value.map(input => ({
           name: input.name,
@@ -873,7 +873,9 @@ const handleInput = async () => {
       },
       body: JSON.stringify({
         input: dynamicInputName.value,
-        variables: inputText
+        variables: inputText,
+        workflow_id: agentData.workflowId,
+        userId: localStorage.getItem('userId')
       })
     })
     
@@ -899,7 +901,7 @@ const handleInput = async () => {
         'Authorization': `Bearer ${token}`
       },
       body: JSON.stringify({
-        workflowId: agentData.workflowId,
+        workflow_id: agentData.workflowId,
         userId: localStorage.getItem('userId')
       })
     })
