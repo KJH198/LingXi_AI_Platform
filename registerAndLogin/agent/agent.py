@@ -110,7 +110,7 @@ def select_model(model_id):
         model = "gpt-4o"
 
     elif model_id == 'deepseek':
-        model = "deepseek"
+        model = "deepseek-chat"
 
     else:
         model = "qwen-turbo"

@@ -5,6 +5,7 @@ from django.contrib.auth.models import User
 class KnowledgeBase(models.Model):
     """知识库模型"""
     STATUS_CHOICES = (
+        ('pending', '待审核'),
         ('approved', '审核通过'),
         ('rejected', '拒绝'),
     )

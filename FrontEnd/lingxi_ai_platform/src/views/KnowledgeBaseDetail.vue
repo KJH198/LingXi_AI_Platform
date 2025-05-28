@@ -125,7 +125,7 @@
                 <el-table-column prop="type" label="类型" width="120" />
                 <el-table-column prop="size" label="大小" width="120" />
                 <el-table-column prop="lastUpdated" label="更新时间" width="180" />
-                <el-table-column label="操作" width="180">
+                <!-- <el-table-column label="操作" width="180">
                   <template #default="scope">
                     <el-button
                       type="primary"
@@ -135,16 +135,16 @@
                     >
                       预览
                     </el-button>
-                    <!-- <el-button
+                    <el-button
                       type="primary"
                       size="small"
                       @click="downloadFile(scope.row)"
                       v-if="kbData.creator.id === currentUserId || scope.row.isPublic"
                     >
                       下载
-                    </el-button> -->
+                    </el-button>
                   </template>
-                </el-table-column>
+                </el-table-column> -->
               </el-table>
 
               <!-- 文件分页 -->

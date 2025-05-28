@@ -147,7 +147,8 @@
             <el-table-column label="状态">
               <template #default="scope">
                 <el-tag :type="scope.row.status === 'processed' ? 'success' : 'warning'">
-                  {{ scope.row.status === 'processed' ? '已处理' : '处理中' }}
+                  {{ scope.row.status === 'approved' ? '已通过审核' : 
+                 scope.row.status === 'pending' ? '审核中' : '未通过审核' }}
                 </el-tag>
               </template>
             </el-table-column>
