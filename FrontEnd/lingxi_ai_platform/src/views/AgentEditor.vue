@@ -896,7 +896,7 @@ const handleInput = async () => {
     
     // 检查是否还有其他待处理的动态输入
     const checkNextInputResponse = await fetch('/agent/checkNextInput', {
-      method: 'GET',
+      method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`
       },
