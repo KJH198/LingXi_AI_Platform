@@ -1009,10 +1009,7 @@ const posts = ref<Post[]>([
 ])
 
 // 公告数据
-const announcements = ref([
-  { id: 1, title: '系统维护通知', content: '系统将于本周六凌晨2:00-4:00进行维护升级。', viewed: false },
-  { id: 2, title: '新功能上线', content: '我们上线了新的智能体编辑功能，快来体验吧！', viewed: false },
-])
+const announcements = ref([])
 
 const announcementListDialogVisible = ref(false)
 const announcementDialogVisible = ref(false)

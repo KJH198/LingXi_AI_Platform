@@ -170,7 +170,7 @@
                   <Handle 
                     type="source" 
                     position="bottom" 
-                    :style="{ 
+                    :style="{
                       background: nodeProps.data.color,
                       left: '33%'
                     }"
