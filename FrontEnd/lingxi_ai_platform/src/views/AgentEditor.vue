@@ -901,7 +901,6 @@ const handleInput = async () => {
         'Authorization': `Bearer ${token}`
       },
       body: JSON.stringify({
-        workflow_id: agentData.workflowId,
         userId: localStorage.getItem('userId')
       })
     })
