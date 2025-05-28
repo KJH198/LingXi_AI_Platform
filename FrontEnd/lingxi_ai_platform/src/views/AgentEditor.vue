@@ -300,7 +300,8 @@
             <el-table-column label="状态">
               <template #default="scope">
                 <el-tag :type="scope.row.status === 'processed' ? 'success' : 'warning'">
-                  {{ scope.row.status === 'processed' ? '已处理' : '处理中' }}
+                  {{ scope.row.status === 'approved' ? '已通过审核' : 
+                 scope.row.status === 'pending' ? '审核中' : '未通过审核' }}
                 </el-tag>
               </template>
             </el-table-column>
@@ -453,7 +454,7 @@ const availableModels = ref<AvailableModel[]>([
   {
     id: 'deepseek',
     name: 'DeepSeek',
-    icon: 'https://cdn-icons-png.flaticon.com/512/7061/7061642.png',
+    icon: 'https://images.seeklogo.com/logo-png/61/1/deepseek-ai-icon-logo-png_seeklogo-611473.png',
     description: '专注高效推理的通用大模型，支持复杂多任务场景与企业级应用',
     features: ['多轮对话', '代码生成', '长文本理解', 'API集成']
   },
