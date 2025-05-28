@@ -348,7 +348,6 @@ import DOMPurify from 'dompurify'
 import KnowledgeBaseConfig from '@/views/KnowledgeBaseConfig.vue'
 import WorkflowList from '@/views/WorkflowList.vue'
 import { Plus, Edit } from '@element-plus/icons-vue'
-import { lo } from 'element-plus/es/locales.mjs'
 
 // 定义接口
 interface AgentData {
@@ -1746,7 +1745,7 @@ const startPreview = async () => {
       return
     }
 
-    const response = await fetch('/agent/start_preview', {
+    const response = await fetch('/agent/start_preview/', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

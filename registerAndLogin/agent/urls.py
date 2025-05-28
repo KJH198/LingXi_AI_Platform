@@ -23,6 +23,6 @@ urlpatterns = [
     #path('chat', AgentChatView.as_view(), name='agent-chat'),
     path('upload_avatar', AgentAvatarUploadView.as_view(), name='agent-avatar-upload'),
     path('cleanup_temp_resources', CleanupTempResourcesView.as_view(), name='cleanup-temp-resources'),
-    path('start_preview', start_preview, name='start-preview'),
+    path('start_preview/', start_preview, name='start-preview'),
     path('cleanup_temp_resources', CleanupTempResourcesView.as_view(), name='cleanup-temp-resources'),
 ]

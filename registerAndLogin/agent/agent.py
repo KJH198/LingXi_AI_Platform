@@ -86,6 +86,7 @@ def start_preview(request):
 
     try:
         data = json.loads(request.body)
+        print(data)
         user_id = data.get('userId')
         # agent_id = data.get('agent_id')
         agent_id = 0 #暂时把id传成0
@@ -101,9 +102,11 @@ def start_preview(request):
         return JsonResponse(result)
 
     except Exception as e:
+        print(e)
         return JsonResponse({
             'code': 500,
             'message': f'服务器错误: {str(e)}',
+            'trace': traceback.format_exc(),
             'data': {}
         }, status=500)
 
