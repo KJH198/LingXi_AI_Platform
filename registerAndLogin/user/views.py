@@ -2307,7 +2307,7 @@ class AdminGetKB(APIView):
             if kb_id != None:
                 knowledge_bases = KnowledgeBase.objects.filter(id=kb_id)
             else:
-                knowledge_bases = KnowledgeBase.objects.filter(status='pending').order_by('-created_at')
+                knowledge_bases = KnowledgeBase.objects.filter().order_by('-created_at')
             
             kb_list = []
             approved = 0
@@ -2327,7 +2327,7 @@ class AdminGetKB(APIView):
                     approved += 1
                 elif kb.status == 'rejected':
                     rejected += 1
-            
+            print(f"获取知识库列表，待审核: {len(kb_list)}, 已审核: {approved}, 已拒绝: {rejected}")
             return Response({
                 'code': 200,
                 'message': '获取成功',
