@@ -300,7 +300,8 @@
             <el-table-column label="状态">
               <template #default="scope">
                 <el-tag :type="scope.row.status === 'processed' ? 'success' : 'warning'">
-                  {{ scope.row.status === 'processed' ? '已处理' : '处理中' }}
+                  {{ scope.row.status === 'approved' ? '已通过审核' : 
+                 scope.row.status === 'pending' ? '审核中' : '未通过审核' }}
                 </el-tag>
               </template>
             </el-table-column>
@@ -451,6 +452,20 @@ const agentData = reactive<AgentData>({
 // 可选模型列表
 const availableModels = ref<AvailableModel[]>([
   {
+    id: 'deepseek',
+    name: 'DeepSeek',
+    icon: 'https://images.seeklogo.com/logo-png/61/1/deepseek-ai-icon-logo-png_seeklogo-611473.png',
+    description: '专注高效推理的通用大模型，支持复杂多任务场景与企业级应用',
+    features: ['多轮对话', '代码生成', '长文本理解', 'API集成']
+  },
+  {
+    id: 'qwen-max',
+    name: '通义千问',
+    icon: 'https://cdn-icons-png.flaticon.com/512/5968/5968282.png',
+    description: '国产强大大语言模型，支持中英双语优化',
+    features: ['中文优化', '文本处理', '知识丰富']
+  },
+  {
     id: 'gpt-4',
     name: 'GPT-4',
     icon: 'https://cdn-icons-png.flaticon.com/512/4616/4616734.png',
@@ -464,20 +479,6 @@ const availableModels = ref<AvailableModel[]>([
     description: '强大的大语言模型，擅长文本处理和推理',
     features: ['文本处理', '复杂推理', '长文本处理']
   },
-  {
-    id: 'llama-3',
-    name: 'LLaMA 3',
-    icon: 'https://cdn-icons-png.flaticon.com/512/6295/6295417.png',
-    description: '开源大语言模型，平衡性能和资源消耗',
-    features: ['文本处理', '轻量级', '本地部署']
-  },
-  {
-    id: 'qwen-max',
-    name: '通义千问',
-    icon: 'https://cdn-icons-png.flaticon.com/512/5968/5968282.png',
-    description: '国产强大大语言模型，支持中英双语优化',
-    features: ['中文优化', '文本处理', '知识丰富']
-  }
 ])
 
 // 知识库详情相关
@@ -550,7 +551,8 @@ const handleSendStaticInputs = async () => {
         'Authorization': `Bearer ${token}`
       },
       body: JSON.stringify({
-        workflowId: agentData.workflowId,
+        workflow_id: agentData.workflowId,
+        userId: localStorage.getItem('userId'),
         inputs: staticInputs.value.map(input => ({
           name: input.name,
           value: input.value
@@ -739,13 +741,14 @@ const updateWorkflowId = (workflowId: string) => {
 }
 
 // 修改 handleNodeOutput 方法
-const handleNodeOutput = (data: { node_name: string, output: any }) => {
-  const { node_name, output } = data
+const handleNodeOutput = (data: { node_name: string, output: any , userId:string}) => {
+  const { node_name, output , userId} = data
   nodeOutputs.value[node_name] = output
   currentNodeName.value = node_name
   
   // 将输出添加到缓冲区
-  outputBuffer.value.push({ node_name, output })
+  if (userId === localStorage.getItem('userId')) 
+    outputBuffer.value.push({ node_name, output })
   
   // 如果没有正在处理动态输入，则处理缓冲区中的输出
   if (!waitingForDynamicInput.value && !isProcessingOutput.value) {
@@ -870,7 +873,9 @@ const handleInput = async () => {
       },
       body: JSON.stringify({
         input: dynamicInputName.value,
-        variables: inputText
+        variables: inputText,
+        workflow_id: agentData.workflowId,
+        userId: localStorage.getItem('userId')
       })
     })
     
@@ -890,11 +895,16 @@ const handleInput = async () => {
     processOutputBuffer()
     
     // 检查是否还有其他待处理的动态输入
-    const checkNextInputResponse = await fetch('/agent/checkNextInput', {
-      method: 'GET',
+    const checkNextInputResponse = await fetch('/agent/checkNextInput/', {
+      method: 'POST',
       headers: {
-        'Authorization': `Bearer ${token}`
-      }
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        agent_id: agentData,
+        userId: localStorage.getItem('userId')
+      })
     })
     
     if (checkNextInputResponse.ok) {
@@ -1329,7 +1339,7 @@ const connectWebSocket = () => {
         
         if (data.type === 'output') {
           handleNodeOutput(data)
-        } else if (data.type === 'request_input') {
+        } else if (data.type === 'request_input' && data.userId === localStorage.getItem('userId')) {
           console.log('收到动态输入请求:', data)
           if (data.node_name) {
             waitingForDynamicInput.value = true
@@ -1576,7 +1586,6 @@ const loadAgentData = async (agentId) => {
 
   // 更新状态
   const data = result.data
-  console.log('获取智能体数据111:', data)
   
   // 设置基本信息
   agentData.id = data.id
@@ -1738,7 +1747,7 @@ const startPreview = async () => {
       return
     }
 
-    const response = await fetch('/agent/start_preview', {
+    const response = await fetch('/agent/start_preview/', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -1746,6 +1755,7 @@ const startPreview = async () => {
       },
       body: JSON.stringify({
         agent_id: agentData.id,
+        userId: localStorage.getItem('userId'),
         workflow_id: agentData.workflowId,
         model_id: agentData.modelId,
         knowledge_bases: agentData.knowledgeBases
