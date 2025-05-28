@@ -57,8 +57,9 @@ def submit_static_inputs(request, workflow_id0 = None):
 
         try:
             data = json.loads(request.body)
+            user_id = data.get('userId')
             agent_id = 0
-            agent = get_agent(agent_id)
+            agent = get_agent(agent_id, user_id)
             inputs = data.get('inputs', [])
             print(inputs)
 
@@ -116,8 +117,9 @@ def submit_dynamic_input(request):
         data = json.loads(request.body)
         input_name = data.get('input')
         input_value = data.get('variables')
+        user_id = data.get('userId')
         agent_id = 0
-        agent = get_agent(agent_id)
+        agent = get_agent(agent_id, user_id)
         print(f"收到动态输入: {input_name} = {input_value}")
 
         if input_name in agent.pending_inputs:
@@ -170,7 +172,8 @@ async def send_output_to_frontend(node_name: str, output: any, agent, count):
                 "node_output",
                 {
                     "type": "node.output",
-                    "message": payload
+                    "message": payload,
+                    "userId": agent.user_id
                 }
             )
             print(f"成功发送输出到前端: {node_name} : {output}")
@@ -366,6 +369,7 @@ class AgentNode(BaseNode):
 
                 self.inner_agent = Agent(
                     agent_id=agent_model.id,
+                    user_id=self.agent.user_id,
                     workflow=workflow,
                     general_model=select_model(agent_model.model_id),
                     knowledge_bases=agent_model.knowledge_bases,

@@ -7,18 +7,21 @@ from django.views.decorators.csrf import csrf_exempt
 
 AGENT_CACHE = {}  # 你可以按用户 ID、会话 ID、agent_id 等作为 key
 
-def set_agent(agent_key: int, agent):
+def set_agent(agent_id: int, user_id: int, agent):
+    agent_key = (agent_id, user_id)
     AGENT_CACHE[agent_key] = agent
 
-def get_agent(agent_key: int):
+def get_agent(agent_id: int,user_id: int):
+    agent_key = (agent_id, user_id)
     if agent_key in AGENT_CACHE:
         return AGENT_CACHE[agent_key]
     else:
         raise RuntimeError(f"No agent found for key: {agent_key}")
 
 class Agent:
-    def __init__(self, agent_id, workflow, general_model=None, knowledge_bases=None):
+    def __init__(self, agent_id, user_id, workflow, general_model=None, knowledge_bases=None):
         self.agent_id = agent_id
+        self.user_id = user_id
         self.workflow = workflow  # 可以是节点构成的DAG或列表
         self.general_model = general_model
         self.knowledge_bases = knowledge_bases or {}
@@ -63,7 +66,8 @@ def check_next_input(request):
     if request.method == 'GET':
         try:
             agent_id = request.GET.get('agent_id')
-            agent = get_agent(agent_id)
+            user_id = request.GET.get('userId')
+            agent = get_agent(agent_id, user_id)
             result = agent.check_next_input()
             return JsonResponse(result)
         except Exception as e:
@@ -82,6 +86,7 @@ def start_preview(request):
 
     try:
         data = json.loads(request.body)
+        user_id = data.get('userId')
         # agent_id = data.get('agent_id')
         agent_id = 0 #暂时把id传成0
         workflow_id = data.get('workflow_id')
@@ -90,8 +95,8 @@ def start_preview(request):
 
         workflow = Workflow.objects.get(id=workflow_id)
         general_model = select_model(model_id)
-        agent = Agent(agent_id, workflow, general_model, knowledge_bases)
-        set_agent(agent_id, agent)  # ✅ 保存到缓存
+        agent = Agent(agent_id, user_id, workflow, general_model, knowledge_bases)
+        set_agent(agent_id,user_id, agent)  # ✅ 保存到缓存
         result = agent.start_preview()
         return JsonResponse(result)
 
