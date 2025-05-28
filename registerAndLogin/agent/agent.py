@@ -34,6 +34,7 @@ class Agent:
 
         self.global_count = 0  # 如果你有计数需求
         self.is_outer_agent = True
+        print(f"[Agent 构造] agent_id = {self.agent_id}, id = {id(self)}")
 
     def check_next_input(self):
         if self.pending_inputs:
@@ -63,12 +64,16 @@ class Agent:
 
 @csrf_exempt
 def check_next_input(request):
-    if request.method == 'GET':
+    if request.method == 'POST':
         try:
-            agent_id = request.GET.get('agent_id')
-            user_id = request.GET.get('userId')
+            # 明确地把 request.body 解码为 JSON
+            data = json.loads(request.body.decode('utf-8'))
+            agent_id = 0
+            user_id = data.get('userId')
+
             agent = get_agent(agent_id, user_id)
             result = agent.check_next_input()
+
             return JsonResponse(result)
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=400)

@@ -551,7 +551,7 @@ const handleSendStaticInputs = async () => {
         'Authorization': `Bearer ${token}`
       },
       body: JSON.stringify({
-        workflowId: agentData.workflowId,
+        workflow_id: agentData.workflowId,
         userId: localStorage.getItem('userId'),
         inputs: staticInputs.value.map(input => ({
           name: input.name,
@@ -872,7 +872,9 @@ const handleInput = async () => {
       },
       body: JSON.stringify({
         input: dynamicInputName.value,
-        variables: inputText
+        variables: inputText,
+        workflow_id: agentData.workflowId,
+        userId: localStorage.getItem('userId')
       })
     })
     
@@ -892,13 +894,14 @@ const handleInput = async () => {
     processOutputBuffer()
     
     // 检查是否还有其他待处理的动态输入
-    const checkNextInputResponse = await fetch('/agent/checkNextInput', {
-      method: 'GET',
+    const checkNextInputResponse = await fetch('/agent/checkNextInput/', {
+      method: 'POST',
       headers: {
-        'Authorization': `Bearer ${token}`
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        workflowId: agentData.workflowId,
+        agent_id: agentData,
         userId: localStorage.getItem('userId')
       })
     })

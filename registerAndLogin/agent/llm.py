@@ -119,6 +119,7 @@ def call_llm(model_type: str, messages) -> str:
     # print(model)
     # print(input_text)
     # print(system_prompt)
+    print("message",messages)
     response = client.chat.completions.create(
         model=model,
         messages=messages

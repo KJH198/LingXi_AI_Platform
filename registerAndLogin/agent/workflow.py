@@ -94,7 +94,7 @@ class DynamicInputNode(BaseNode):
         print(f"等待前端输入: {self.name}")
 
         # 第一步：通知前端需要输入
-        asyncio.run(send_dynamic_request_to_frontend(self.name))
+        asyncio.run(send_dynamic_request_to_frontend(self.name, self.agent))
 
         # 第二步：创建线程事件，并记录在 pending_inputs 中
         event = threading.Event()
@@ -182,7 +182,7 @@ async def send_output_to_frontend(node_name: str, output: any, agent, count):
 
 
 
-async def send_dynamic_request_to_frontend(node_name: str):
+async def send_dynamic_request_to_frontend(node_name: str, agent):
     channel_layer = get_channel_layer()
     payload = {
         "node_name": node_name,
@@ -193,7 +193,8 @@ async def send_dynamic_request_to_frontend(node_name: str):
             "node_output",
             {
                 "type": "node.output",
-                "message": payload
+                "message": payload,
+                "userId": agent.user_id
             }
         )
         print(f"成功动态输入需求到前端: {node_name}")
