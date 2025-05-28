@@ -741,13 +741,13 @@ const updateWorkflowId = (workflowId: string) => {
 }
 
 // 修改 handleNodeOutput 方法
-const handleNodeOutput = (data: { node_name: string, output: any }) => {
-  const { node_name, output } = data
+const handleNodeOutput = (data: { node_name: string, output: any , userId:string}) => {
+  const { node_name, output , userId} = data
   nodeOutputs.value[node_name] = output
   currentNodeName.value = node_name
-  
   // 将输出添加到缓冲区
-  outputBuffer.value.push({ node_name, output })
+  if (userId === localStorage.getItem('userId')) 
+    outputBuffer.value.push({ node_name, output })
   
   // 如果没有正在处理动态输入，则处理缓冲区中的输出
   if (!waitingForDynamicInput.value && !isProcessingOutput.value) {
@@ -1338,7 +1338,7 @@ const connectWebSocket = () => {
         
         if (data.type === 'output') {
           handleNodeOutput(data)
-        } else if (data.type === 'request_input') {
+        } else if (data.type === 'request_input' && data.userId === localStorage.getItem('userId')) {
           console.log('收到动态输入请求:', data)
           if (data.node_name) {
             waitingForDynamicInput.value = true

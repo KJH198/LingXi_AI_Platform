@@ -161,7 +161,8 @@ async def send_output_to_frontend(node_name: str, output: any, agent, count):
     payload = {
         "type": "output",
         "node_name": node_name,
-        "output": output
+        "output": output,
+        "userId": agent.user_id
     }
     # print(f"是否传往前端？")
     # print(f"golbal_count:", global_count)
@@ -173,7 +174,6 @@ async def send_output_to_frontend(node_name: str, output: any, agent, count):
                 {
                     "type": "node.output",
                     "message": payload,
-                    "userId": agent.user_id
                 }
             )
             print(f"成功发送输出到前端: {node_name} : {output}")
@@ -186,7 +186,8 @@ async def send_dynamic_request_to_frontend(node_name: str, agent):
     channel_layer = get_channel_layer()
     payload = {
         "node_name": node_name,
-        "type": "request_input"
+        "type": "request_input",
+        "userId": agent.user_id
     }
     try:
         await channel_layer.group_send(
@@ -194,7 +195,6 @@ async def send_dynamic_request_to_frontend(node_name: str, agent):
             {
                 "type": "node.output",
                 "message": payload,
-                "userId": agent.user_id
             }
         )
         print(f"成功动态输入需求到前端: {node_name}")
