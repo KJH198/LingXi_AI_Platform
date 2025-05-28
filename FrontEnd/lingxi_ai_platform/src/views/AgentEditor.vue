@@ -348,6 +348,7 @@ import DOMPurify from 'dompurify'
 import KnowledgeBaseConfig from '@/views/KnowledgeBaseConfig.vue'
 import WorkflowList from '@/views/WorkflowList.vue'
 import { Plus, Edit } from '@element-plus/icons-vue'
+import { lo } from 'element-plus/es/locales.mjs'
 
 // 定义接口
 interface AgentData {
@@ -552,6 +553,7 @@ const handleSendStaticInputs = async () => {
       },
       body: JSON.stringify({
         workflowId: agentData.workflowId,
+        userId: localStorage.getItem('userId'),
         inputs: staticInputs.value.map(input => ({
           name: input.name,
           value: input.value
@@ -1748,6 +1750,7 @@ const startPreview = async () => {
       },
       body: JSON.stringify({
         agent_id: agentData.id,
+        userId: localStorage.getItem('userId'),
         workflow_id: agentData.workflowId,
         model_id: agentData.modelId,
         knowledge_bases: agentData.knowledgeBases
