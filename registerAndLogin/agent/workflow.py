@@ -2,7 +2,7 @@ from .models import Node, Workflow
 from knowledge_base.models import KnowledgeBaseFile
 from user.models import PublishedAgent
 from agent.llm import chat_with_condition, chat_with_aggregate, deal_with_photo, call_llm
-from agent.agent import get_agent, Agent, select_model
+from agent.agent import get_agent, Agent, select_model, agent_count_map
 from pathlib import Path
 import types
 import fitz
@@ -165,9 +165,9 @@ async def send_output_to_frontend(node_name: str, output: any, agent, count):
         "userId": agent.user_id
     }
     # print(f"是否传往前端？")
-    # print(f"golbal_count:", global_count)
-    # print(f"count", count)
-    if count == agent.global_count:
+    print(f"agent_count_map[agent.user_id]:", agent_count_map[agent.user_id])
+    print(f"count", count)
+    if count == agent_count_map[agent.user_id]:
         try:
             await channel_layer.group_send(
                 "node_output",
@@ -379,7 +379,6 @@ class AgentNode(BaseNode):
                 self.inner_agent.static_inputs={}  # {内部输入节点名：输入内容}
                 self.inner_agent.pending_inputs={}
                 self.inner_agent.results={}
-                self.inner_agent.global_count=0
                 self.inner_agent.is_outer_agent=False  # 明确标记为内部智能体
 
                 print(f"[调试] 智能体节点 {self.id} 开始执行 run()")
@@ -489,9 +488,9 @@ def execute_node(node_id, count, source_handle=None, agent=None, is_loop=False):
         print(agent.results[cache_key])
         return agent.results[cache_key]
 
-    if count != agent.global_count:
-        # print(f"count:", count)
-        # print(f"global_count:", global_count)
+    if count != agent_count_map[agent.user_id]:
+        print(f"count:", count)
+        print(f"agent_count_map[agent.user_id]:", agent_count_map[agent.user_id])
         return
 
     node_instance = agent.node_dict[node_id]
@@ -550,9 +549,9 @@ def execute_node(node_id, count, source_handle=None, agent=None, is_loop=False):
 
 
 def execute_batch(current_id, inputs, agent, count):
-    if count != agent.global_count:
+    if count != agent.agent_count_map[agent.user_id]:
         # print(f"count:", count)
-        # print(f"global_count:", global_count)
+        # print(f"agent_count_map[agent.user_id]:", agent_count_map[agent.user_id])
         return
     current_node = agent.node_dict[current_id]
 
@@ -593,9 +592,9 @@ def execute_batch(current_id, inputs, agent, count):
 
 
 def execute_loop(current_id, inputs, agent, count):
-    if count != agent.global_count:
+    if count != agent_count_map[agent.user_id]:
         # print(f"count:", count)
-        # print(f"global_count:", global_count)
+        # print(f"agent_count_map[agent.user_id]:", agent_count_map[agent.user_id])
         return
     current_node = agent.node_dict[current_id]
 
@@ -639,7 +638,7 @@ def run_workflow_from_output_node(agent):
     :param node_list: 所有 BaseNode 实例的列表
     :return: 最终输出节点的运行结果
     """
-    agent.global_count += 1
+    agent_count_map[agent.user_id] += 1
     workflow = agent.workflow
     # 加载所有节点，并创建实例
     agent.node_dict = {
@@ -662,7 +661,7 @@ def run_workflow_from_output_node(agent):
         source_handle = output_node.predecessors[0].get('sourceHandle')
 
         # 递归执行
-        result = execute_node(output_node_id, agent.global_count, source_handle, agent, False)
+        result = execute_node(output_node_id, agent_count_map[agent.user_id], source_handle, agent, False)
 
         # 保存结果
         final_result[output_node_id] = result
