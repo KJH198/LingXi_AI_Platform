@@ -1589,7 +1589,7 @@ class CheckAnnouncement(APIView):
         else :
             return Response({
                 'code': 200,
-                'notSeen': True,
+                'notSeen': False,
             })
 
 class Update(APIView):
