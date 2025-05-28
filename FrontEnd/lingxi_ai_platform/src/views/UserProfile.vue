@@ -179,6 +179,7 @@ const uploadAvatar = async (options: UploadRequestOptions) => {
 const router = useRouter()
 import type { FormInstance } from 'element-plus'
 import { Avatar } from '@element-plus/icons-vue'
+import { use } from 'marked'
 
 const profileFormRef = ref<FormInstance | null>(null)
 const loading = ref(false)
@@ -198,38 +199,12 @@ const userInfo = reactive({
 // 获取用户信息的函数中添加模拟数据
 const fetchUserInfo = async () => {
   try {
-    // 首先尝试从本地存储获取用户信息
-    const storedUserInfo = localStorage.getItem('userInfo')
-    if (storedUserInfo) {
-      const parsedUserInfo = JSON.parse(storedUserInfo)
-      Object.assign(userInfo, parsedUserInfo)
-      return
-    }
-
     const token = localStorage.getItem('token')
     if (!token) {
       ElMessage.error('请先登录')
       router.push('/login')
       return
     }
-
-    // 模拟API请求延迟
-    await new Promise(resolve => setTimeout(resolve, 800))
-    
-    // 模拟返回的用户数据
-    const mockUserData = {
-      username: '未知',
-      phone_number: '未知',
-      email: '未知',
-      bio: '未知',
-      avatar: 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png',
-      posts_count: 0,
-      followers: 0,
-      following: 0,
-    }
-
-    // 更新用户信息
-    Object.assign(userInfo, mockUserData)
 
     // 实际API请求代码（暂时注释）
     const response = await fetch('/user/user_info/', {
@@ -245,6 +220,7 @@ const fetchUserInfo = async () => {
     }
 
     const data = await response.json();
+    console.log('获取到的用户信息:', data)
     if (data.code !== 200) {
       throw new Error(data.message || '获取用户信息失败');
     }
@@ -260,7 +236,15 @@ const fetchUserInfo = async () => {
       followers: data.followers || 0,
       following: data.following || 0
     }
-    Object.assign(userInfo, newUserInfo)
+    userInfo.avatar = newUserInfo.avatar || 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png'
+    userInfo.bio = newUserInfo.bio || '这个人很懒，什么都没有留下'
+    userInfo.email = newUserInfo.email || ''
+    userInfo.phone_number = newUserInfo.phone_number || ''
+    userInfo.username = newUserInfo.username || ''
+    userInfo.posts_count = newUserInfo.posts_count || 0
+    userInfo.followers = newUserInfo.followers || 0
+    userInfo.following = newUserInfo.following || 0
+    console.log('获取到的用户信息:', newUserInfo)
     
     // 更新本地存储
     localStorage.setItem('userInfo', JSON.stringify(newUserInfo))
