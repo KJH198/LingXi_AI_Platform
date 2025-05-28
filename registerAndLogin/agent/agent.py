@@ -109,6 +109,9 @@ def select_model(model_id):
     elif model_id == 'gpt-4':
         model = "gpt-4o"
 
+    elif model_id == 'deepseek':
+        model = "deepseek"
+
     else:
         model = "qwen-turbo"
     return model

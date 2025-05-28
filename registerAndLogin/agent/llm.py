@@ -108,6 +108,9 @@ def call_llm(model_type: str, messages) -> str:
         model = "qwen-turbo"
         client = qwen
 
+    elif model_type == 'deepseek':
+        client = deepseek
+
     else:
         raise ValueError(f"Unsupported model type: {model_type}")
 
@@ -128,6 +131,8 @@ def select_client(model):
         client = claude
     elif model == 'gpt-4o':
         client = chatgpt
+    elif model == 'deepseek':
+        client = deepseek
     else:
         client = qwen
     return client
