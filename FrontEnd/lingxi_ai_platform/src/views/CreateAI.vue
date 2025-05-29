@@ -769,7 +769,6 @@
                 <template v-if="nodeForm.processType === 'code'">
                   <el-form-item label="代码类型" label-width="100px">
                     <el-select v-model="nodeForm.codeType">
-                      <el-option label="JavaScript" value="javascript" />
                       <el-option label="Python" value="python" />
                     </el-select>
                   </el-form-item>
@@ -1188,7 +1187,7 @@ const nodeForm = ref({
   apiMethod: 'get',
   // 处理节点配置
   processType: 'code',
-  codeType: 'javascript',
+  codeType: 'python',
   codeContent: '',
   conditionType: 'equals',
   conditionValue: '',
@@ -1482,7 +1481,7 @@ const confirmAddProcessNode = () => {
       description: selectedType.description,
       // 处理节点配置
       processType: selectedType.value,
-      codeType: 'javascript',
+      codeType: 'python',
       codeContent: '',
       conditionType: 'equals',
       conditionValue: '',
@@ -1637,7 +1636,7 @@ const handleNodeClick = (event) => {
     apiMethod: node.data?.apiMethod || 'get',
     // 处理节点配置
     processType: node.data?.processType || 'code',
-    codeType: node.data?.codeType || 'javascript',
+    codeType: node.data?.codeType || 'python',
     codeContent: node.data?.codeContent || '',
     conditionType: node.data?.conditionType || 'equals',
     conditionValue: node.data?.conditionValue || '',
@@ -1826,7 +1825,7 @@ const deleteNode = () => {
     apiUrl: '',
     apiMethod: 'get',
     processType: 'code',
-    codeType: 'javascript',
+    codeType: 'python',
     codeContent: '',
     conditionType: 'equals',
     conditionValue: '',
@@ -1938,7 +1937,7 @@ const onSelectionChange = (params) => {
       apiMethod: node.data?.apiMethod || 'get',
       // 处理节点配置
       processType: node.data?.processType || 'code',
-      codeType: node.data?.codeType || 'javascript',
+      codeType: node.data?.codeType || 'python',
       codeContent: node.data?.codeContent || '',
       conditionType: node.data?.conditionType || 'equals',
       conditionValue: node.data?.conditionValue || '',

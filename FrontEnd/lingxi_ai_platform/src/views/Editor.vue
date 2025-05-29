@@ -38,12 +38,12 @@ import { Check, Close } from '@element-plus/icons-vue'
 
 const route = useRoute()
 const code = ref('')
-const codeType = ref('javascript')
+const codeType = ref('python')
 
 // 监听父窗口的消息
 onMounted(() => {
   // 从 URL 参数获取代码类型和节点 ID
-  codeType.value = route.query.type || 'javascript'
+  codeType.value = route.query.type || 'python'
   
   // 监听父窗口的消息
   window.addEventListener('message', (event) => {
