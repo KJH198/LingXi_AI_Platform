@@ -2505,11 +2505,14 @@ const handleAgentSelect = (type) => {
 }
 
 watch(() => nodeForm.value.processType, (newType) => {
-  const typeConfig = processTypes.find(type => type.value === newType)
-  if (typeConfig) {
-    // 只在未手动输入名称时自动更新
-    if (!nodeForm.value.name || nodeForm.value.name === '' || nodeForm.value.name === originalNodeData.value.name) {
-      nodeForm.value.name = `${typeConfig.label} ${nodeTypeCounters.value.process[newType]}`
+  // 只有当当前节点是处理节点时才更新名称
+  if (nodeForm.value.type === 'process') {
+    const typeConfig = processTypes.find(type => type.value === newType)
+    if (typeConfig) {
+      // 只在未手动输入名称时自动更新
+      if (!nodeForm.value.name || nodeForm.value.name === '' || nodeForm.value.name === originalNodeData.value.name) {
+        nodeForm.value.name = `${typeConfig.label} ${nodeTypeCounters.value.process[newType]}`
+      }
     }
   }
 })
