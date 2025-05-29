@@ -82,9 +82,9 @@
                   <el-button type="danger" size="small" @click="deleteAgent(agent)">
                     <el-icon class="el-icon--left"><Delete /></el-icon>删除
                   </el-button>
-                  <el-button type="info" size="small" @click="shareAgent(agent)">
+                  <!-- <el-button type="info" size="small" @click="shareAgent(agent)">
                     <el-icon class="el-icon--left"><Share /></el-icon>分享
-                  </el-button>
+                  </el-button> -->
                   <el-button 
                     :type="agent.isOpenSource ? 'success' : 'default'" 
                     size="small" 
@@ -523,7 +523,7 @@ const shareAgent = (agent) => {
   // 实现分享功能
   try {
     // 构建分享链接
-    const shareUrl = `${window.location.origin}/agent/${agent.id}`
+    const shareUrl = `${window.location.origin}/#/agent-detail/${agent.id}`
     
     // 尝试使用 Navigator Clipboard API
     navigator.clipboard.writeText(shareUrl)

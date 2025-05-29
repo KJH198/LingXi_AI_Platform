@@ -67,9 +67,9 @@
               <el-icon><Pointer /></el-icon> 
               {{ kbData.isLiked ? '已点赞' : '点赞' }}
             </el-button>
-            <el-button @click="handleShare">
+            <!-- <el-button @click="handleShare">
               <el-icon><Share /></el-icon> 分享
-            </el-button>
+            </el-button> -->
           </div>
         </div>
       </el-card>

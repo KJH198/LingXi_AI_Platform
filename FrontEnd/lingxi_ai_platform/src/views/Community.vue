@@ -226,10 +226,10 @@
                         <el-icon><Star /></el-icon>
                         {{ post.isFavorited ? '已收藏' : '收藏' }}
                       </el-button>
-                      <el-button type="text" @click="sharePost(post)">
+                      <!-- <el-button type="text" @click="sharePost(post)">
                         <el-icon><Share /></el-icon>
                         分享
-                      </el-button>
+                      </el-button> -->
                     </div>
                     <el-button type="primary" size="small" @click="showCommentDialog(post)">评论</el-button>
                   </div>
