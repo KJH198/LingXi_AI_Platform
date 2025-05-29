@@ -16,7 +16,6 @@
     
     <div class="editor-content">
       <el-select v-model="codeType" class="code-type-select">
-        <el-option label="JavaScript" value="javascript" />
         <el-option label="Python" value="python" />
       </el-select>
       
@@ -149,7 +148,6 @@ const closeEditor = () => {
 }
 
 .code-editor:focus {
-  outline: none;
 }
 
 :deep(.el-button) {
