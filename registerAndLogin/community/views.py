@@ -380,8 +380,8 @@ class SearchView(APIView):
         # 构建搜索条件
         search_condition = Q(name__icontains=query) | Q(description__icontains=query)
         
-        # 执行查询(只查询公开的知识库)
-        kbs = KnowledgeBase.objects.filter(search_condition).order_by('-created_at')
+        # 执行查询
+        kbs = KnowledgeBase.objects.filter(search_condition, status='approved').order_by('-created_at')
         total = kbs.count()
         kbs = kbs[offset:limit]
         
@@ -800,7 +800,7 @@ class UserRecentEditedView(APIView):
             
             # 获取最近编辑的知识库
             user_kbs = KnowledgeBase.objects.filter(
-                user=request.user
+                user=request.user,status='approved'  # 只获取已审核通过的知识库
             ).order_by('-updated_at' if hasattr(KnowledgeBase, 'updated_at') else '-created_at')[:limit]
             
             for kb in user_kbs:

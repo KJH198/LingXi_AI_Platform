@@ -1765,7 +1765,9 @@ class UserKnowledgeBaseListView(APIView):
     def get(self, request):
         try:
             # 获取当前用户创建的知识库列表
-            knowledge_bases = KnowledgeBase.objects.filter(user=request.user)
+            knowledge_bases = KnowledgeBase.objects.filter(
+                user=request.user,status='approved'
+            )
             
             # 构建响应数据
             kb_list = []

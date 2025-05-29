@@ -282,8 +282,9 @@
               {{ currentKnowledgeBase.createdAt }}
             </el-descriptions-item>
             <el-descriptions-item label="状态">
-              <el-tag :type="currentKnowledgeBase.status === 'ready' ? 'success' : 'warning'">
-                {{ currentKnowledgeBase.status === 'ready' ? '已就绪' : '处理中' }}
+              <el-tag :type="currentKnowledgeBase.status === 'approved' ? 'success' : 'warning'">
+                {{ currentKnowledgeBase.status === 'approved' ? '已通过审核' : 
+                  currentKnowledgeBase.status === 'pending' ? '审核中' : '未通过审核' }}
               </el-tag>
             </el-descriptions-item>
           </el-descriptions>

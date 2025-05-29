@@ -63,7 +63,7 @@
         <el-table-column prop="status" label="状态">
           <template #default="scope">
             <el-tag 
-              :type="scope.row.status === 'ready' ? 'success' : scope.row.status === 'processing' ? 'warning' : 'info'"
+              :type="scope.row.status === 'approved' ? 'success' : scope.row.status !== 'pending' ? 'warning' : 'info'"
             >
               {{ scope.row.status === 'approved' ? '已通过审核' : 
                  scope.row.status === 'pending' ? '审核中' : '未通过审核' }}
@@ -281,8 +281,9 @@
             {{ currentKnowledgeBase.createdAt }}
           </el-descriptions-item>
           <el-descriptions-item label="状态">
-            <el-tag :type="currentKnowledgeBase.status === 'ready' ? 'success' : 'warning'">
-              {{ currentKnowledgeBase.status === 'ready' ? '已就绪' : '处理中' }}
+            <el-tag :type="currentKnowledgeBase.status === 'approved' ? 'success' : 'warning'">
+              {{ currentKnowledgeBase.status === 'approved' ? '已通过审核' : 
+                  currentKnowledgeBase.status === 'pending' ? '审核中' : '未通过审核' }}
             </el-tag>
           </el-descriptions-item>
         </el-descriptions>
@@ -490,6 +491,10 @@ const isKnowledgeBaseSelected = (id: string): boolean => {
 
 // 添加或移除知识库
 const toggleKnowledgeBase = (kb: KnowledgeBaseType): void => {
+  if (kb.status !== 'approved') {
+    ElMessage.warning('只能选择已通过审核的知识库');
+    return;
+  }
   if (isKnowledgeBaseSelected(kb.id)) {
     removeKnowledgeBase(kb.id);
   } else {

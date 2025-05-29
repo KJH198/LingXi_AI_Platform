@@ -29,7 +29,10 @@ class KnowledgeBaseListView(generics.ListAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        return KnowledgeBase.objects.filter(user=self.request.user)
+        followed_kbs = KnowledgeBase.objects.filter(
+            followers=self.request.user
+        )
+        return KnowledgeBase.objects.filter(user=self.request.user).union(followed_kbs)
 
 class KnowledgeBaseCreateView(generics.CreateAPIView):
     serializer_class = KnowledgeBaseSerializer
