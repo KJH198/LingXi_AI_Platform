@@ -549,7 +549,7 @@ def execute_node(node_id, count, source_handle=None, agent=None, is_loop=False):
 
 
 def execute_batch(current_id, inputs, agent, count):
-    if count != agent.agent_count_map[agent.user_id]:
+    if count != agent_count_map[agent.user_id]:
         # print(f"count:", count)
         # print(f"agent_count_map[agent.user_id]:", agent_count_map[agent.user_id])
         return
