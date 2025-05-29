@@ -16,7 +16,7 @@
         <el-form-item prop="username">
           <el-input
             v-model="adminLoginForm.username"
-            placeholder="管理员用户名"
+            placeholder="管理员手机号"
             :prefix-icon="User"
             clearable
           />
@@ -71,9 +71,9 @@ const adminLoginForm = reactive({
 })
 
 const adminLoginRules = {
-  username: [
-    { required: true, message: '请输入管理员用户名', trigger: 'blur' },
-    { min: 3, max: 20, message: '用户名长度应在3-20个字符之间', trigger: 'blur' }
+  phone_number: [
+    { required: true, message: '请输入管理员手机号', trigger: 'blur' },
+    { pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号码', trigger: 'blur' }
   ],
   password: [
     { required: true, message: '请输入管理员密码', trigger: 'blur' },
