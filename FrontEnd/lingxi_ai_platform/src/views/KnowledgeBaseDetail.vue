@@ -67,9 +67,9 @@
               <el-icon><Pointer /></el-icon> 
               {{ kbData.isLiked ? '已点赞' : '点赞' }}
             </el-button>
-            <el-button @click="handleShare">
+            <!-- <el-button @click="handleShare">
               <el-icon><Share /></el-icon> 分享
-            </el-button>
+            </el-button> -->
           </div>
         </div>
       </el-card>
@@ -83,13 +83,13 @@
               <p>{{ kbData.description || '暂无介绍' }}</p>
             </div>
 
-            <h3>适用场景</h3>
+            <!-- <h3>适用场景</h3>
             <div class="scenarios" v-if="kbData.scenarios && kbData.scenarios.length">
               <el-tag v-for="scenario in kbData.scenarios" :key="scenario" size="large" class="scenario-tag">
                 {{ scenario }}
               </el-tag>
             </div>
-            <el-empty v-else description="暂无适用场景说明" />
+            <el-empty v-else description="暂无适用场景说明" /> -->
           </el-card>
         </el-tab-pane>
 

@@ -53,9 +53,9 @@
                 >
                   {{ userInfo.isFollowed ? '已关注' : '关注' }}
                 </el-button>
-                <el-button @click="copyUserLink">
+                <!-- <el-button @click="copyUserLink">
                   <el-icon><Share /></el-icon> 分享
-                </el-button>
+                </el-button> -->
               </div>
             </div>
           </el-card>

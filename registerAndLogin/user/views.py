@@ -2502,6 +2502,7 @@ class AgentDetailView(APIView):
                     'time': comment.created_at.strftime('%Y-%m-%d %H:%M:%S'),
                     'content': comment.content,
                     'likes': comment.likes.count(),
+                    'isLiked': user in comment.likes.all() if user else False,
                     'replies': [
                         {
                             'id': str(reply.id),

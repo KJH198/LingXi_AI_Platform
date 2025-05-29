@@ -76,9 +76,9 @@
                     <el-button type="danger" size="small" @click="deleteKnowledgeBase(kb)">
                       <el-icon class="el-icon--left"><Delete /></el-icon>删除
                     </el-button>
-                    <el-button type="info" size="small" @click="shareKnowledgeBase(kb)">
+                    <!-- <el-button type="info" size="small" @click="shareKnowledgeBase(kb)">
                       <el-icon class="el-icon--left"><Share /></el-icon>分享
-                    </el-button>
+                    </el-button> -->
                   </div>
                 </div>
               </el-card>
@@ -193,7 +193,7 @@
       </el-container>
       
       <!-- 分享知识库对话框 -->
-      <el-dialog
+      <!-- <el-dialog
         v-model="shareDialogVisible"
         title="分享知识库"
         width="400px"
@@ -214,7 +214,7 @@
             <el-button type="primary" @click="copyAndClose">复制并关闭</el-button>
           </span>
         </template>
-      </el-dialog>
+      </el-dialog> -->
 
       <!-- 上传文件对话框 -->
       <el-dialog
