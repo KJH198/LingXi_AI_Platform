@@ -1716,8 +1716,15 @@ class UserAgentListView(APIView):
 
     def get(self, request):
         try:
+            # 获取查询参数，默认只显示已审核的
+            show_all = request.query_params.get('show_all', 'false').lower() == 'true'
+            
+            # 构建查询条件
+            query = Q(creator=request.user)
+            if not show_all:
+                query &= Q(status='approved')
             # 获取当前用户创建的智能体列表
-            agents = PublishedAgent.objects.filter(creator=request.user)
+            agents = PublishedAgent.objects.filter(query).order_by('-created_at')
             
             # 构建响应数据
             agent_list = []
@@ -2592,7 +2599,7 @@ class KnowledgeBaseDetailView(APIView):
             
             # 获取关联的智能体
             related_agents = []
-            for agent in PublishedAgent.objects.filter(knowledge_bases=kb):
+            for agent in PublishedAgent.objects.filter(knowledge_bases=kb,status='approved').order_by('-created_at'):
                 related_agents.append({
                     'id': str(agent.id),
                     'name': agent.name,
@@ -2611,7 +2618,20 @@ class KnowledgeBaseDetailView(APIView):
                     'status': agent.status,
                     'createdAt': agent.created_at.strftime('%Y-%m-%d %H:%M:%S')
                 })
-            
+            comments = []
+            for comment in KnowledgeBaseComment.objects.filter(knowledge_base=kb).order_by('-created_at'):
+                comments.append({
+                    'id': str(comment.id),
+                    'user': {
+                        'id': comment.user.id,
+                        'username': comment.user.username,
+                        'avatar': comment.user.avatar if hasattr(comment.user, 'avatar') else None
+                    },
+                    'time': comment.created_at.strftime('%Y-%m-%d %H:%M'),
+                    'content': comment.content,
+                    'likes': comment.likes.count(),
+                    'isLiked': user in comment.likes.all() if user else False
+                })
             # 构建响应数据
             data = {
                 'id': str(kb.id),
@@ -2632,7 +2652,7 @@ class KnowledgeBaseDetailView(APIView):
                 },
                 'files': files,
                 'relatedAgents': related_agents,  # 添加关联智能体
-                'comments': []  # 知识库模型中没有评论功能
+                'comments': comments  # 添加评论列表
             }
             
             return Response({
@@ -2829,7 +2849,7 @@ class UserFollowedAgentsView(APIView):
     def get(self, request):
         try:
             # 获取当前用户关注的智能体
-            agents = PublishedAgent.objects.filter(followers=request.user)
+            agents = PublishedAgent.objects.filter(followers=request.user, status='approved').order_by('-created_at')
             
             # 构建响应数据
             agent_list = []
@@ -3515,12 +3535,13 @@ class KnowledgeBaseCommentView(APIView):
                 'content': comment.content,
                 'likes': 0
             }
-            
+            print("评论提交成功")
             return Response({
                 'code': 200,
                 'message': '评论提交成功',
                 'data': data
             })
+        
             
         except Exception as e:
             print(f"评论提交失败: {str(e)}")  # 添加错误日志
@@ -3530,6 +3551,111 @@ class KnowledgeBaseCommentView(APIView):
                 'data': None
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+class KnowledgeBaseCommentLikeView(APIView):
+    """知识库评论点赞视图"""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, commentId):
+        """点赞知识库评论"""
+        try:
+            # 获取评论
+            try:
+                comment = KnowledgeBaseComment.objects.get(id=commentId)
+            except KnowledgeBaseComment.DoesNotExist:
+                return Response({
+                    'code': 404,
+                    'message': '评论不存在',
+                    'data': None
+                }, status=status.HTTP_404_NOT_FOUND)
+
+            # 检查是否已经点赞
+            if comment.likes.filter(id=request.user.id).exists():
+                print(f"用户 {request.user.id} 已经点赞过评论 {commentId}")
+                return Response({
+                    'code': 400,
+                    'message': '已经点赞过了',
+                    'data': None
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            # 添加点赞
+            comment.likes.add(request.user)
+
+            # 记录用户行为
+            UserActionLog.objects.create(
+                user=request.user,
+                action='like_kb_comment',
+                target_id=comment.id,
+                target_type='knowledge_base_comment',
+                ip_address=request.META.get('REMOTE_ADDR'),
+            )
+
+            return Response({
+                'code': 200,
+                'message': '点赞成功',
+                'data': {
+                    'commentId': comment.id,
+                    'likes': comment.likes.count()
+                }
+            })
+
+        except Exception as e:
+            print(f"点赞知识库评论失败: {str(e)}")
+            return Response({
+                'code': 500,
+                'message': f'点赞失败：{str(e)}',
+                'data': None
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def delete(self, request, commentId):
+        """取消点赞知识库评论"""
+        try:
+            # 获取评论
+            try:
+                comment = KnowledgeBaseComment.objects.get(id=commentId)
+            except KnowledgeBaseComment.DoesNotExist:
+                return Response({
+                    'code': 404,
+                    'message': '评论不存在',
+                    'data': None
+                }, status=status.HTTP_404_NOT_FOUND)
+
+            # 检查是否已经点赞
+            if not comment.likes.filter(id=request.user.id).exists():
+                return Response({
+                    'code': 400,
+                    'message': '还没有点赞',
+                    'data': None
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            # 取消点赞
+            comment.likes.remove(request.user)
+
+            # 记录用户行为
+            UserActionLog.objects.create(
+                user=request.user,
+                action='unlike_kb_comment',
+                target_id=comment.id,
+                target_type='knowledge_base_comment',
+                ip_address=request.META.get('REMOTE_ADDR'),
+            )
+
+            return Response({
+                'code': 200,
+                'message': '取消点赞成功',
+                'data': {
+                    'commentId': comment.id,
+                    'likes': comment.likes.count()
+                }
+            })
+
+        except Exception as e:
+            print(f"取消点赞知识库评论失败: {str(e)}")  # 添加错误日志
+            return Response({
+                'code': 500,
+                'message': f'取消点赞失败：{str(e)}',
+                'data': None
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
 class AgentRestoreView(APIView):
     """智能体恢复视图"""
     permission_classes = [IsAuthenticated]
@@ -4128,6 +4254,7 @@ class UserPublicAgentsView(APIView):
             # 获取用户创建的公开智能体列表
             agents = PublishedAgent.objects.filter(
                 creator=target_user,
+                status='approved',  # 只获取已审核通过的智能体
                 is_active=True      # 只获取未被禁用的
             )
             

@@ -366,7 +366,7 @@ const fetchUserAgents = async () => {
     }
 
     // 发送请求
-    const response = await fetch('/user/agents/list', {
+    const response = await fetch('/user/agents/list?show_all=false', {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`,

@@ -44,7 +44,7 @@
             </div>
             <div class="agent-stats">
               <span class="stat-item"><el-icon><View /></el-icon> {{ agentData.views || 0 }} 浏览</span>
-              <span class="stat-item"><el-icon><StarFilled /></el-icon> {{ agentData.likes || 0 }} 点赞</span>
+              <span class="stat-item"><el-icon><Pointer /></el-icon> {{ agentData.likes || 0 }} 点赞</span>
               <span class="stat-item"><el-icon><User /></el-icon> {{ agentData.followers || 0 }} 关注</span>
               <span class="stat-item"><el-icon><ChatDotRound /></el-icon> {{ agentData.comments?.length || 0 }} 评论</span>
             </div>
@@ -68,7 +68,7 @@
               :type="agentData.isLiked ? 'danger' : 'default'" 
               @click="handleLike"
             >
-              <el-icon><StarFilled /></el-icon> 
+              <el-icon><Pointer /></el-icon> 
               {{ agentData.isLiked ? '已点赞' : '点赞' }}
             </el-button>
             <el-button @click="handleShare">
@@ -158,8 +158,11 @@
                   </div>
                   <p>{{ comment.content }}</p>
                   <div class="comment-actions">
-                    <el-button text type="primary" size="small" @click="likeComment(comment)">
-                      <el-icon><StarFilled /></el-icon> {{ comment.likes || 0 }}
+                    <el-button 
+                      :type="comment.isLiked ? 'primary' : 'text'"
+                      size="small" 
+                      @click="likeComment(comment)">
+                      <el-icon><Pointer /></el-icon> {{ comment.likes || 0 }}
                     </el-button>
                     
                     <!-- 添加删除按钮，仅对评论作者或智能体创建者显示 -->
@@ -241,6 +244,7 @@ import {
   Check, 
   Document,
   ChatLineRound,
+  Pointer,
   Delete
 } from '@element-plus/icons-vue'
 
@@ -301,6 +305,7 @@ const agentData = reactive({
     time: string;
     content: string;
     likes: number;
+    isLiked: boolean;
     replies: {
       id: number;
       user: {
@@ -754,6 +759,7 @@ const submitComment = async () => {
         time: result.time || new Date().toLocaleString(),
         content: commentContent.value,
         likes: 0,
+        isLiked: false,
         replies: []
       }
       
@@ -788,6 +794,7 @@ const submitComment = async () => {
       time: new Date().toLocaleString(),
       content: commentContent.value,
       likes: 0,
+      isLiked: false,
       replies: []
     }
     
@@ -826,7 +833,7 @@ const likeComment = async (comment) => {
       // 更新状态
       comment.isLiked = !isLiked
       comment.likes = isLiked ? comment.likes - 1 : comment.likes + 1
-      ElMessage.success('点赞成功')
+      ElMessage.success(comment.isLiked ? '已取消点赞' : '点赞成功')
     } else {
       throw new Error(result.message || '点赞失败')
     }

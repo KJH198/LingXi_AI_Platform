@@ -242,6 +242,7 @@
               multiple
               accept="image/*"
               list-type="picture-card"
+              :preview-src-list="previewImages" 
             >
               <el-icon><Plus /></el-icon>
               <template #tip>
@@ -250,6 +251,11 @@
                 </div>
               </template>
             </el-upload>
+
+            <!-- 添加图片预览对话框 -->
+            <el-dialog v-model="previewVisible" title="预览图片">
+              <img :src="previewImage" alt="Preview Image" style="width: 100%; max-height: 80vh;" />
+            </el-dialog>
           </el-form-item>
         </template>
       </el-form>
@@ -344,7 +350,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, watch } from 'vue'
+import { ref, reactive, computed, onMounted, watch, onBeforeUnmount } from 'vue'
 import { ElMessage, ElMessageBox, ElLoading } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 import FilePreview from './FilePreview.vue'  // 导入文件预览组件
@@ -835,6 +841,11 @@ const handleKnowledgeBaseChange = (kbId: string): void => {
   }
 };
 
+const previewImages = ref<string[]>([]);
+const previewVisible = ref(false);
+const previewImage = ref('');
+
+
 // 处理文本文件上传
 const handleTextFileChange = (file: any): boolean => {
   // 文本类型验证
@@ -879,10 +890,40 @@ const handleImageFileChange = (file: any): boolean => {
     ElMessage.error('图片大小不能超过5MB');
     return false;
   }
+
+  // 创建预览URL并添加到预览图片列表
+  const fileUrl = URL.createObjectURL(file.raw);
+  previewImages.value.push(fileUrl);
   
   uploadFiles.value.push(file.raw);
   return false; // 阻止自动上传
 };
+
+// 添加处理图片预览的函数
+const handlePictureCardPreview = (file) => {
+  // 如果文件对象来自el-upload，它会有url属性
+  if (file.url) {
+    previewImage.value = file.url;
+  } 
+  // 如果是raw文件对象，创建临时URL
+  else if (file.raw) {
+    previewImage.value = URL.createObjectURL(file.raw);
+  }
+  previewVisible.value = true;
+};
+
+// 上传完成或组件卸载时清理创建的对象URL，防止内存泄漏
+const clearImagePreviews = () => {
+  previewImages.value.forEach(url => {
+    URL.revokeObjectURL(url);
+  });
+  previewImages.value = [];
+};
+
+// 在组件卸载前清理资源
+onBeforeUnmount(() => {
+  clearImagePreviews();
+});
 
 // 添加URL到列表
 const addUrl = (): void => {
@@ -984,6 +1025,7 @@ const uploadKnowledgeFiles = async () => {
       selectedUploadKnowledgeBaseId.value = '';
       selectedKnowledgeBaseType.value = '';
       uploadKnowledgeDialogVisible.value = false;
+      clearImagePreviews(); // 清理图片预览
       
       // 刷新知识库列表
       await fetchKnowledgeBases(true);

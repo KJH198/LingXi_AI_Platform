@@ -2597,7 +2597,7 @@ const fetchAgents = async () => {
     }
 
     // 获取我的智能体列表
-    const myResponse = await fetch('/user/agents/list', {
+    const myResponse = await fetch('/user/agents/list?show_all=false', {
       headers: {
         'Authorization': `Bearer ${token}`
       }

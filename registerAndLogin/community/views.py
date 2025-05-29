@@ -340,7 +340,7 @@ class SearchView(APIView):
         search_condition = Q(name__icontains=query) | Q(description__icontains=query)
         
         # 执行查询(只查询审核通过的智能体)
-        agents = PublishedAgent.objects.filter(search_condition, is_active=True).order_by('-created_at')
+        agents = PublishedAgent.objects.filter(search_condition, status='approved').order_by('-created_at')
         print(f"搜索智能体: {query}, 条件: {search_condition}, 数量: {agents.count()}")
         total = agents.count()
         agents = agents[offset:limit]
@@ -431,7 +431,7 @@ class HotAgentsView(generics.ListAPIView):
     def get_queryset(self):
         # 只获取已审核通过的智能体
         return PublishedAgent.objects.filter(
-            is_active=True
+            status='approved'
         ).annotate(
             # 计算热度分数：浏览量 + 点赞数*2 + 关注者数*4
             popularity_score=F('views') + Count('likes')*2 + Count('followers')*4
@@ -476,7 +476,7 @@ class OpenAgentsView(generics.ListAPIView):
     def get_queryset(self):
         # 只获取已审核通过的智能体
         return PublishedAgent.objects.filter(
-            is_active=True, is_OpenSource=True
+            status='approved', is_OpenSource=True
         ).annotate(
             # 计算热度分数：浏览量 + 点赞数*2 + 关注者数*4
             popularity_score=F('views') + Count('likes')*2 + Count('followers')*4
@@ -520,7 +520,9 @@ class HotKnowledgeBasesView(generics.ListAPIView):
     
     def get_queryset(self):
         # 热门知识库排序逻辑
-        return KnowledgeBase.objects.annotate(
+        return KnowledgeBase.objects.filter(
+            status='approved'  # 只获取已审核通过的知识库
+        ).annotate(
             # 文件数量
             file_count=Count('files'),
             # 关注者数量

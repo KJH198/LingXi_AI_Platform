@@ -64,7 +64,7 @@
               :type="kbData.isLiked ? 'danger' : 'default'" 
               @click="handleLike"
             >
-              <el-icon><StarFilled /></el-icon> 
+              <el-icon><Pointer /></el-icon> 
               {{ kbData.isLiked ? '已点赞' : '点赞' }}
             </el-button>
             <el-button @click="handleShare">
@@ -222,12 +222,15 @@
                   </div>
                   <p>{{ comment.content }}</p>
                   <div class="comment-actions">
-                    <el-button text type="primary" size="small" @click="likeComment(comment)">
-                      <el-icon><StarFilled /></el-icon> {{ comment.likes || 0 }}
+                    <el-button
+                      :type="comment.isLiked ? 'primary' : 'text'"
+                      size="small" 
+                      @click="likeComment(comment)">
+                      <el-icon><Pointer /></el-icon> {{ comment.likes || 0 }}
                     </el-button>
-                    <el-button text size="small" @click="replyComment(comment)">
+                    <!-- <el-button text size="small" @click="replyComment(comment)">
                       <el-icon><ChatLineRound /></el-icon> 回复
-                    </el-button>
+                    </el-button> -->
                     
                     <!-- 添加删除按钮，仅对评论作者或知识库创建者显示 -->
                     <el-button 
@@ -242,7 +245,7 @@
                   </div>
                   
                   <!-- 回复列表 -->
-                  <div class="reply-list" v-if="comment.replies && comment.replies.length">
+                  <!-- <div class="reply-list" v-if="comment.replies && comment.replies.length">
                     <div v-for="reply in comment.replies" :key="reply.id" class="reply-item">
                       <el-avatar :size="32" :src="reply.user.avatar" @click="viewUserProfile(reply.user.id)">{{ reply.user.username.substring(0, 1) }}</el-avatar>
                       <div class="reply-content">
@@ -253,10 +256,10 @@
                         <p>{{ reply.content }}</p>
                       </div>
                     </div>
-                  </div>
+                  </div> -->
                   
                   <!-- 回复输入框 -->
-                  <div class="reply-input" v-if="replyingTo === comment.id">
+                  <!-- <div class="reply-input" v-if="replyingTo === comment.id">
                     <el-input 
                       v-model="replyContent" 
                       size="small" 
@@ -268,7 +271,7 @@
                         <el-button @click="submitReply(comment)">回复</el-button>
                       </template>
                     </el-input>
-                  </div>
+                  </div> -->
                 </div>
               </div>
             </div>
@@ -337,6 +340,7 @@ import {
   Document,
   Timer,
   ChatLineRound,
+  Pointer,
   Delete
 } from '@element-plus/icons-vue'
 
@@ -414,16 +418,7 @@ const kbData = reactive({
     time: string;
     content: string;
     likes: number;
-    replies: {
-      id: number;
-      user: {
-        id: number;
-        username: string;
-        avatar: string;
-      };
-      time: string;
-      content: string;
-    }[];
+    isLiked: boolean;
   }[]
 })
 
@@ -517,12 +512,32 @@ const fetchKnowledgeBaseDetail = async () => {
       throw new Error('获取知识库详情失败')
     }
     
-    const data = await response.json()
-    if (data.code === 200) {
-      // 更新知识库数据
-      Object.assign(kbData, data.data)
+    const result = await response.json()
+    if (result.code === 200) {
+      kbData.id = result.data.id
+      kbData.name = result.data.name
+      kbData.description = result.data.description || '暂无介绍'
+      kbData.fileCount = result.data.file_count || 0
+      kbData.views = result.data.views || 0
+      kbData.followers = result.data.followers || 0
+      kbData.lastUpdated = result.data.last_updated || '未知'
+      kbData.isFollowed = result.data.is_followed || false
+      kbData.isLiked = result.data.is_liked || false
+      kbData.tags = result.data.tags || []
+      kbData.scenarios = result.data.scenarios || []
+
+      kbData.creator = {
+        id: result.data.creator.id,
+        username: result.data.creator.username,
+        avatar: result.data.creator.avatar || 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png'
+      }
+      kbData.files = result.data.files || []
+      kbData.relatedAgents = result.data.related_agents || []
+      kbData.comments = result.data.comments || []
+      totalComments.value = kbData.comments.length || 0
+      fetchUserAvatar() // 获取当前用户头像
     } else {
-      throw new Error(data.message || '获取知识库详情失败')
+      throw new Error(result.message || '获取知识库详情失败')
     }
   } catch (error) {
     console.error('获取知识库详情失败:', error)
@@ -1004,7 +1019,7 @@ const submitComment = async () => {
         time: result.time || new Date().toLocaleString(),
         content: commentContent.value,
         likes: 0,
-        replies: []
+        isLiked: false,
       }
       
       kbData.comments.unshift(newComment)
@@ -1038,7 +1053,7 @@ const submitComment = async () => {
       time: new Date().toLocaleString(),
       content: commentContent.value,
       likes: 0,
-      replies: []
+      isLiked: false
     }
     
     kbData.comments.unshift(newComment)
@@ -1057,33 +1072,41 @@ const likeComment = async (comment) => {
       return
     }
     
-    // 点赞评论请求
-    const response = await fetch(`/comment/${comment.id}/like/`, {
-      method: 'POST',
+    // 检查当前点赞状态
+    const isLiked = comment.isLiked || false
+    
+    // 点赞评论请求 - 修正API路径和请求方法
+    const response = await fetch(`/user/like/knowledge_base_comment/${comment.id}/`, {
+      method: isLiked ? 'DELETE' : 'POST',  // 根据当前状态决定是点赞还是取消点赞
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
       }
     })
     
-    if (!response.ok) {
-      throw new Error('点赞失败')
-    }
+    console.log('点赞响应状态：', response.status)
     
-    const result = await response.json()
-    if (result.code === 200) {
-      comment.likes += 1
-      ElMessage.success('点赞成功')
+    // 尝试解析响应，即使状态码不是200
+    const result = await response.json().catch(e => {
+      console.error('解析响应JSON失败:', e)
+      return { code: 0, message: '响应格式错误' }
+    })
+    
+    console.log('点赞结果:', result)
+    
+    // 更宽松的成功条件判断
+    if (response.ok || result.code === 200) {
+      // 更新状态
+      comment.isLiked = !isLiked
+      comment.likes = isLiked ? comment.likes - 1 : comment.likes + 1
+      
+      ElMessage.success(isLiked ? '已取消点赞' : '点赞成功')
+      return // 成功时直接返回，避免执行后面的模拟代码
     } else {
-      throw new Error(result.message || '点赞失败')
+      throw new Error(result.message || (isLiked ? '取消点赞失败' : '点赞失败'))
     }
   } catch (error) {
     console.error('点赞评论失败:', error)
-    ElMessage.error('操作失败，请稍后重试')
-    
-    // 模拟（开发阶段）
-    comment.likes += 1
-    ElMessage.success('点赞成功')
   }
 }
 
