@@ -3,9 +3,11 @@ import json
 import traceback
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
+from collections import defaultdict
 
 
 AGENT_CACHE = {}  # 你可以按用户 ID、会话 ID、agent_id 等作为 key
+agent_count_map = defaultdict(int) # key是user_id
 
 def set_agent(agent_id: int, user_id: int, agent):
     agent_key = (agent_id, user_id)
@@ -32,7 +34,6 @@ class Agent:
         self.results = {}
         self.node_dict = {}
 
-        self.global_count = 0  # 如果你有计数需求
         self.is_outer_agent = True
         print(f"[Agent 构造] agent_id = {self.agent_id}, id = {id(self)}")
 
