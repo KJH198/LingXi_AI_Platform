@@ -2252,8 +2252,10 @@ const filteredKbListForTable = computed(() => {
 const fetchKbReviews = async () => {
   loading.value = true;
   try {
-    // 1. 获取知识库列表 (来自 /user/admin/knowledgebases, 默认获取待审核)
-    // 后端 AdminGetKB 视图，不带 kb_id 时返回 status='pending' 的列表
+    // 1. 获取知识库列表和统计数据
+    // 后端 AdminGetKB 视图，不带 kb_id 时:
+    // - 'data' 字段返回 status='pending' 的列表
+    // - 响应体中直接包含 'approved', 'rejected' 的数量统计以及 'KBNum' (总数)
     const listResponse = await fetch('/user/admin/knowledgebases/', { // API 路径
       method: 'GET',
       headers: {
@@ -2261,74 +2263,39 @@ const fetchKbReviews = async () => {
       }
     });
     if (!listResponse.ok) throw new Error('获取知识库列表失败');
-    const listData = await listResponse.json(); // AdminGetKB 返回 {code, message, data: kb_list}
+    const listData = await listResponse.json(); // AdminGetKB 返回 {code, message, data: kb_list, KBNum, approved, rejected}
 
     if (listData.code === 200 && listData.data) {
+      // listData.data 只包含待审核的知识库，用于在列表中显示
       allRawKbReviews.value = listData.data.map(kb => ({
-        kbId: kb.id, // 从后端 id 映射
+        kbId: kb.id,
         kbName: kb.name,
-        submitTime: kb.created_at || new Date().toLocaleDateString(), // 占位
-        // AdminGetKB 没有直接返回提交时间，可以用创建时间代替或从详情获取
-        // 假设 PublishedAgent 的 created_at 对应知识库的提交时间，这里 AdminGetKB 没有直接返回
-        // AdminGetKB 返回 creatorID
+        submitTime: kb.created_at || new Date().toLocaleDateString(),
         creatorId: kb.creatorID,
         type: kb.type,
-        description: kb.description || '', // AdminGetKB 返回 description
-        status: kb.status || 'pending', // AdminGetKB 应该返回 status
-        // 以下为详情弹窗可能需要的
-        reviewNotes: kb.review_notes || '', // 假设有审核备注字段
+        description: kb.description || '',
+        status: kb.status || 'pending', // 来自 listData.data 的项目 status 应该都是 'pending'
+        reviewNotes: kb.review_notes || '', // 假设有审核备注字段 (如果后端返回)
       }));
-      // AdminGetKB 似乎不直接返回 total 和各状态count, 需要分别统计或修改后端
-      totalKbs.value = allRawKbReviews.value.length; // 临时用列表长度
+
+      // 从后端响应直接获取统计数据
+      // listData.data 是待审核列表，其长度就是待审核数量
+      pendingKbs.value = listData.data.length; // 或者 allRawKbReviews.value.length
+
+      // 后端已经在同一响应中返回了 approved 和 rejected 的总数
+      approvedKbs.value = listData.approved || 0; // 从 listData.approved 获取
+      rejectedKbs.value = listData.rejected || 0; // 从 listData.rejected 获取
+
+      // 后端也返回了总的知识库数量 KBNum
+      totalKbs.value = listData.KBNum || 0; // 从 listData.KBNum 获取总数
+
     } else {
       throw new Error(listData.message || '获取知识库列表数据格式错误');
     }
 
-    // 2. 获取知识库统计数据 (需要后端提供类似 agent_rating 的接口，或者前端自行统计)
-    // 假设后端没有专门的知识库统计接口，我们基于获取到的列表（可能不全）进行统计
-    // 如果 allRawKbReviews 只包含待审核的，这里的统计就不准
-    // 你可能需要一个能获取所有状态知识库并返回统计的接口，或者分别请求不同状态的列表来统计
-    // 为简化，暂时基于当前列表（通常是待审核）统计
-    let pendingCount = 0;
-    let approvedCount = 0;
-    let rejectedCount = 0;
-    
-    // 如果需要准确统计所有状态，需要后端接口支持或者多次请求不同status的列表
-    // 示例：假设我们要调用一个能返回所有知识库的接口来做统计
-    // const allKbResponse = await fetch('/user/admin/knowledgebases?status=all'); // 假设的接口
-    // if (allKbResponse.ok) {
-    //   const allKbData = await allKbResponse.json();
-    //   if (allKbData.code === 200 && allKbData.data) {
-    //     allKbData.data.forEach(kb => {
-    //       if (kb.status === 'pending') pendingCount++;
-    //       else if (kb.status === 'approved') approvedCount++;
-    //       else if (kb.status === 'rejected') rejectedCount++;
-    //     });
-    //   }
-    // }
-    //  由于 AdminGetKB 默认只拉取 pending, 所以这里的统计只会是 pending 的。
-    //  你需要一个接口能拉取所有状态的KB才能做准确统计，或者 AgentRatingView 那样的接口。
-    //  暂时，我们将只显示待审核的数量（如果列表只含待审核）
-    //  或者，如果你的 /user/admin/knowledgebases 能够通过参数获取不同状态的列表，可以多次调用来统计。
-    //  此处假设 AgentRatingView 的逻辑可以复用，但针对知识库 (这是理想情况，但后端没有这样的接口)
-    //  const kbStatsResponse = await fetch('/user/admin/kb_stats_endpoint/'); // 假设的统计接口
-    //  if (kbStatsResponse.ok) {
-    //      const kbStatsData = await kbStatsResponse.json();
-    //      pendingKbs.value = kbStatsData.pending_count || 0;
-    //      approvedKbs.value = kbStatsData.approved_count || 0;
-    //      rejectedKbs.value = kbStatsData.rejected_count || 0;
-    //  } else {
-    //      ElMessage.warn('获取知识库统计数据失败，统计可能不准确');
-    //      pendingKbs.value = allRawKbReviews.value.filter(kb => kb.status === 'pending').length;
-    //      approvedKbs.value = 0; // 无法准确获取
-    //      rejectedKbs.value = 0; // 无法准确获取
-    //  }
-    //  由于 AdminGetKB 默认只返回 status='pending' 的，所以这样统计：
-       pendingKbs.value = allRawKbReviews.value.filter(kb => kb.status === 'pending').length;
-    //  对于 approved 和 rejected，你需要不同的API调用或后端修改 AdminGetKB
-       approvedKbs.value = 0; // 占位 - 需要后端支持
-       rejectedKbs.value = 0; // 占位 - 需要后端支持
-
+    // 2. 获取知识库统计数据的部分已经不再需要单独处理，
+    // 因为后端在步骤1的响应中已经提供了所有需要的统计信息。
+    // 原来的统计逻辑可以删除了。
 
   } catch (error) {
     console.error('获取知识库审核数据失败:', error);
