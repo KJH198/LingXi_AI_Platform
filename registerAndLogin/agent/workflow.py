@@ -597,8 +597,9 @@ def execute_loop(current_id, inputs, agent, count):
         # print(f"agent_count_map[agent.user_id]:", agent_count_map[agent.user_id])
         return
     current_node = agent.node_dict[current_id]
+    sorted_preds = sorted(current_node.predecessors, key=lambda p: 0 if p['sourceHandle'] == 'loop-entry' else 1)
 
-    for pred in current_node.predecessors:
+    for pred in sorted_preds:
         pred_id = pred['source']
         pred_handle = pred['sourceHandle']
 
