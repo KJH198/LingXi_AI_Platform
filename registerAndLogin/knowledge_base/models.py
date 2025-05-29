@@ -28,15 +28,15 @@ class KnowledgeBase(models.Model):
 
 class KnowledgeBaseFile(models.Model):
     STATUS_CHOICES = (
-        ('ready', '已处理完毕'),
-        ('processing', '正在处理'),
+        ('ready', '已上传'),
+        ('processing', '正在上传'),
     )
     
     knowledge_base = models.ForeignKey(KnowledgeBase, on_delete=models.CASCADE, related_name='files')
     file = models.FileField(upload_to='knowledge_base_files/')
     filename = models.CharField(max_length=255)
     size = models.BigIntegerField()
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='processing')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='ready')
     uploaded_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
