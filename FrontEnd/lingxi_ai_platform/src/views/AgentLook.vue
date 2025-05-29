@@ -8,10 +8,6 @@
         <el-tag v-if="!isPublished" type="info">未发布</el-tag>
         <el-tag v-else type="success">已发布</el-tag>
       </div>
-      <div class="header-actions">
-        <el-button @click="handleSaveDraft">保存草稿</el-button>
-        <el-button type="primary" @click="handlePublish">发布智能体</el-button>
-      </div>
     </header>
 
     <!-- 主要内容区域 -->
