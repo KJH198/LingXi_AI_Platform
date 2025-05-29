@@ -147,7 +147,7 @@ const loadFile = async () => {
         });
         
         if (!response.ok) {
-          throw new Error('获取文件内容失败');
+          throw new Error('你无权查看此文件');
         }
         
         const blob = await response.blob();
@@ -163,7 +163,7 @@ const loadFile = async () => {
       });
       
       if (!response.ok) {
-        throw new Error('获取文件内容失败');
+        throw new Error('你无权查看此文件');
       }
       
       const result = await response.json();
@@ -179,7 +179,7 @@ const loadFile = async () => {
           rawContent.value = result.data.text;
         }
       } else {
-        throw new Error(result.message || '获取文件内容失败');
+        throw new Error(result.message || '你无权查看此文件');
       }
     }
   } catch (err) {
