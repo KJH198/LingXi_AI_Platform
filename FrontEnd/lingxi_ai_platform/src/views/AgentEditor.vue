@@ -1969,7 +1969,7 @@ const isProcessingOutput = ref(false)
   display: grid;
   grid-template-columns: 1fr 300px;
   gap: 20px;
-  height: 500px;
+  height: 700px;  /* 增加高度从500px到700px */
 }
 
 .chat-preview {
@@ -2004,7 +2004,7 @@ const isProcessingOutput = ref(false)
 
 .message {
   display: flex;
-  margin-bottom: 16px;
+  margin-bottom: 24px;  /* 增加消息间距从16px到24px */
   animation: messageFadeIn 0.3s ease-out;
 }
 
@@ -2039,7 +2039,7 @@ const isProcessingOutput = ref(false)
 
 .message-content {
   max-width: 75%;
-  padding: 12px 16px;
+  padding: 16px 20px;  /* 增加内边距 */
   border-radius: 8px;
   background-color: #fff;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
@@ -2059,14 +2059,15 @@ const isProcessingOutput = ref(false)
 .message-text {
   white-space: pre-wrap;
   word-break: break-word;
-  line-height: 1.6;
+  line-height: 1.8;  /* 增加行高从1.6到1.8 */
+  font-size: 15px;  /* 增加字体大小 */
 }
 
 .message-time {
-  font-size: 12px;
+  font-size: 13px;  /* 增加时间字体大小从12px到13px */
   color: #909399;
   text-align: right;
-  margin-top: 4px;
+  margin-top: 6px;  /* 增加时间上边距从4px到6px */
 }
 
 .chat-input {
