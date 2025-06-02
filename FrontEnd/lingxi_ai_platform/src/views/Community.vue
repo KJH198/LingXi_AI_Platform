@@ -2283,7 +2283,7 @@ const navigateToItem = (item) => {
       // 智能体导航
       if (item.isDraft) {
         // 如果是草稿
-        router.push(`/agent-drafts/edit/${item.id}`)
+        router.push(`/edit-agent/draft/${item.id}`)
       } else {
         // 已发布的智能体
         router.push(`/edit-agent/publish/${item.id}`)

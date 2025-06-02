@@ -404,30 +404,44 @@
         return
       }
       
+      const currentUserId = getCurrentUserId();
+      const authorId = postData.value.author.id;
+      
+      // 防止自己关注自己
+      if (currentUserId === authorId) {
+        ElMessage.warning('不能关注自己')
+        return
+      }
+      
       const token = localStorage.getItem('token')
-      const authorId = postData.value.author.id
-      const method = postData.value.isAuthorFollowed ? 'DELETE' : 'POST'
+      const isFollowed = postData.value.isAuthorFollowed;
+      const method = isFollowed ? 'DELETE' : 'POST'
       
       const response = await fetch(`/user/follow/${authorId}/`, {
         method,
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'  // 添加缺失的Content-Type
+        }
       })
       
       if (!response.ok) {
-        throw new Error(`操作失败: ${response.status}`)
+        throw new Error(isFollowed ? '取消关注失败' : '关注失败')
       }
       
       const result = await response.json()
       
-      if (result.code === 200) {
-        postData.value.isAuthorFollowed = !postData.value.isAuthorFollowed
-        ElMessage.success(postData.value.isAuthorFollowed ? '关注成功' : '取消关注成功')
+      // 使用 response.status 与社区页面保持一致
+      if (response.status === 200) {
+        // 更新状态
+        postData.value.isAuthorFollowed = !isFollowed
+        ElMessage.success(isFollowed ? '已取消关注' : '关注成功')
       } else {
         throw new Error(result.message || '操作失败')
       }
     } catch (e) {
-      console.error('关注操作失败:', e)
-      ElMessage.error('操作失败，请稍后重试')
+      console.error('关注用户操作失败:', e)
+      ElMessage.error(e.message || '操作失败，请稍后重试')  // 使用更具体的错误信息
     }
   }
   

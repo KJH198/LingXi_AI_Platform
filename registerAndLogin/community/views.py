@@ -782,7 +782,7 @@ class UserRecentEditedView(APIView):
                     'id': str(agent.id),
                     'name': agent.name,
                     'type': 'agent',
-                    'is_draft': False,
+                    'isDraft': False,
                     'lastEditTime': agent.updated_at.strftime('%Y-%m-%d %H:%M')
                 })
             
@@ -796,7 +796,7 @@ class UserRecentEditedView(APIView):
                     'id': str(draft.id),
                     'name': draft.name or '未命名智能体',
                     'type': 'agent',
-                    'is_draft': True,
+                    'isDraft': True,
                     'lastEditTime': draft.updated_at.strftime('%Y-%m-%d %H:%M')
                 })
             

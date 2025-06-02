@@ -46,7 +46,7 @@
               <span class="stat-item"><el-icon><Document /></el-icon> {{ kbData.fileCount || 0 }} 文件</span>
               <span class="stat-item"><el-icon><View /></el-icon> {{ kbData.views || 0 }} 浏览</span>
               <span class="stat-item"><el-icon><User /></el-icon> {{ kbData.followers || 0 }} 关注</span>
-              <span class="stat-item"><el-icon><Timer /></el-icon> {{ kbData.lastUpdated || '未知' }} 更新</span>
+              <span class="stat-item"><el-icon><Timer /></el-icon> {{ kbData.created_at || '未知' }} 创建</span>
             </div>
             <div class="kb-tags" v-if="kbData.tags && kbData.tags.length">
               <el-tag v-for="tag in kbData.tags" :key="tag" size="small" class="tag">{{ tag }}</el-tag>
@@ -377,7 +377,7 @@ const kbData = reactive({
   fileCount: 0,
   views: 0,
   followers: 0,
-  lastUpdated: '',
+  created_at: '',
   isFollowed: false,
   isLiked: false,
   tags: [] as string[],
@@ -520,7 +520,7 @@ const fetchKnowledgeBaseDetail = async () => {
       kbData.fileCount = result.data.file_count || 0
       kbData.views = result.data.views || 0
       kbData.followers = result.data.followers || 0
-      kbData.lastUpdated = result.data.last_updated || '未知'
+      kbData.created_at = result.data.created_at || '未知'
       kbData.isFollowed = result.data.is_followed || false
       kbData.isLiked = result.data.is_liked || false
       kbData.tags = result.data.tags || []

@@ -70,7 +70,11 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="createdAt" label="创建时间" />
+        <el-table-column prop="createdAt" label="创建时间">
+          <template #default="scope">
+            {{ formatDateTime(scope.row.createdAt) }}
+          </template>
+        </el-table-column>
         <el-table-column fixed="right" label="操作" width="200">
           <template #default="scope">
             <el-button
@@ -284,7 +288,7 @@
             {{ currentKnowledgeBase.description || '无描述' }}
           </el-descriptions-item>
           <el-descriptions-item label="创建时间">
-            {{ currentKnowledgeBase.createdAt }}
+            {{ formatDateTime(currentKnowledgeBase.createdAt) }}
           </el-descriptions-item>
           <el-descriptions-item label="状态">
             <el-tag :type="currentKnowledgeBase.status === 'approved' ? 'success' : 'warning'">
@@ -607,6 +611,40 @@ const createKnowledgeBase = async (): Promise<void> => {
   } catch (error) {
     console.error('创建知识库失败:', error);
     ElMessage.error('创建知识库失败，请稍后重试');
+  }
+};
+
+// 格式化日期时间
+const formatDateTime = (dateStr) => {
+  if (!dateStr) return '未知';
+  
+  try {
+    const date = new Date(dateStr);
+    
+    // 检查日期是否有效
+    if (isNaN(date.getTime())) return dateStr;
+    
+    // 格式化为 "YYYY-MM-DD HH:MM:SS"
+    return date.toLocaleString('zh-CN', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false
+    }).replace(/\//g, '-');
+    
+    // 或者使用简单格式 "YYYY-MM-DD HH:MM"
+    // const year = date.getFullYear();
+    // const month = String(date.getMonth() + 1).padStart(2, '0');
+    // const day = String(date.getDate()).padStart(2, '0');
+    // const hours = String(date.getHours()).padStart(2, '0');
+    // const minutes = String(date.getMinutes()).padStart(2, '0');
+    // return `${year}-${month}-${day} ${hours}:${minutes}`;
+  } catch (e) {
+    console.error('日期格式化错误:', e);
+    return dateStr; // 出错时返回原始字符串
   }
 };
 
