@@ -167,7 +167,7 @@ async def send_output_to_frontend(node_name: str, output: any, agent, count):
     # print(f"是否传往前端？")
     print(f"agent_count_map[agent.user_id]:", agent_count_map[agent.user_id])
     print(f"count", count)
-    if count == agent_count_map[agent.user_id]:
+    if count == agent_count_map[agent.user_id] or count + 1 == agent_count_map[agent.user_id]:
         try:
             await channel_layer.group_send(
                 "node_output",
