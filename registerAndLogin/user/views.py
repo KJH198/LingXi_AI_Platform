@@ -2641,7 +2641,7 @@ class KnowledgeBaseDetailView(APIView):
                 'fileCount': kb.files.count(),
                 'views': 0,  # 知识库模型中没有浏览量字段
                 'followers': kb.followers.count(),
-                'lastUpdated': kb.created_at.strftime('%Y-%m-%d'),  # 使用创建时间作为最后更新时间
+                'created_at': kb.created_at.strftime('%Y-%m-%d'),  # 使用创建时间作为最后更新时间
                 'isFollowed': user in kb.followers.all() if user else False,
                 'isLiked': user in kb.likes.all() if user else False,
                 'tags': [],  # 知识库模型中没有标签字段
