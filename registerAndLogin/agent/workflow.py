@@ -639,7 +639,8 @@ def run_workflow_from_output_node(agent):
     :param node_list: 所有 BaseNode 实例的列表
     :return: 最终输出节点的运行结果
     """
-    agent_count_map[agent.user_id] += 1
+    if agent.is_outer_agent:
+        agent_count_map[agent.user_id] += 1
     workflow = agent.workflow
     # 加载所有节点，并创建实例
     agent.node_dict = {
