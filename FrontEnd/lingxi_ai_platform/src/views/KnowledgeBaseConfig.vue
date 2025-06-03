@@ -310,12 +310,15 @@
                 {{ Math.round(scope.row.size / 1024) }} KB
               </template>
             </el-table-column>
-            <el-table-column prop="upload_time" label="上传时间" />
+            <el-table-column label="上传时间">
+              <template #default="scope">
+                {{ formatDateTime(scope.row.upload_time) }}
+              </template>
+            </el-table-column>
             <el-table-column label="状态">
               <template #default="scope">
                 <el-tag :type="scope.row.status === 'ready' ? 'success' : 'warning'">
-                  {{ scope.row.status === 'ready' ? '已上传' : 
-                    scope.row.status === 'ready' ? '已上传' : '正在上传' }}
+                  {{  scope.row.status === 'ready' ? '已上传' : '正在上传' }}
                 </el-tag>
               </template>
             </el-table-column>
@@ -595,7 +598,7 @@ const createKnowledgeBase = async (): Promise<void> => {
       name: result.name,
       description: result.description,
       type: result.type,
-      createdAt: result.createdAt
+      createdAt: formatDateTime(result.createdAt)
     });
     
     // 自动选择新创建的知识库
@@ -619,7 +622,28 @@ const formatDateTime = (dateStr) => {
   if (!dateStr) return '未知';
   
   try {
-    const date = new Date(dateStr);
+    // 处理 ISO 格式日期
+    let date;
+    if (typeof dateStr === 'string') {
+      // 处理带有Z的UTC时间
+      if (dateStr.endsWith('Z')) {
+        date = new Date(dateStr);
+      } 
+      // 处理没有带时区信息的时间字符串
+      else if (dateStr.includes('T') || dateStr.includes('-')) {
+        date = new Date(dateStr);
+      } 
+      // 处理时间戳
+      else if (!isNaN(Number(dateStr))) {
+        date = new Date(Number(dateStr));
+      }
+      // 其他格式
+      else {
+        date = new Date(dateStr);
+      }
+    } else {
+      date = new Date(dateStr);
+    }
     
     // 检查日期是否有效
     if (isNaN(date.getTime())) return dateStr;
@@ -634,14 +658,6 @@ const formatDateTime = (dateStr) => {
       second: '2-digit',
       hour12: false
     }).replace(/\//g, '-');
-    
-    // 或者使用简单格式 "YYYY-MM-DD HH:MM"
-    // const year = date.getFullYear();
-    // const month = String(date.getMonth() + 1).padStart(2, '0');
-    // const day = String(date.getDate()).padStart(2, '0');
-    // const hours = String(date.getHours()).padStart(2, '0');
-    // const minutes = String(date.getMinutes()).padStart(2, '0');
-    // return `${year}-${month}-${day} ${hours}:${minutes}`;
   } catch (e) {
     console.error('日期格式化错误:', e);
     return dateStr; // 出错时返回原始字符串
