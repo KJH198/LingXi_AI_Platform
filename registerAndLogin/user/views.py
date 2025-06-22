@@ -3,7 +3,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth import authenticate, login
 import json
 from rest_framework.parsers import JSONParser
-from .models import AIAgent, AbnormalBehavior, Announcement, User
+from .models import AbnormalBehavior, Announcement, User
 from django.shortcuts import render
 from rest_framework.views import APIView
 from rest_framework.response import Response
